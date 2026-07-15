@@ -346,7 +346,7 @@ textarea.txt{min-height:110px}
     <div class="radio-row">
       <label><input type="radio" name="smType" value="full" checked>正職</label>
       <label><input type="radio" name="smType" value="part">計時</label>
-      <label><input type="radio" name="smType" value="sup">督導（支援）</label>
+      <label><input type="radio" name="smType" value="sup">支援</label>
     </div>
     <div id="smArchivedWrap" style="display:none">
       <div class="hr"></div>
@@ -361,7 +361,7 @@ textarea.txt{min-height:110px}
       <button class="btn danger" id="btnDelStaff">永久刪除</button>
       <button class="btn" id="btnCloseStaff">關閉</button>
     </div>
-    <div class="small-note">※ 名單自動分組：正職在上、計時居中、督導在最下，群組間空一行。「自本月移除」只影響本月起的名單，過去月份班表完整保留（離職請用這個）；「永久刪除」會清掉所有月份的紀錄，僅在打錯人時使用。</div>
+    <div class="small-note">※ 名單自動分組：正職在上、計時居中、支援在最下，群組間空一行。「自本月移除」只影響本月起的名單，過去月份班表完整保留（離職請用這個）；「永久刪除」會清掉所有月份的紀錄，僅在打錯人時使用。</div>
   </div>
 </div>
 
@@ -450,8 +450,8 @@ const PRESETS_COMMON = [[540,1050],[630,1140],[660,1170],[720,1230],[750,1260],[
 const PRESETS_PART   = [[540,960],[720,960],[960,1320],[1080,1320],[1110,1350]];
 const LEAVE_LABEL = {rest:'排休', desig:'指定休息', annual:'特休', duty:'公差', typhoon:'颱風假', redline:'紅線'};
 const GROUP_ORDER = {full:0, part:1, sup:2};
-const TYPE_LABEL  = {full:'正職', part:'計時', sup:'督導'};
-function sortStaff(){ // 穩定排序：正職固定在上，計時居中，督導在最下
+const TYPE_LABEL  = {full:'正職', part:'計時', sup:'支援'};
+function sortStaff(){ // 穩定排序：正職固定在上，計時居中，支援在最下
   state.staff.sort((a,b)=>(GROUP_ORDER[a.type]??1)-(GROUP_ORDER[b.type]??1));
 }
 /* 內建 2026（民國115）年國定假日／補假（離線備援） */
