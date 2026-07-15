@@ -119,30 +119,19 @@ th.corner{border-right-width:2px;min-width:92px;max-width:92px;width:92px}
 .hours-line{display:block;font-size:10px;color:#8a7a4a;margin-top:1px}
 .day-cell{
   min-width:var(--cell);max-width:var(--cell);width:var(--cell);height:var(--cellh);
-  position:relative;font-size:var(--cellfs);
-  /* 預設：右上→左下 斜線 */
-  /* 未排：底線，方向為 ／，任何班別都保留。用固定135deg角度（非to-corner），避免窄格時線條被拉粗 */
-  background-image:linear-gradient(135deg,
-    transparent calc(50% - .5px), var(--pencil) calc(50% - .5px),
-    var(--pencil) calc(50% + .5px), transparent calc(50% + .5px));
+  position:relative;font-size:var(--cellfs);overflow:hidden;
 }
-.day-cell.off{ /* 排休：在 ／ 底線上疊一條 ＼，交叉成 × */
-  background-image:
-    linear-gradient(45deg,
-      transparent calc(50% - .6px), var(--ink) calc(50% - .6px),
-      var(--ink) calc(50% + .6px), transparent calc(50% + .6px)),
-    linear-gradient(135deg,
-      transparent calc(50% - .5px), var(--pencil) calc(50% - .5px),
-      var(--pencil) calc(50% + .5px), transparent calc(50% + .5px));
+.day-cell::before{ /* 未排：底線／，任何班別都保留。用實心旋轉短條取代漸層，列印才不會糊邊 */
+  content:'';position:absolute;left:50%;top:50%;width:170%;height:1px;
+  background:var(--pencil);transform:translate(-50%,-50%) rotate(-45deg);
 }
-.day-cell.redline{ /* 紅線：到職前／離職後不排班，橫線貫穿相連 */
-  background-image:
-    linear-gradient(to bottom,
-      transparent calc(50% - 1px), var(--red) calc(50% - 1px),
-      var(--red) calc(50% + 1px), transparent calc(50% + 1px)),
-    linear-gradient(135deg,
-      transparent calc(50% - .5px), var(--pencil) calc(50% - .5px),
-      var(--pencil) calc(50% + .5px), transparent calc(50% + .5px));
+.day-cell.off::after{ /* 排休：疊一條＼，跟底線交叉成 × */
+  content:'';position:absolute;left:50%;top:50%;width:170%;height:1.3px;
+  background:var(--ink);transform:translate(-50%,-50%) rotate(45deg);
+}
+.day-cell.redline::after{ /* 紅線：到職前／離職後不排班，橫線貫穿相連 */
+  content:'';position:absolute;left:50%;top:50%;width:100%;height:2px;
+  background:var(--red);transform:translate(-50%,-50%);
 }
 body.editing .day-cell{cursor:pointer}
 body.editing .day-cell:active{background-color:#fdf3d8}
@@ -247,29 +236,27 @@ textarea.txt{min-height:110px}
     transform:translateX(194mm) rotate(90deg); /* 整頁旋轉90度，塞進直式 A4 紙 */
   }
   .toolbar,.legend,.overlay,.save-hint,#btnAddNote{display:none!important}
-  .topbar{position:static;box-shadow:none;border-bottom:2px solid var(--grid);padding:3px 0 5px}
+  .topbar{position:static;box-shadow:none;border-bottom:2px solid var(--grid);padding:4px 0 6px}
   .store-name,.ym-sel,.sheet-title-input,.corner-input{border:none;appearance:none;-webkit-appearance:none}
   .sheet-wrap{max-height:none;overflow:visible;margin:0;box-shadow:none}
   thead th{position:static}
-  td.name-cell,th.corner{position:static;min-width:0;max-width:none;width:62px;font-size:11px}
+  td.name-cell,th.corner{position:static;min-width:0;max-width:none;width:64px;font-size:10px}
   table{width:100%}
-  .day-cell{min-width:0;max-width:none;width:auto;height:36px;font-size:8.5px;background-color:var(--paper)}
-  .day-cell.off{background-color:var(--paper)}
-  .day-cell.redline{background-color:var(--paper)}
-  .mark.tri{font-size:15px}
-  .mark.word{font-size:12px}
-  .nat-auto{font-size:10px}
-  th .wd{font-size:11px}
-  thead tr:nth-child(1) th{font-size:10px;height:17px}
-  thead tr:nth-child(2) th{height:22px}
-  .notes-sec{margin:6px 0 0}
-  .notes-row{box-shadow:none;min-height:0;max-height:95px}
-  .note-card{max-height:95px;font-size:10px}
-  .rest-count{font-size:10px}
-  .typhoon-note{font-size:8px}
-  .hours-line{font-size:9px}
-  .badge{font-size:9px}
-  .name-txt{font-size:12px}
+  .day-cell{min-width:0;max-width:none;width:auto;height:32px;font-size:7.5px}
+  .mark.tri{font-size:13px}
+  .mark.word{font-size:11px}
+  .nat-auto{font-size:9px}
+  th .wd{font-size:10px}
+  thead tr:nth-child(1) th{font-size:9px;height:16px}
+  thead tr:nth-child(2) th{height:20px}
+  .notes-sec{margin:8px 0 0}
+  .notes-row{box-shadow:none;min-height:0;max-height:100px}
+  .note-card{max-height:100px;font-size:10px}
+  .rest-count{font-size:9px}
+  .typhoon-note{font-size:7px}
+  .hours-line{font-size:8px}
+  .badge{font-size:8px}
+  .name-txt{font-size:11px}
 }
 </style>
 </head>
