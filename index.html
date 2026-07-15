@@ -46,7 +46,12 @@ body{
   font-size:16px;border:none;border-bottom:1px solid var(--grid);
   background:transparent;padding:2px 0;color:var(--blue);font-weight:600;
 }
-.sheet-title{font-size:19px;font-weight:700;letter-spacing:6px;margin-left:auto}
+.sheet-title-input{
+  font-size:19px;font-weight:700;letter-spacing:6px;margin-left:auto;
+  border:none;border-bottom:1px dashed var(--pencil);background:transparent;
+  color:var(--ink);width:110px;text-align:right;padding:0 2px;font-family:inherit;
+}
+.sheet-title-input:focus{outline:none;border-bottom-color:var(--blue)}
 /* ── 工具列 ── */
 .toolbar{
   display:flex;gap:8px;align-items:center;
@@ -85,6 +90,11 @@ thead th{position:sticky;z-index:5;background:var(--paper)}
 thead tr:nth-child(1) th{top:0;height:26px;font-size:13px;font-weight:700}
 thead tr:nth-child(2) th{top:26px;height:30px;font-size:14px;border-bottom-width:2px}
 th.corner{position:sticky;left:0;z-index:8!important;font-size:12px;color:var(--blue);font-weight:700;letter-spacing:1px}
+.corner-input{
+  width:100%;border:none;background:transparent;color:var(--blue);
+  font:inherit;font-weight:700;text-align:center;letter-spacing:1px;padding:0;
+}
+.corner-input:focus{outline:1px dashed var(--blue)}
 td.name-cell{
   position:sticky;left:0;z-index:4;
   min-width:92px;max-width:92px;width:92px;
@@ -203,7 +213,12 @@ body.editing thead tr:nth-child(2) th:not(.corner){cursor:pointer}
 .stepper button{
   border:none;background:#f0eee7;width:40px;height:42px;font-size:20px;cursor:pointer;
 }
-.stepper .tval{width:66px;text-align:center;font-size:16px;font-weight:700}
+.stepper .tval-input{
+  width:64px;text-align:center;font-size:16px;font-weight:700;
+  border:none;background:#fff;font-family:inherit;padding:10px 2px;
+  -moz-appearance:textfield;
+}
+.stepper .tval-input:focus{outline:2px solid var(--blue);outline-offset:-2px}
 .m-actions{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
 .m-actions .btn{flex:1;text-align:center;min-width:100px}
 .btn.danger{color:var(--red);border-color:var(--red)}
@@ -233,7 +248,7 @@ textarea.txt{min-height:110px}
   }
   .toolbar,.legend,.overlay,.save-hint,#btnAddNote{display:none!important}
   .topbar{position:static;box-shadow:none;border-bottom:2px solid var(--grid);padding:4px 0 6px}
-  .store-name,.ym-sel{border:none;appearance:none;-webkit-appearance:none}
+  .store-name,.ym-sel,.sheet-title-input,.corner-input{border:none;appearance:none;-webkit-appearance:none}
   .sheet-wrap{max-height:none;overflow:visible;margin:0;box-shadow:none}
   thead th{position:static}
   td.name-cell,th.corner{position:static;min-width:0;max-width:none;width:64px;font-size:10px}
@@ -280,7 +295,7 @@ textarea.txt{min-height:110px}
   <input id="storeName" class="store-name" value="" placeholder="店名" aria-label="店名">
   <select id="selYear" class="ym-sel" aria-label="年份"></select>
   <select id="selMonth" class="ym-sel" aria-label="月份"></select>
-  <span class="sheet-title">排班表</span>
+  <input id="sheetTitle" class="sheet-title-input" value="排班表" placeholder="排班表" aria-label="表格標題">
 </header>
 
 <div class="toolbar">
@@ -317,22 +332,23 @@ textarea.txt{min-height:110px}
     <div class="m-sub" id="cmSub"></div>
     <div class="sec-label">班別（點選即排入）</div>
     <div class="chips" id="cmPresets"></div>
-    <div class="sec-label">自訂時間（每半小時調整）</div>
+    <div class="sec-label">自訂時間（可直接輸入，如 900、1330、1500、2400；或用±微調半小時）</div>
     <div class="stepper-row">
       <span style="font-size:13px;color:#888">上班</span>
       <div class="stepper">
         <button data-t="s" data-d="-30">−</button>
-        <span class="tval" id="tvS">13:30</span>
+        <input class="tval-input" id="tvS" inputmode="numeric" pattern="[0-9]*" maxlength="4" value="1330">
         <button data-t="s" data-d="30">＋</button>
       </div>
       <span style="font-size:13px;color:#888">下班</span>
       <div class="stepper">
         <button data-t="e" data-d="-30">−</button>
-        <span class="tval" id="tvE">22:00</span>
+        <input class="tval-input" id="tvE" inputmode="numeric" pattern="[0-9]*" maxlength="4" value="2200">
         <button data-t="e" data-d="30">＋</button>
       </div>
       <button class="btn primary" id="btnApplyTime">套用</button>
     </div>
+    <div class="small-note" style="margin-top:4px">只接受整點或半點，例如 900、930、1500；下班需晚於上班。輸入完按 Enter 或點其他地方即會檢查。</div>
     <div class="sec-label">假別</div>
     <div class="chips">
       <button class="chip leave" data-leave="desig">△ 指定休息</button>
@@ -515,15 +531,17 @@ const firebaseConfig={
 };
 let FB=null, storeCode=null, unsubCloud=null, lastWritten='', cloudStatus='雲端載入中…';
 function payloadStr(){
-  return JSON.stringify({store:state.store,staff:state.staff,months:state.months,calCache:state.calCache});
+  return JSON.stringify({store:state.store,title:state.title,corner:state.corner,staff:state.staff,months:state.months,calCache:state.calCache});
 }
 function applyPayload(json){
   try{
     const d=JSON.parse(json);
     if(!d.staff||!d.months)return false;
-    state.store=d.store||'';state.staff=d.staff;state.months=d.months;state.calCache=d.calCache||{};
+    state.store=d.store||'';state.title=d.title||'排班表';state.corner=d.corner||'';
+    state.staff=d.staff;state.months=d.months;state.calCache=d.calCache||{};
     sortStaff();
     document.getElementById('storeName').value=state.store;
+    document.getElementById('sheetTitle').value=state.title;
     return true;
   }catch(e){return false}
 }
@@ -600,6 +618,8 @@ function setHint(t){document.getElementById('saveHint').textContent=t}
 /* ────────── 狀態 ────────── */
 let state={
   store:'',
+  title:'排班表',
+  corner:'',
   staff:[],                 // {id,name,type:'full'|'part'}
   months:{},                // 'YYYY-M': {sched:{staffId:{day:entry}}, notes:[], dayOv:{day:'red'|'black'}}
   calCache:{},              // year: {'M-D':'名稱'}
@@ -699,6 +719,7 @@ function scheduleSave(){
   setHint('儲存中…');
   saveTimer=setTimeout(async()=>{
     state.store=document.getElementById('storeName').value;
+    state.title=document.getElementById('sheetTitle').value||'排班表';
     const localOk=await saveRaw(JSON.stringify(state));
     const cloudOk=await pushCloud();
     if(cloudOk&&FB&&storeCode)setHint('雲端已同步 ✓');
@@ -746,7 +767,7 @@ window.addEventListener('resize',()=>{fitCells()});
 function renderAll(){ensureRoster();fitCells();renderSheet();renderNotes()}
 function renderSheet(){
   const md=monthData(),N=daysInMonth();
-  let h='<thead><tr><th class="corner" rowspan="2">'+esc(state.store||'')+'</th>';
+  let h='<thead><tr><th class="corner" rowspan="2"><input id="cornerLabel" class="corner-input" value="'+esc(state.corner||'')+'" placeholder="標籤" aria-label="表格左上角標籤"></th>';
   for(let d=1;d<=N;d++){
     h+='<th class="'+(isNational(d)?'nat':'')+'" data-day="'+d+'"><span class="d-num">'+d+'</span></th>';
   }
@@ -824,9 +845,42 @@ function openCell(sid,day){
   syncTv();
   document.getElementById('ovCell').classList.add('show');
 }
+function fmtDigits(min){ // 4碼數字格式，如 0900／1330／2400，用於輸入框顯示
+  const h=Math.floor(min/60),m=min%60;
+  return String(h).padStart(2,'0')+String(m).padStart(2,'0');
+}
+function parseTimeDigits(str){ // 解析使用者輸入，回傳分鐘數；格式錯誤回傳null
+  const s=(str||'').replace(/[^\d]/g,'');
+  if(!s)return null;
+  let h,m;
+  if(s.length<=2){h=parseInt(s,10);m=0}
+  else if(s.length===3){h=parseInt(s.slice(0,1),10);m=parseInt(s.slice(1),10)}
+  else if(s.length===4){h=parseInt(s.slice(0,2),10);m=parseInt(s.slice(2),10)}
+  else return null;
+  if(isNaN(h)||isNaN(m)||h<0||h>24)return null;
+  if(h===24&&m!==0)return null;      // 24:xx 只有 24:00 有意義
+  if(m!==0&&m!==30)return null;      // 只允許整點或半點
+  return h*60+m;
+}
 function syncTv(){
-  document.getElementById('tvS').textContent=fmtHM(cur.s);
-  document.getElementById('tvE').textContent=fmtHM(cur.e);
+  document.getElementById('tvS').value=fmtDigits(cur.s);
+  document.getElementById('tvE').value=fmtDigits(cur.e);
+}
+function commitTimeInput(which){ // which: 's' 或 'e'；驗證通過回傳true並更新cur，否則還原並提示
+  const el=document.getElementById(which==='s'?'tvS':'tvE');
+  const parsed=parseTimeDigits(el.value);
+  if(parsed===null){
+    alert('時間格式不正確，請輸入整點或半點，例如 900、1330、1500、2400。');
+    syncTv();return false;
+  }
+  if(which==='s'){
+    if(parsed>=cur.e){alert('上班時間不正確，需早於下班時間。');syncTv();return false}
+    cur.s=parsed;
+  }else{
+    if(parsed<=cur.s){alert('下班時間不正確，需晚於上班時間。');syncTv();return false}
+    cur.e=parsed;
+  }
+  syncTv();return true;
 }
 function setEntry(entry){
   const md=monthData();
@@ -853,6 +907,9 @@ document.getElementById('sheet').addEventListener('click',ev=>{
   const th=ev.target.closest('thead th[data-day]');
   if(th)openDayOv(parseInt(th.dataset.day));
 });
+document.getElementById('sheet').addEventListener('input',ev=>{
+  if(ev.target.id==='cornerLabel'){state.corner=ev.target.value;scheduleSave()}
+});
 document.getElementById('btnEdit').addEventListener('click',()=>{
   editMode=!editMode;
   document.body.classList.toggle('editing',editMode);
@@ -872,13 +929,21 @@ document.getElementById('ovCell').addEventListener('click',ev=>{
   if(stp){
     const d=+stp.dataset.d;
     if(stp.dataset.t==='s')cur.s=Math.min(Math.max(cur.s+d,0),cur.e-30);
-    else cur.e=Math.min(Math.max(cur.e+d,cur.s+30),1439);
+    else cur.e=Math.min(Math.max(cur.e+d,cur.s+30),1440);
     syncTv();return;
   }
   if(ev.target.id==='btnApplyTime'){setEntry({t:'shift',s:cur.s,e:cur.e});return}
   if(ev.target.id==='btnClearCell'){clearCell();return}
   if(ev.target.id==='btnCloseCell'||ev.target===document.getElementById('ovCell'))
     document.getElementById('ovCell').classList.remove('show');
+});
+['tvS','tvE'].forEach(id=>{
+  const which=id==='tvS'?'s':'e';
+  const el=document.getElementById(id);
+  el.addEventListener('keydown',ev=>{
+    if(ev.key==='Enter'){ev.preventDefault();commitTimeInput(which);el.blur();}
+  });
+  el.addEventListener('blur',()=>commitTimeInput(which));
 });
 function applyRedline(){ // 從此格畫一段連續紅線（到職前／離職後不排班）
   const N=daysInMonth();
@@ -961,6 +1026,9 @@ document.getElementById('smArchived').addEventListener('click',ev=>{
   document.getElementById('ovStaff').classList.remove('show');
 });
 document.getElementById('btnStaff').addEventListener('click',()=>openStaff(null));
+document.getElementById('smName').addEventListener('keydown',ev=>{
+  if(ev.key==='Enter'){ev.preventDefault();document.getElementById('btnSaveStaff').click();}
+});
 document.getElementById('btnSaveStaff').addEventListener('click',()=>{
   const name=document.getElementById('smName').value.trim();
   if(!name){alert('請輸入姓名');return}
@@ -1064,6 +1132,12 @@ function genCode(){
   for(const b of rnd)s+=chars[b%chars.length];
   return 'kbk-'+s;
 }
+document.getElementById('newCode').addEventListener('keydown',ev=>{
+  if(ev.key==='Enter'){ev.preventDefault();document.getElementById('btnNewStore').click();}
+});
+document.getElementById('joinCode').addEventListener('keydown',ev=>{
+  if(ev.key==='Enter'){ev.preventDefault();document.getElementById('btnJoinStore').click();}
+});
 document.getElementById('btnNewStore').addEventListener('click',async()=>{
   let code=document.getElementById('newCode').value.trim().toLowerCase();
   if(code){
@@ -1171,15 +1245,19 @@ for(let m=1;m<=12;m++){
 selY.addEventListener('change',()=>{state.y=+selY.value;scheduleSave();renderAll();fetchCalendar(state.y)});
 selM.addEventListener('change',()=>{state.m=+selM.value;scheduleSave();renderAll()});
 document.getElementById('storeName').addEventListener('input',scheduleSave);
+document.getElementById('sheetTitle').addEventListener('input',scheduleSave);
 document.querySelectorAll('.overlay').forEach(ov=>ov.addEventListener('click',ev=>{if(ev.target===ov)ov.classList.remove('show')}));
 
 /* ────────── 啟動 ────────── */
 (async function init(){
   const raw=await loadRaw();
   if(raw){try{const d=JSON.parse(raw);if(d.staff&&d.months)state=d}catch(e){}}
+  if(state.title===undefined)state.title='排班表';
+  if(state.corner===undefined)state.corner='';
   sortStaff();
   if(!state.y){const now=new Date();state.y=now.getFullYear();state.m=now.getMonth()+1}
   document.getElementById('storeName').value=state.store||'';
+  document.getElementById('sheetTitle').value=state.title||'排班表';
   selY.value=state.y;selM.value=state.m;
   if(HOLIDAYS_BUILTIN[state.y]&&!state.calCache[state.y])calSource='內建 '+state.y+' 年資料';
   renderAll();          // 先用本機資料顯示，雲端連上後自動覆蓋
