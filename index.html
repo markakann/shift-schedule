@@ -335,11 +335,33 @@ textarea.txt{min-height:110px}
   </div>
 </div>
 
+<!-- 店家代碼設定 -->
+<div class="overlay" id="ovSetup">
+  <div class="modal">
+    <div class="m-title">雲端同步設定</div>
+    <div class="m-sub">同一組店家代碼的裝置會共用同一份班表。手機排班，平板打開就看得到。</div>
+    <div class="m-actions" style="flex-direction:column">
+      <button class="btn primary" id="btnNewStore">建立新店家代碼</button>
+    </div>
+    <div class="hr"></div>
+    <div class="sec-label">或加入現有店家</div>
+    <input class="txt" id="joinCode" placeholder="輸入店家代碼，例如 kbk-a1b2c3" autocapitalize="off" autocorrect="off">
+    <div class="m-actions">
+      <button class="btn primary" id="btnJoinStore">加入</button>
+      <button class="btn" id="btnSkipCloud">先不用（僅存本機）</button>
+    </div>
+    <div class="small-note">※ 知道代碼的人就能查看與編輯這份班表，請只分享給需要的人。</div>
+  </div>
+</div>
+
 <!-- 更多選單 -->
 <div class="overlay" id="ovMore">
   <div class="modal">
     <div class="m-title">更多</div>
+    <div class="small-note" id="cloudInfo" style="margin:6px 0 12px;font-size:13px;color:#555"></div>
     <div class="m-actions" style="flex-direction:column">
+      <button class="btn" id="btnCopyCode">複製店家代碼</button>
+      <button class="btn" id="btnSwitchStore">建立／更換店家代碼</button>
       <button class="btn" id="btnExport">匯出備份（JSON）</button>
       <button class="btn" id="btnImport">匯入備份</button>
       <input type="file" id="fileImport" accept=".json" style="display:none">
@@ -348,6 +370,7 @@ textarea.txt{min-height:110px}
     <div class="small-note" id="calStatus"></div>
     <div class="small-note">
       使用方式：按「🔒 排班」進入排班模式後才能點格子與日期列，再按一次鎖定防止誤觸。<br>
+      雲端同步：同一組店家代碼的裝置共用同一份班表，改動即時同步；離線時先存本機，連上後自動補傳。<br>
       行事曆：連線時自動抓取政府公告（TaiwanCalendar 開源資料），離線時使用內建 2026（民國115）年資料；也可在排班模式點日期手動改紅黑字。
     </div>
   </div>
@@ -373,7 +396,7 @@ const HOLIDAYS_BUILTIN = {2026:{
   '10-25':'光復節','10-26':'補假','12-25':'行憲紀念日'
 }};
 
-/* ────────── 儲存層（Claude 預覽 / GitHub Pages 皆可用） ────────── */
+/* ────────── 儲存層（本機備援，雲端連線失敗時仍可用） ────────── */
 const KEY='paiban-data-v1';
 async function loadRaw(){
   if(typeof window.storage!=='undefined'&&window.storage){
@@ -387,6 +410,99 @@ async function saveRaw(v){
   }
   try{localStorage.setItem(KEY,v);return true}catch(e){return false}
 }
+
+/* ────────── Firebase 雲端同步 ────────── */
+const firebaseConfig={
+  apiKey:"AIzaSyBwSiapkvzKxQ4xdgq-w-zOPLc1ndnxLts",
+  authDomain:"bbmanager-e7fbf.firebaseapp.com",
+  projectId:"bbmanager-e7fbf",
+  storageBucket:"bbmanager-e7fbf.firebasestorage.app",
+  messagingSenderId:"566165247359",
+  appId:"1:566165247359:web:eb0986693f8c5f0b6b764a"
+};
+let FB=null, storeCode=null, unsubCloud=null, lastWritten='', cloudStatus='雲端載入中…';
+function payloadStr(){
+  return JSON.stringify({store:state.store,staff:state.staff,months:state.months,calCache:state.calCache});
+}
+function applyPayload(json){
+  try{
+    const d=JSON.parse(json);
+    if(!d.staff||!d.months)return false;
+    state.store=d.store||'';state.staff=d.staff;state.months=d.months;state.calCache=d.calCache||{};
+    sortStaff();
+    document.getElementById('storeName').value=state.store;
+    return true;
+  }catch(e){return false}
+}
+async function initFirebase(){
+  try{
+    const appMod=await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js');
+    const fsMod=await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js');
+    const app=appMod.initializeApp(firebaseConfig);
+    let db;
+    try{db=fsMod.initializeFirestore(app,{localCache:fsMod.persistentLocalCache()})}
+    catch(e){db=fsMod.getFirestore(app)}
+    FB={db,doc:fsMod.doc,getDoc:fsMod.getDoc,setDoc:fsMod.setDoc,onSnapshot:fsMod.onSnapshot,serverTimestamp:fsMod.serverTimestamp};
+    cloudStatus='雲端已連線';
+    let saved=null;try{saved=localStorage.getItem('paiban-store-code')}catch(e){}
+    if(saved)await connectStore(saved,false,true);
+    else openSetup();
+  }catch(e){
+    FB=null;cloudStatus='雲端無法載入（本機模式）';
+    setHint('本機模式');
+  }
+}
+async function connectStore(code,isNew,silent){
+  code=code.trim();
+  if(!code)return false;
+  const ref=FB.doc(FB.db,'stores',code);
+  try{
+    const snap=await FB.getDoc(ref);
+    if(snap.exists()&&snap.data().data){
+      lastWritten=snap.data().data;
+      applyPayload(lastWritten);
+      renderAll();
+    }else if(isNew){
+      lastWritten=payloadStr();
+      await FB.setDoc(ref,{data:lastWritten,updatedAt:FB.serverTimestamp()});
+    }else if(!silent){
+      alert('查無此店家代碼，請確認輸入是否正確。');
+      return false;
+    }
+  }catch(e){
+    cloudStatus='雲端連線失敗（請確認 Firestore 已建立、安全規則有效）';
+    setHint('雲端連線失敗');
+    if(!silent)alert('雲端連線失敗：請確認 Firebase 控制台已建立 Firestore 資料庫，且安全規則允許讀寫。');
+    return false;
+  }
+  storeCode=code;
+  try{localStorage.setItem('paiban-store-code',code)}catch(e){}
+  if(unsubCloud)unsubCloud();
+  unsubCloud=FB.onSnapshot(ref,s=>{
+    if(!s.exists())return;
+    const d=s.data().data;
+    if(d&&d!==lastWritten){ // 其他裝置的更新
+      lastWritten=d;
+      applyPayload(d);
+      renderAll();
+      setHint('已同步其他裝置的更新 ✓');
+    }
+  },()=>{cloudStatus='雲端監聽中斷';setHint('雲端監聽中斷')});
+  cloudStatus='雲端已連線｜店家代碼：'+code;
+  setHint('雲端已連線 ✓');
+  return true;
+}
+async function pushCloud(){
+  if(!FB||!storeCode)return false;
+  const p=payloadStr();
+  if(p===lastWritten)return true;
+  try{
+    lastWritten=p;
+    await FB.setDoc(FB.doc(FB.db,'stores',storeCode),{data:p,updatedAt:FB.serverTimestamp()});
+    return true;
+  }catch(e){return false}
+}
+function setHint(t){document.getElementById('saveHint').textContent=t}
 
 /* ────────── 狀態 ────────── */
 let state={
@@ -443,11 +559,14 @@ function fmtHM(min){const h=Math.floor(min/60),m=min%60;return h+':'+String(m).p
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 function scheduleSave(){
   clearTimeout(saveTimer);
-  document.getElementById('saveHint').textContent='儲存中…';
+  setHint('儲存中…');
   saveTimer=setTimeout(async()=>{
     state.store=document.getElementById('storeName').value;
-    const ok=await saveRaw(JSON.stringify(state));
-    document.getElementById('saveHint').textContent=ok?'已儲存 ✓':'儲存失敗（預覽環境可能不保留資料）';
+    const localOk=await saveRaw(JSON.stringify(state));
+    const cloudOk=await pushCloud();
+    if(cloudOk&&FB&&storeCode)setHint('雲端已同步 ✓');
+    else if(localOk)setHint(FB&&storeCode?'已存本機（雲端寫入失敗）':'已存本機 ✓');
+    else setHint('儲存失敗（預覽環境可能不保留資料）');
   },400);
 }
 
@@ -699,9 +818,49 @@ document.getElementById('btnCloseNote').addEventListener('click',()=>document.ge
 /* 更多 */
 document.getElementById('btnMore').addEventListener('click',()=>{
   document.getElementById('calStatus').textContent='行事曆來源：'+calSource;
+  document.getElementById('cloudInfo').textContent=cloudStatus;
+  document.getElementById('btnCopyCode').style.display=storeCode?'':'none';
   document.getElementById('ovMore').classList.add('show');
 });
 document.getElementById('btnCloseMore').addEventListener('click',()=>document.getElementById('ovMore').classList.remove('show'));
+document.getElementById('btnCopyCode').addEventListener('click',async()=>{
+  try{await navigator.clipboard.writeText(storeCode);alert('已複製店家代碼：'+storeCode)}
+  catch(e){prompt('請手動複製店家代碼：',storeCode)}
+});
+document.getElementById('btnSwitchStore').addEventListener('click',()=>{
+  document.getElementById('ovMore').classList.remove('show');
+  openSetup();
+});
+/* 店家代碼設定 */
+function openSetup(){
+  if(!FB){alert('目前雲端無法載入（可能離線或在預覽環境），僅本機模式可用。');return}
+  document.getElementById('joinCode').value='';
+  document.getElementById('ovSetup').classList.add('show');
+}
+function genCode(){
+  const chars='abcdefghjkmnpqrstuvwxyz23456789';let s='';
+  const rnd=new Uint8Array(6);crypto.getRandomValues(rnd);
+  for(const b of rnd)s+=chars[b%chars.length];
+  return 'kbk-'+s;
+}
+document.getElementById('btnNewStore').addEventListener('click',async()=>{
+  const code=genCode();
+  if(await connectStore(code,true,false)){
+    document.getElementById('ovSetup').classList.remove('show');
+    alert('已建立店家代碼：'+code+'\n\n其他裝置輸入這組代碼即可看到同一份班表（「⋯」選單可隨時複製）。');
+  }
+});
+document.getElementById('btnJoinStore').addEventListener('click',async()=>{
+  const code=document.getElementById('joinCode').value;
+  if(!code.trim()){alert('請輸入店家代碼');return}
+  if(await connectStore(code,false,false)){
+    document.getElementById('ovSetup').classList.remove('show');
+  }
+});
+document.getElementById('btnSkipCloud').addEventListener('click',()=>{
+  document.getElementById('ovSetup').classList.remove('show');
+  setHint('僅本機模式');
+});
 document.getElementById('btnExport').addEventListener('click',()=>{
   const blob=new Blob([JSON.stringify(state,null,1)],{type:'application/json'});
   const a=document.createElement('a');
@@ -748,8 +907,9 @@ document.querySelectorAll('.overlay').forEach(ov=>ov.addEventListener('click',ev
   document.getElementById('storeName').value=state.store||'可不可';
   selY.value=state.y;selM.value=state.m;
   if(HOLIDAYS_BUILTIN[state.y]&&!state.calCache[state.y])calSource='內建 '+state.y+' 年資料';
-  renderAll();
+  renderAll();          // 先用本機資料顯示，雲端連上後自動覆蓋
   fetchCalendar(state.y);
+  initFirebase();
 })();
 </script>
 </body>
