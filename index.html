@@ -14,6 +14,9 @@
   --blue:#1e4bb8;
   --red:#c92f2f;
   --accent:#1e4bb8;
+  --cell:46px;   /* 依螢幕寬度由 JS 動態調整 */
+  --cellh:46px;
+  --cellfs:11px;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0}
@@ -103,8 +106,8 @@ th.corner{border-right-width:2px;min-width:78px;max-width:78px;width:78px}
 .rest-count{font-size:11px;color:#555}
 .rest-count.over{color:var(--red);font-weight:700}
 .day-cell{
-  min-width:46px;max-width:46px;width:46px;height:46px;
-  position:relative;font-size:11px;
+  min-width:var(--cell);max-width:var(--cell);width:var(--cell);height:var(--cellh);
+  position:relative;font-size:var(--cellfs);
   /* 預設：右上→左下 斜線 */
   /* 未排：左上→右下 斜線（底線，任何班別都保留） */
   background-image:linear-gradient(to bottom right,
@@ -211,7 +214,7 @@ textarea.txt{min-height:110px}
 <body>
 
 <header class="topbar">
-  <input id="storeName" class="store-name" value="可不可" aria-label="店名">
+  <input id="storeName" class="store-name" value="" placeholder="店名" aria-label="店名">
   <select id="selYear" class="ym-sel" aria-label="年份"></select>
   <select id="selMonth" class="ym-sel" aria-label="月份"></select>
   <span class="sheet-title">排班表</span>
@@ -506,7 +509,7 @@ function setHint(t){document.getElementById('saveHint').textContent=t}
 
 /* ────────── 狀態 ────────── */
 let state={
-  store:'可不可',
+  store:'',
   staff:[],                 // {id,name,type:'full'|'part'}
   months:{},                // 'YYYY-M': {sched:{staffId:{day:entry}}, notes:[], dayOv:{day:'red'|'black'}}
   calCache:{},              // year: {'M-D':'名稱'}
@@ -595,7 +598,18 @@ async function fetchCalendar(year){
 }
 
 /* ────────── 畫面 ────────── */
-function renderAll(){renderSheet();renderNotes()}
+function fitCells(){ // 依可用寬度撐滿整個月份；窄螢幕維持 46px 並橫向捲動
+  const wrap=document.querySelector('.sheet-wrap');
+  if(!wrap)return;
+  const N=daysInMonth();
+  const avail=wrap.clientWidth-79-N; // 扣掉名字欄與格線
+  const w=Math.max(46,Math.floor(avail/N));
+  document.documentElement.style.setProperty('--cell',w+'px');
+  document.documentElement.style.setProperty('--cellh',Math.min(Math.max(46,Math.round(w*.9)),72)+'px');
+  document.documentElement.style.setProperty('--cellfs',(w>=72?14:w>=58?13:11)+'px');
+}
+window.addEventListener('resize',()=>{fitCells()});
+function renderAll(){fitCells();renderSheet();renderNotes()}
 function renderSheet(){
   const md=monthData(),N=daysInMonth();
   let h='<thead><tr><th class="corner" rowspan="2">'+esc(state.store||'')+'</th>';
@@ -904,7 +918,7 @@ document.querySelectorAll('.overlay').forEach(ov=>ov.addEventListener('click',ev
   if(raw){try{const d=JSON.parse(raw);if(d.staff&&d.months)state=d}catch(e){}}
   sortStaff();
   if(!state.y){const now=new Date();state.y=now.getFullYear();state.m=now.getMonth()+1}
-  document.getElementById('storeName').value=state.store||'可不可';
+  document.getElementById('storeName').value=state.store||'';
   selY.value=state.y;selM.value=state.m;
   if(HOLIDAYS_BUILTIN[state.y]&&!state.calCache[state.y])calSource='內建 '+state.y+' 年資料';
   renderAll();          // 先用本機資料顯示，雲端連上後自動覆蓋
