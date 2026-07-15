@@ -247,45 +247,29 @@ textarea.txt{min-height:110px}
     transform:translateX(194mm) rotate(90deg); /* 整頁旋轉90度，塞進直式 A4 紙 */
   }
   .toolbar,.legend,.overlay,.save-hint,#btnAddNote{display:none!important}
-  .topbar{position:static;box-shadow:none;border-bottom:2px solid var(--grid);padding:4px 0 6px}
+  .topbar{position:static;box-shadow:none;border-bottom:2px solid var(--grid);padding:3px 0 5px}
   .store-name,.ym-sel,.sheet-title-input,.corner-input{border:none;appearance:none;-webkit-appearance:none}
   .sheet-wrap{max-height:none;overflow:visible;margin:0;box-shadow:none}
   thead th{position:static}
-  td.name-cell,th.corner{position:static;min-width:0;max-width:none;width:64px;font-size:10px}
+  td.name-cell,th.corner{position:static;min-width:0;max-width:none;width:62px;font-size:11px}
   table{width:100%}
-  .day-cell{min-width:0;max-width:none;width:auto;height:32px;font-size:7.5px;background-color:var(--paper)}
+  .day-cell{min-width:0;max-width:none;width:auto;height:36px;font-size:8.5px;background-color:var(--paper)}
   .day-cell.off{background-color:var(--paper)}
   .day-cell.redline{background-color:var(--paper)}
-  .mark.tri{font-size:13px}
-  .mark.word{font-size:11px}
-  .nat-auto{font-size:9px}
-  th .wd{font-size:10px}
-  thead tr:nth-child(1) th{font-size:9px;height:16px}
-  thead tr:nth-child(2) th{height:20px}
-  .notes-sec{margin:8px 0 0}
-  .notes-row{box-shadow:none;min-height:0;max-height:100px}
-  .note-card{max-height:100px;font-size:10px}
-  .rest-count{font-size:9px}
-  .typhoon-note{font-size:7px}
-  .hours-line{font-size:8px}
-  .badge{font-size:8px}
-  .name-txt{font-size:11px}
-  /* 分半月列印：欄數減半，字級與格高可放大約一倍 */
-  body.print-half td.name-cell,body.print-half th.corner{width:88px;font-size:13px}
-  body.print-half .name-txt{font-size:14px}
-  body.print-half .day-cell{height:44px;font-size:11px}
-  body.print-half .mark.tri{font-size:19px}
-  body.print-half .mark.word{font-size:16px}
-  body.print-half .nat-auto{font-size:12px}
-  body.print-half th .wd{font-size:14px}
-  body.print-half thead tr:nth-child(1) th{font-size:12px;height:20px}
-  body.print-half thead tr:nth-child(2) th{height:26px}
-  body.print-half .rest-count{font-size:12px}
-  body.print-half .typhoon-note{font-size:9px}
-  body.print-half .hours-line{font-size:10px}
-  body.print-half .badge{font-size:10px}
-  body.print-half .notes-row{max-height:130px}
-  body.print-half .note-card{max-height:130px;font-size:12px}
+  .mark.tri{font-size:15px}
+  .mark.word{font-size:12px}
+  .nat-auto{font-size:10px}
+  th .wd{font-size:11px}
+  thead tr:nth-child(1) th{font-size:10px;height:17px}
+  thead tr:nth-child(2) th{height:22px}
+  .notes-sec{margin:6px 0 0}
+  .notes-row{box-shadow:none;min-height:0;max-height:95px}
+  .note-card{max-height:95px;font-size:10px}
+  .rest-count{font-size:10px}
+  .typhoon-note{font-size:8px}
+  .hours-line{font-size:9px}
+  .badge{font-size:9px}
+  .name-txt{font-size:12px}
 }
 </style>
 </head>
@@ -446,20 +430,6 @@ textarea.txt{min-height:110px}
   </div>
 </div>
 
-<!-- 列印方式選擇 -->
-<div class="overlay" id="ovPrintOpt">
-  <div class="modal">
-    <div class="m-title">列印方式</div>
-    <div class="m-sub">整月印一頁欄位較密、字較小；分上下半月字級可放大約一倍，較好讀。</div>
-    <div class="m-actions" style="flex-direction:column">
-      <button class="btn primary" id="ppFull">整月一頁（31欄，字較小）</button>
-      <button class="btn" id="ppFirst">上半月（字加大）</button>
-      <button class="btn" id="ppSecond">下半月（字加大）</button>
-      <button class="btn" id="btnClosePrintOpt">取消</button>
-    </div>
-  </div>
-</div>
-
 <!-- 更多選單 -->
 <div class="overlay" id="ovMore">
   <div class="modal">
@@ -477,7 +447,7 @@ textarea.txt{min-height:110px}
     <div class="small-note" id="calStatus"></div>
     <div class="small-note">
       使用方式：按「🔒 排班」進入排班模式後才能點格子與日期列，再按一次鎖定防止誤觸。<br>
-      列印／PDF：輸出為 A4 直式，內容整頁旋轉90度呈現橫式表格；按「匯出 PDF／列印」可選整月一頁或分上下半月放大字級。列印視窗的「縮放」請維持 100%，自行放大倍率可能讓內容超出頁面被裁切。<br>
+      列印／PDF：輸出為 A4 直式，內容整頁旋轉90度呈現橫式整月表格。列印視窗的「縮放」請維持 100%——手動調高倍率是把畫面整個放大再印，斜線等細節容易變粗變糊，效果反而更差。若想要更大張，可在列印視窗把紙張大小改選 A3（印表機需支援），瀏覽器會用向量方式重新排版，字會更大且清晰。<br>
       若斜線沒有顯示，請在列印視窗「更多設定」勾選「背景圖形」。若要去除頁首的時間與網址，請在同個「更多設定」關閉「頁首及頁尾」──這是瀏覽器本身的列印設定，網頁無法直接關閉。<br>
       雲端同步：同一組店家代碼的裝置共用同一份班表，改動即時同步；離線時先存本機，連上後自動補傳。<br>
       行事曆：連線時自動抓取政府公告（TaiwanCalendar 開源資料），離線時使用內建 2026（民國115）年資料；也可在排班模式點日期手動改紅黑字。
@@ -1175,41 +1145,13 @@ document.getElementById('btnSkipCloud').addEventListener('click',()=>{
 });
 document.getElementById('btnPrint').addEventListener('click',()=>{
   document.getElementById('ovMore').classList.remove('show');
-  const N=daysInMonth();
-  document.getElementById('ppFirst').textContent='上半月　1～15日（字加大）';
-  document.getElementById('ppSecond').textContent='下半月　16～'+N+'日（字加大）';
-  document.getElementById('ovPrintOpt').classList.add('show');
-});
-document.getElementById('btnClosePrintOpt').addEventListener('click',()=>document.getElementById('ovPrintOpt').classList.remove('show'));
-document.getElementById('ppFull').addEventListener('click',()=>doPrint(null));
-document.getElementById('ppFirst').addEventListener('click',()=>doPrint([1,15]));
-document.getElementById('ppSecond').addEventListener('click',()=>doPrint([16,daysInMonth()]));
-function doPrint(range){
-  document.getElementById('ovPrintOpt').classList.remove('show');
-  const N=daysInMonth();
-  let styleTag=null;
-  if(range){
-    const [a,b]=range;
-    let sel=[];
-    for(let d=1;d<=N;d++)if(d<a||d>b)sel.push('[data-day="'+d+'"]');
-    document.body.classList.add('print-half');
-    if(sel.length){
-      styleTag=document.createElement('style');
-      styleTag.textContent='@media print{'+sel.join(',')+'{display:none!important}}';
-      document.head.appendChild(styleTag);
-    }
-  }
   const oldTitle=document.title;
-  document.title=(state.store||'排班表')+' '+state.y+'年'+state.m+'月'+(range?'（'+range[0]+'～'+range[1]+'日）':'');
+  document.title=(state.store||'排班表')+' '+state.y+'年'+state.m+'月';
   setTimeout(()=>{
     window.print();
-    setTimeout(()=>{
-      document.title=oldTitle;
-      document.body.classList.remove('print-half');
-      if(styleTag)styleTag.remove();
-    },500);
+    setTimeout(()=>{document.title=oldTitle},500);
   },150);
-}
+});
 document.getElementById('btnExport').addEventListener('click',()=>{
   const blob=new Blob([JSON.stringify(state,null,1)],{type:'application/json'});
   const a=document.createElement('a');
