@@ -87,16 +87,16 @@ thead tr:nth-child(2) th{top:26px;height:30px;font-size:14px;border-bottom-width
 th.corner{position:sticky;left:0;z-index:8!important;font-size:12px;color:var(--blue);font-weight:700;letter-spacing:1px}
 td.name-cell{
   position:sticky;left:0;z-index:4;
-  min-width:78px;max-width:78px;width:78px;
+  min-width:92px;max-width:92px;width:92px;
   border-right-width:2px;
   padding:2px 4px;vertical-align:middle;
 }
-th.corner{border-right-width:2px;min-width:78px;max-width:78px;width:78px}
+th.corner{border-right-width:2px;min-width:92px;max-width:92px;width:92px}
 .name-txt{
   color:var(--blue);font-weight:700;font-size:15px;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;
 }
-.name-sub{display:flex;gap:4px;align-items:center;margin-top:1px}
+.name-sub{display:flex;gap:4px;align-items:center;margin-top:1px;flex-wrap:wrap}
 .badge{
   font-size:10px;border:1px solid var(--pencil);color:#777;
   border-radius:3px;padding:0 3px;line-height:1.4;
@@ -105,16 +105,18 @@ th.corner{border-right-width:2px;min-width:78px;max-width:78px;width:78px}
 .badge.sup{border-color:#8a4fb0;color:#8a4fb0}
 .rest-count{font-size:11px;color:#555}
 .rest-count.over{color:var(--red);font-weight:700}
+.typhoon-note{font-size:9px;color:var(--red)}
+.hours-line{display:block;font-size:10px;color:#8a7a4a;margin-top:1px}
 .day-cell{
   min-width:var(--cell);max-width:var(--cell);width:var(--cell);height:var(--cellh);
   position:relative;font-size:var(--cellfs);
   /* 預設：右上→左下 斜線 */
-  /* 未排：左上→右下 斜線（底線，任何班別都保留） */
+  /* 未排：底線，方向為 ／（右下→左上），任何班別都保留 */
   background-image:linear-gradient(to bottom right,
     transparent calc(50% - .6px), var(--pencil) calc(50% - .6px),
     var(--pencil) calc(50% + .6px), transparent calc(50% + .6px));
 }
-.day-cell.off{ /* 排休：右上→左下 斜線，疊在底線上 */
+.day-cell.off{ /* 排休：在 ／ 底線上疊一條 ＼，交叉成 × */
   background-image:
     linear-gradient(to top right,
       transparent calc(50% - .8px), var(--ink) calc(50% - .8px),
@@ -220,16 +222,25 @@ textarea.txt{min-height:110px}
 }
 /* ── 列印／匯出 PDF ── */
 @media print{
-  @page{size:A4 landscape;margin:8mm}
-  body{background:#fff;padding:0;font-size:12px}
+  @page{size:A4 portrait;margin:8mm}
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
+  html,body{margin:0;padding:0}
+  body{
+    background:#fff;font-size:12px;padding:0;
+    width:281mm;height:194mm;      /* 橫式內容畫布：A4 橫向可印範圍（297-2×8mm）×（210-2×8mm） */
+    transform-origin:top left;
+    transform:translateX(194mm) rotate(90deg); /* 整頁旋轉90度，塞進直式 A4 紙 */
+  }
   .toolbar,.legend,.overlay,.save-hint,#btnAddNote{display:none!important}
   .topbar{position:static;box-shadow:none;border-bottom:2px solid var(--grid);padding:4px 0 6px}
   .store-name,.ym-sel{border:none;appearance:none;-webkit-appearance:none}
   .sheet-wrap{max-height:none;overflow:visible;margin:0;box-shadow:none}
   thead th{position:static}
-  td.name-cell,th.corner{position:static;min-width:0;max-width:none;width:58px;font-size:10px}
+  td.name-cell,th.corner{position:static;min-width:0;max-width:none;width:64px;font-size:10px}
   table{width:100%}
-  .day-cell{min-width:0;max-width:none;width:auto;height:32px;font-size:7.5px}
+  .day-cell{min-width:0;max-width:none;width:auto;height:32px;font-size:7.5px;background-color:var(--paper)}
+  .day-cell.off{background-color:var(--paper)}
+  .day-cell.redline{background-color:var(--paper)}
   .mark.tri{font-size:13px}
   .mark.word{font-size:11px}
   .nat-auto{font-size:9px}
@@ -240,6 +251,8 @@ textarea.txt{min-height:110px}
   .notes-row{box-shadow:none;min-height:0;max-height:100px}
   .note-card{max-height:100px;font-size:10px}
   .rest-count{font-size:9px}
+  .typhoon-note{font-size:7px}
+  .hours-line{font-size:8px}
   .badge{font-size:8px}
   .name-txt{font-size:11px}
 }
@@ -262,12 +275,12 @@ textarea.txt{min-height:110px}
 </div>
 
 <div class="legend">
-  <span>╲ 未排</span>
-  <span>╱ 排休</span>
+  <span>╱ 未排</span>
+  <span>✕ 排休</span>
   <span><b>△</b> 指定休息</span>
-  <span><b>特</b>特休</span>
-  <span><b>公</b>公差</span>
-  <span><b>颱</b>颱風假</span>
+  <span><b>特</b>＝特休</span>
+  <span><b>公</b>＝公差</span>
+  <span><b>颱</b>＝颱風假（月休不足時優先抵用）</span>
   <span><b>─</b> 紅線＝到職前／離職後不排班</span>
   <span><b>國</b>＝國定假日未排班，不扣薪，不計入月休</span>
 </div>
@@ -418,6 +431,7 @@ textarea.txt{min-height:110px}
     <div class="small-note" id="calStatus"></div>
     <div class="small-note">
       使用方式：按「🔒 排班」進入排班模式後才能點格子與日期列，再按一次鎖定防止誤觸。<br>
+      列印／PDF：輸出為 A4 直式，內容整頁旋轉90度呈現橫式表格；若斜線沒有顯示，請在列印視窗「更多設定」勾選「背景圖形」。若要去除頁首的時間與網址，請在同個「更多設定」關閉「頁首及頁尾」──這是瀏覽器本身的列印設定，網頁無法直接關閉。<br>
       雲端同步：同一組店家代碼的裝置共用同一份班表，改動即時同步；離線時先存本機，連上後自動補傳。<br>
       行事曆：連線時自動抓取政府公告（TaiwanCalendar 開源資料），離線時使用內建 2026（民國115）年資料；也可在排班模式點日期手動改紅黑字。
     </div>
@@ -614,15 +628,32 @@ function quota(){ // 月休額度＝紅字天數，但不含國定假日
   return n;
 }
 function entryOf(sid,d){const s=monthData().sched[sid];return s?s[d]:undefined}
-function restTally(sid){ // 正職月休：排休＋指定休息（國定假日當天不計，該日未上班為不扣薪假）
-  let n=0;
+function restTally(sid){ // 正職月休：排休＋指定休息優先計算；不足額時優先以颱風假補足（國定假日當天不計）
+  let base=0,typhoon=0;
   for(let d=1;d<=daysInMonth();d++){
     if(isNational(d))continue;
     const e=entryOf(sid,d);
-    if(e&&(e.t==='rest'||e.t==='desig'))n++;
+    if(e&&(e.t==='rest'||e.t==='desig'))base++;
+    else if(e&&e.t==='typhoon')typhoon++;
   }
-  return n;
+  const q=quota();
+  const need=Math.max(0,q-base);
+  const typhoonUsed=Math.min(typhoon,need);
+  return {count:base+typhoonUsed,base,typhoonUsed,typhoonExtra:typhoon-typhoonUsed};
 }
+function reqHours(sid){ // 正職本月應上班時數＝(當月天數－月休天數)×8，不計加班
+  const t=restTally(sid);
+  return (daysInMonth()-t.count)*8;
+}
+function partHours(sid){ // 計時本月已排班總時數（實際排入的班段加總）
+  let min=0;
+  for(let d=1;d<=daysInMonth();d++){
+    const e=entryOf(sid,d);
+    if(e&&e.t==='shift')min+=(e.e-e.s);
+  }
+  return min/60;
+}
+function fmtH(h){return (h%1===0)?String(h):h.toFixed(1)}
 
 /* ────────── 工具 ────────── */
 function fmtDec(min){const h=min/60;return (h%1===0)?String(h):h.toFixed(1)}
@@ -702,10 +733,14 @@ function renderSheet(){
     }
     prevType=st.type;
     const tally=st.type==='full'?restTally(st.id):null;
+    const hoursLine=st.type==='full'
+      ?'<span class="hours-line">應上'+fmtH(reqHours(st.id))+'h</span>'
+      :'<span class="hours-line">本月'+fmtH(partHours(st.id))+'h</span>';
     h+='<tr><td class="name-cell" data-sid="'+st.id+'"><span class="name-txt">'+esc(st.name)+'</span>'+
        '<span class="name-sub"><span class="badge '+st.type+'">'+TYPE_LABEL[st.type][0]+'</span>'+
-       (st.type==='full'?'<span class="rest-count'+(tally>q?' over':'')+'">休 '+tally+'/'+q+'</span>':'')+
-       '</span></td>';
+       (st.type==='full'?'<span class="rest-count'+(tally.count>q?' over':'')+'">休 '+tally.count+'/'+q+
+         (tally.typhoonUsed?'<span class="typhoon-note">（含颱'+tally.typhoonUsed+'）</span>':'')+'</span>':'')+
+       '</span>'+hoursLine+'</td>';
     for(let d=1;d<=N;d++){
       const e=entryOf(st.id,d);
       let cls='day-cell',inner='';
@@ -765,7 +800,7 @@ function setEntry(entry){
   if(entry&&(entry.t==='rest'||entry.t==='desig')&&st.type==='full'&&!isNational(cur.day)){
     const before=entryOf(cur.sid,cur.day);
     const already=before&&(before.t==='rest'||before.t==='desig');
-    const after=restTally(cur.sid)+(already?0:1);
+    const after=restTally(cur.sid).count+(already?0:1);
     if(after>quota()&&!confirm('本月月休天數為 '+quota()+' 天（行事曆紅字，不含國定假日），'+st.name+' 排入後將達 '+after+' 天。仍要排入嗎？'))return;
   }
   if(entry)md.sched[cur.sid][cur.day]=entry;else delete md.sched[cur.sid][cur.day];
@@ -1031,7 +1066,12 @@ document.getElementById('btnSkipCloud').addEventListener('click',()=>{
 });
 document.getElementById('btnPrint').addEventListener('click',()=>{
   document.getElementById('ovMore').classList.remove('show');
-  setTimeout(()=>window.print(),150); // 先讓彈窗關閉再列印
+  const oldTitle=document.title;
+  document.title=(state.store||'排班表')+' '+state.y+'年'+state.m+'月';
+  setTimeout(()=>{
+    window.print();
+    setTimeout(()=>{document.title=oldTitle},500);
+  },150); // 先讓彈窗關閉再列印
 });
 document.getElementById('btnExport').addEventListener('click',()=>{
   const blob=new Blob([JSON.stringify(state,null,1)],{type:'application/json'});
