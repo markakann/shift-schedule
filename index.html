@@ -343,8 +343,10 @@ textarea.txt{min-height:110px}
   <div class="modal">
     <div class="m-title">雲端同步設定</div>
     <div class="m-sub">同一組店家代碼的裝置會共用同一份班表。手機排班，平板打開就看得到。</div>
+    <div class="sec-label">建立新店家</div>
+    <input class="txt" id="newCode" placeholder="自訂代碼（可留空，自動產生隨機代碼）" autocapitalize="off" autocorrect="off">
     <div class="m-actions" style="flex-direction:column">
-      <button class="btn primary" id="btnNewStore">建立新店家代碼</button>
+      <button class="btn primary" id="btnNewStore">建立</button>
     </div>
     <div class="hr"></div>
     <div class="sec-label">或加入現有店家</div>
@@ -849,6 +851,7 @@ document.getElementById('btnSwitchStore').addEventListener('click',()=>{
 function openSetup(){
   if(!FB){alert('目前雲端無法載入（可能離線或在預覽環境），僅本機模式可用。');return}
   document.getElementById('joinCode').value='';
+  document.getElementById('newCode').value='';
   document.getElementById('ovSetup').classList.add('show');
 }
 function genCode(){
@@ -858,7 +861,24 @@ function genCode(){
   return 'kbk-'+s;
 }
 document.getElementById('btnNewStore').addEventListener('click',async()=>{
-  const code=genCode();
+  let code=document.getElementById('newCode').value.trim().toLowerCase();
+  if(code){
+    if(!/^[a-z0-9-]{4,30}$/.test(code)){
+      alert('自訂代碼限用英文小寫、數字與「-」，長度 4～30 字。');return;
+    }
+    if(code.length<8&&!confirm('代碼「'+code+'」偏短，容易被猜到——知道代碼的人就能查看與修改班表。建議加上隨機數字（例如 '+code+'-'+String(Math.floor(Math.random()*9000)+1000)+'）。\n\n仍要使用這組短代碼嗎？'))return;
+    // 檢查是否已被使用，避免不小心接管／併入別人的班表
+    try{
+      const snap=await FB.getDoc(FB.doc(FB.db,'stores',code));
+      if(snap.exists()){
+        if(!confirm('代碼「'+code+'」已存在資料。\n\n按「確定」＝加入該店家（載入雲端上既有的班表）\n按「取消」＝換一組代碼'))return;
+        if(await connectStore(code,false,false))document.getElementById('ovSetup').classList.remove('show');
+        return;
+      }
+    }catch(e){alert('雲端連線失敗，請稍後再試。');return}
+  }else{
+    code=genCode();
+  }
   if(await connectStore(code,true,false)){
     document.getElementById('ovSetup').classList.remove('show');
     alert('已建立店家代碼：'+code+'\n\n其他裝置輸入這組代碼即可看到同一份班表（「⋯」選單可隨時複製）。');
