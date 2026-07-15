@@ -123,6 +123,15 @@ th.corner{border-right-width:2px;min-width:78px;max-width:78px;width:78px}
       transparent calc(50% - .6px), var(--pencil) calc(50% - .6px),
       var(--pencil) calc(50% + .6px), transparent calc(50% + .6px));
 }
+.day-cell.redline{ /* 紅線：到職前／離職後不排班，橫線貫穿相連 */
+  background-image:
+    linear-gradient(to bottom,
+      transparent calc(50% - 1px), var(--red) calc(50% - 1px),
+      var(--red) calc(50% + 1px), transparent calc(50% + 1px)),
+    linear-gradient(to bottom right,
+      transparent calc(50% - .6px), var(--pencil) calc(50% - .6px),
+      var(--pencil) calc(50% + .6px), transparent calc(50% + .6px));
+}
 body.editing .day-cell{cursor:pointer}
 body.editing .day-cell:active{background-color:#fdf3d8}
 .t-s{position:absolute;top:1px;left:3px;font-weight:600}
@@ -209,6 +218,31 @@ textarea.txt{min-height:110px}
   .overlay{align-items:center}
   .modal{border-radius:14px}
 }
+/* ── 列印／匯出 PDF ── */
+@media print{
+  @page{size:A4 landscape;margin:8mm}
+  body{background:#fff;padding:0;font-size:12px}
+  .toolbar,.legend,.overlay,.save-hint,#btnAddNote{display:none!important}
+  .topbar{position:static;box-shadow:none;border-bottom:2px solid var(--grid);padding:4px 0 6px}
+  .store-name,.ym-sel{border:none;appearance:none;-webkit-appearance:none}
+  .sheet-wrap{max-height:none;overflow:visible;margin:0;box-shadow:none}
+  thead th{position:static}
+  td.name-cell,th.corner{position:static;min-width:0;max-width:none;width:58px;font-size:10px}
+  table{width:100%}
+  .day-cell{min-width:0;max-width:none;width:auto;height:32px;font-size:7.5px}
+  .mark.tri{font-size:13px}
+  .mark.word{font-size:11px}
+  .nat-auto{font-size:9px}
+  th .wd{font-size:10px}
+  thead tr:nth-child(1) th{font-size:9px;height:16px}
+  thead tr:nth-child(2) th{height:20px}
+  .notes-sec{margin:8px 0 0}
+  .notes-row{box-shadow:none;min-height:0;max-height:100px}
+  .note-card{max-height:100px;font-size:10px}
+  .rest-count{font-size:9px}
+  .badge{font-size:8px}
+  .name-txt{font-size:11px}
+}
 </style>
 </head>
 <body>
@@ -234,6 +268,7 @@ textarea.txt{min-height:110px}
   <span><b>特</b>特休</span>
   <span><b>公</b>公差</span>
   <span><b>颱</b>颱風假</span>
+  <span><b>─</b> 紅線＝到職前／離職後不排班</span>
   <span><b>國</b>＝國定假日未排班，不扣薪，不計入月休</span>
 </div>
 
@@ -276,6 +311,7 @@ textarea.txt{min-height:110px}
       <button class="chip leave" data-leave="annual">特休</button>
       <button class="chip leave" data-leave="duty">公差</button>
       <button class="chip leave" data-leave="typhoon">颱風假</button>
+      <button class="chip leave" data-leave="redline">─ 紅線（到職／離職區間）</button>
     </div>
     <div class="m-actions">
       <button class="btn danger" id="btnClearCell">清除此格</button>
@@ -296,14 +332,20 @@ textarea.txt{min-height:110px}
       <label><input type="radio" name="smType" value="part">計時</label>
       <label><input type="radio" name="smType" value="sup">督導（支援）</label>
     </div>
+    <div id="smArchivedWrap" style="display:none">
+      <div class="hr"></div>
+      <div class="sec-label">或從過往人員加入本月（保留其歷史班表）</div>
+      <div class="chips" id="smArchived"></div>
+    </div>
     <div class="m-actions">
       <button class="btn primary" id="btnSaveStaff">儲存</button>
       <button class="btn" id="btnMoveUp">↑ 上移</button>
       <button class="btn" id="btnMoveDown">↓ 下移</button>
-      <button class="btn danger" id="btnDelStaff">刪除</button>
+      <button class="btn danger" id="btnRemoveMonth">自本月移除</button>
+      <button class="btn danger" id="btnDelStaff">永久刪除</button>
       <button class="btn" id="btnCloseStaff">關閉</button>
     </div>
-    <div class="small-note">※ 名單自動分組：正職在上、計時居中、督導在最下，群組間空一行；「上移／下移」只在同群組內調整順序。督導為支援性質，班段選項最完整（正職＋計時皆可選）。刪除人員會一併刪除其所有月份的排班紀錄。</div>
+    <div class="small-note">※ 名單自動分組：正職在上、計時居中、督導在最下，群組間空一行。「自本月移除」只影響本月起的名單，過去月份班表完整保留（離職請用這個）；「永久刪除」會清掉所有月份的紀錄，僅在打錯人時使用。</div>
   </div>
 </div>
 
@@ -367,6 +409,7 @@ textarea.txt{min-height:110px}
     <div class="m-actions" style="flex-direction:column">
       <button class="btn" id="btnCopyCode">複製店家代碼</button>
       <button class="btn" id="btnSwitchStore">建立／更換店家代碼</button>
+      <button class="btn" id="btnPrint">匯出 PDF／列印</button>
       <button class="btn" id="btnExport">匯出備份（JSON）</button>
       <button class="btn" id="btnImport">匯入備份</button>
       <input type="file" id="fileImport" accept=".json" style="display:none">
@@ -387,7 +430,7 @@ textarea.txt{min-height:110px}
 const WD = ['日','一','二','三','四','五','六'];
 const PRESETS_COMMON = [[540,1050],[630,1140],[660,1170],[720,1230],[750,1260],[810,1320],[840,1350]];
 const PRESETS_PART   = [[540,960],[720,960],[960,1320],[1080,1320],[1110,1350]];
-const LEAVE_LABEL = {rest:'排休', desig:'指定休息', annual:'特休', duty:'公差', typhoon:'颱風假'};
+const LEAVE_LABEL = {rest:'排休', desig:'指定休息', annual:'特休', duty:'公差', typhoon:'颱風假', redline:'紅線'};
 const GROUP_ORDER = {full:0, part:1, sup:2};
 const TYPE_LABEL  = {full:'正職', part:'計時', sup:'督導'};
 function sortStaff(){ // 穩定排序：正職固定在上，計時居中，督導在最下
@@ -523,10 +566,33 @@ let curNoteIdx=-1, curStaffId=null, curDayForOv=null;
 
 function ym(){return state.y+'-'+state.m}
 function monthData(){
-  if(!state.months[ym()]) state.months[ym()]={sched:{},notes:[],dayOv:{}};
+  if(!state.months[ym()]) state.months[ym()]={sched:{},notes:[],dayOv:{},roster:null};
   const md=state.months[ym()];
   md.sched=md.sched||{}; md.notes=md.notes||[]; md.dayOv=md.dayOv||{};
+  if(md.roster===undefined)md.roster=state.staff.map(s=>s.id); // 舊版資料相容：預設全員
   return md;
+}
+function monthStaff(){ // 本月名單（人員本體永久保留在 state.staff，僅名單決定顯示）
+  const r=monthData().roster||[];
+  return state.staff.filter(s=>r.includes(s.id));
+}
+function ensureRoster(){ // 首次開啟某月時，詢問是否帶入最近月份的名單
+  const md=monthData();
+  if(md.roster!==null)return;
+  let y=state.y,m=state.m,src=null,label='';
+  for(let i=0;i<12;i++){
+    m--;if(m===0){m=12;y--}
+    const pm=state.months[y+'-'+m];
+    if(pm&&Array.isArray(pm.roster)&&pm.roster.length){src=pm.roster;label='民國'+(y-1911)+'年'+m+'月';break}
+  }
+  if(src){
+    if(confirm('本月尚無人員名單，是否帶入 '+label+' 的人員？\n（不帶入也可稍後手動加入，過去月份的班表都會完整保留）')){
+      md.roster=src.filter(id=>state.staff.some(s=>s.id===id));
+    }else md.roster=[];
+  }else{
+    md.roster=state.staff.map(s=>s.id);
+  }
+  scheduleSave();
 }
 function daysInMonth(){return new Date(state.y,state.m,0).getDate()}
 function weekday(d){return new Date(state.y,state.m-1,d).getDay()}
@@ -611,7 +677,7 @@ function fitCells(){ // 依可用寬度撐滿整個月份；窄螢幕維持 46px
   document.documentElement.style.setProperty('--cellfs',(w>=72?14:w>=58?13:11)+'px');
 }
 window.addEventListener('resize',()=>{fitCells()});
-function renderAll(){fitCells();renderSheet();renderNotes()}
+function renderAll(){ensureRoster();fitCells();renderSheet();renderNotes()}
 function renderSheet(){
   const md=monthData(),N=daysInMonth();
   let h='<thead><tr><th class="corner" rowspan="2">'+esc(state.store||'')+'</th>';
@@ -626,8 +692,9 @@ function renderSheet(){
   }
   h+='</tr></thead><tbody>';
   const q=quota();
+  const visible=monthStaff();
   let prevType=null;
-  for(const st of state.staff){
+  for(const st of visible){
     if(prevType!==null&&st.type!==prevType){ // 群組之間空一行（如紙本）
       h+='<tr><td class="name-cell"></td>';
       for(let d=1;d<=N;d++)h+='<td class="day-cell"></td>';
@@ -652,12 +719,13 @@ function renderSheet(){
       else if(e.t==='annual'){cls+=' filled';inner='<span class="mark word">特</span>';}
       else if(e.t==='duty'){cls+=' filled';inner='<span class="mark word">公</span>';}
       else if(e.t==='typhoon'){cls+=' filled';inner='<span class="mark word">颱</span>';}
+      else if(e.t==='redline'){cls+=' redline';}
       h+='<td class="'+cls+'" data-sid="'+st.id+'" data-day="'+d+'">'+inner+'</td>';
     }
     h+='</tr>';
   }
-  if(!state.staff.length){
-    h+='<tr><td class="name-cell" style="color:#aaa;font-size:12px">尚無人員</td><td class="day-cell" colspan="'+N+'" style="max-width:none;width:auto;background-image:none;color:#aaa;font-size:13px;padding:8px">按上方「＋ 人員」新增，名字會依序排在左側</td></tr>';
+  if(!visible.length){
+    h+='<tr><td class="name-cell" style="color:#aaa;font-size:12px">本月無人員</td><td class="day-cell" colspan="'+N+'" style="max-width:none;width:auto;background-image:none;color:#aaa;font-size:13px;padding:8px">按「＋ 人員」新增，或在人員視窗從「過往人員」重新加入</td></tr>';
   }
   h+='</tbody>';
   document.getElementById('sheet').innerHTML=h;
@@ -726,7 +794,10 @@ document.getElementById('ovCell').addEventListener('click',ev=>{
   const chip=ev.target.closest('.chip[data-s]');
   if(chip){cur.s=+chip.dataset.s;cur.e=+chip.dataset.e;setEntry({t:'shift',s:cur.s,e:cur.e});return}
   const lv=ev.target.closest('.chip[data-leave]');
-  if(lv){setEntry({t:lv.dataset.leave});return}
+  if(lv){
+    if(lv.dataset.leave==='redline'){applyRedline();return}
+    setEntry({t:lv.dataset.leave});return;
+  }
   const stp=ev.target.closest('.stepper button');
   if(stp){
     const d=+stp.dataset.d;
@@ -735,10 +806,42 @@ document.getElementById('ovCell').addEventListener('click',ev=>{
     syncTv();return;
   }
   if(ev.target.id==='btnApplyTime'){setEntry({t:'shift',s:cur.s,e:cur.e});return}
-  if(ev.target.id==='btnClearCell'){setEntry(null);return}
+  if(ev.target.id==='btnClearCell'){clearCell();return}
   if(ev.target.id==='btnCloseCell'||ev.target===document.getElementById('ovCell'))
     document.getElementById('ovCell').classList.remove('show');
 });
+function applyRedline(){ // 從此格畫一段連續紅線（到職前／離職後不排班）
+  const N=daysInMonth();
+  let end=prompt('紅線從 '+state.m+'/'+cur.day+' 畫到幾號？（1～'+N+'）',cur.day);
+  if(end===null)return;
+  end=parseInt(end);
+  if(isNaN(end)||end<1||end>N){alert('請輸入 1～'+N+' 之間的日期');return}
+  const a=Math.min(cur.day,end),b=Math.max(cur.day,end);
+  const md=monthData();
+  if(!md.sched[cur.sid])md.sched[cur.sid]={};
+  let hasData=false;
+  for(let d=a;d<=b;d++){const e=md.sched[cur.sid][d];if(e&&e.t!=='redline')hasData=true}
+  if(hasData&&!confirm(state.m+'/'+a+'～'+state.m+'/'+b+' 之間已有排班或假別，要全部覆蓋為紅線嗎？'))return;
+  for(let d=a;d<=b;d++)md.sched[cur.sid][d]={t:'redline'};
+  scheduleSave();renderSheet();
+  document.getElementById('ovCell').classList.remove('show');
+}
+function clearCell(){ // 清除此格；若為紅線，可選擇清除整段
+  const e=entryOf(cur.sid,cur.day);
+  if(e&&e.t==='redline'){
+    const md=monthData(),N=daysInMonth();
+    let a=cur.day,b=cur.day;
+    while(a>1&&md.sched[cur.sid][a-1]&&md.sched[cur.sid][a-1].t==='redline')a--;
+    while(b<N&&md.sched[cur.sid][b+1]&&md.sched[cur.sid][b+1].t==='redline')b++;
+    if(b>a&&confirm('要清除整段紅線（'+state.m+'/'+a+'～'+state.m+'/'+b+'）嗎？\n按「取消」則只清除此格。')){
+      for(let d=a;d<=b;d++)delete md.sched[cur.sid][d];
+      scheduleSave();renderSheet();
+      document.getElementById('ovCell').classList.remove('show');
+      return;
+    }
+  }
+  setEntry(null);
+}
 
 /* 日期紅黑字 */
 function openDayOv(d){
@@ -765,10 +868,28 @@ function openStaff(id){
   document.querySelectorAll('input[name=smType]').forEach(r=>r.checked=(r.value===(st?st.type:'full')));
   const show=st?'':'none';
   document.getElementById('btnDelStaff').style.display=show;
+  document.getElementById('btnRemoveMonth').style.display=show;
   document.getElementById('btnMoveUp').style.display=show;
   document.getElementById('btnMoveDown').style.display=show;
+  // 新增模式：列出不在本月名單中的過往人員
+  const wrap=document.getElementById('smArchivedWrap');
+  if(!st){
+    const roster=monthData().roster||[];
+    const archived=state.staff.filter(s=>!roster.includes(s.id));
+    if(archived.length){
+      document.getElementById('smArchived').innerHTML=archived.map(s=>
+        '<button class="chip" data-readd="'+s.id+'">'+esc(s.name)+'（'+TYPE_LABEL[s.type]+'）</button>').join('');
+      wrap.style.display='';
+    }else wrap.style.display='none';
+  }else wrap.style.display='none';
   document.getElementById('ovStaff').classList.add('show');
 }
+document.getElementById('smArchived').addEventListener('click',ev=>{
+  const chip=ev.target.closest('[data-readd]');if(!chip)return;
+  monthData().roster.push(chip.dataset.readd);
+  scheduleSave();renderSheet();
+  document.getElementById('ovStaff').classList.remove('show');
+});
 document.getElementById('btnStaff').addEventListener('click',()=>openStaff(null));
 document.getElementById('btnSaveStaff').addEventListener('click',()=>{
   const name=document.getElementById('smName').value.trim();
@@ -777,17 +898,30 @@ document.getElementById('btnSaveStaff').addEventListener('click',()=>{
   if(curStaffId){
     const st=state.staff.find(s=>s.id===curStaffId);st.name=name;st.type=type;
   }else{
-    state.staff.push({id:'s'+Date.now(),name,type});
+    const id='s'+Date.now();
+    state.staff.push({id,name,type});
+    monthData().roster.push(id); // 新人只加入本月名單
   }
   sortStaff(); // 新增或改身分後，自動歸位到該群組最後
   scheduleSave();renderSheet();
   document.getElementById('ovStaff').classList.remove('show');
 });
+document.getElementById('btnRemoveMonth').addEventListener('click',()=>{
+  const st=state.staff.find(s=>s.id===curStaffId);
+  if(!confirm('將 '+st.name+' 自本月名單移除？\n過去月份的班表完整保留；本月已排的班會隱藏但不刪除，之後可從「過往人員」加回。'))return;
+  const md=monthData();
+  md.roster=md.roster.filter(id=>id!==curStaffId);
+  scheduleSave();renderSheet();
+  document.getElementById('ovStaff').classList.remove('show');
+});
 document.getElementById('btnDelStaff').addEventListener('click',()=>{
   const st=state.staff.find(s=>s.id===curStaffId);
-  if(!confirm('確定刪除 '+st.name+'？其所有月份的排班會一併刪除。'))return;
+  if(!confirm('【永久刪除】'+st.name+'？\n所有月份的排班紀錄都會刪除、無法復原。\n若是離職，請改用「自本月移除」以保留歷史班表。'))return;
   state.staff=state.staff.filter(s=>s.id!==curStaffId);
-  for(const k in state.months)if(state.months[k].sched)delete state.months[k].sched[curStaffId];
+  for(const k in state.months){
+    if(state.months[k].sched)delete state.months[k].sched[curStaffId];
+    if(Array.isArray(state.months[k].roster))state.months[k].roster=state.months[k].roster.filter(id=>id!==curStaffId);
+  }
   scheduleSave();renderSheet();
   document.getElementById('ovStaff').classList.remove('show');
 });
@@ -894,6 +1028,10 @@ document.getElementById('btnJoinStore').addEventListener('click',async()=>{
 document.getElementById('btnSkipCloud').addEventListener('click',()=>{
   document.getElementById('ovSetup').classList.remove('show');
   setHint('僅本機模式');
+});
+document.getElementById('btnPrint').addEventListener('click',()=>{
+  document.getElementById('ovMore').classList.remove('show');
+  setTimeout(()=>window.print(),150); // 先讓彈窗關閉再列印
 });
 document.getElementById('btnExport').addEventListener('click',()=>{
   const blob=new Blob([JSON.stringify(state,null,1)],{type:'application/json'});
