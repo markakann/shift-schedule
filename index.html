@@ -417,6 +417,36 @@ textarea.txt{min-height:110px}
   </div>
 </div>
 
+<!-- 管理密碼驗證 -->
+<div class="overlay" id="ovMgrPw">
+  <div class="modal">
+    <div class="m-title">管理店家代碼</div>
+    <div class="m-sub">重新命名或刪除代碼屬於較危險的操作，請先輸入管理密碼。</div>
+    <input class="txt" id="mgrPw" type="password" placeholder="管理密碼" autocapitalize="off" autocorrect="off">
+    <div class="m-actions">
+      <button class="btn primary" id="btnMgrPwGo">確認</button>
+      <button class="btn" id="btnMgrPwCancel">取消</button>
+    </div>
+    <div class="small-note">※ 提醒：這道密碼寫在網頁程式碼裡，只能防止誤觸，不是真正的資安防護——請勿把重要機密資料存在這份班表裡。</div>
+  </div>
+</div>
+
+<!-- 店家代碼管理面板 -->
+<div class="overlay" id="ovMgrPanel">
+  <div class="modal">
+    <div class="m-title">店家代碼管理</div>
+    <div class="m-sub">以下是<b>這台裝置</b>曾經建立或加入過的代碼（僅記錄在本機，非全系統清單）。</div>
+    <div id="mgrList" class="chips" style="flex-direction:column;align-items:stretch"></div>
+    <div class="hr"></div>
+    <div class="sec-label">建立新代碼</div>
+    <input class="txt" id="mgrNewCode" placeholder="自訂代碼（可留空，自動產生）" autocapitalize="off" autocorrect="off">
+    <div class="m-actions">
+      <button class="btn primary" id="btnMgrCreate">建立</button>
+      <button class="btn" id="btnMgrClose">關閉</button>
+    </div>
+  </div>
+</div>
+
 <!-- 更多選單 -->
 <div class="overlay" id="ovMore">
   <div class="modal">
@@ -425,6 +455,7 @@ textarea.txt{min-height:110px}
     <div class="m-actions" style="flex-direction:column">
       <button class="btn" id="btnCopyCode">複製店家代碼</button>
       <button class="btn" id="btnSwitchStore">建立／更換店家代碼</button>
+      <button class="btn" id="btnManageStore">管理店家代碼（需密碼）</button>
       <button class="btn" id="btnPrint">匯出 PDF／列印</button>
       <button class="btn" id="btnExport">匯出備份（JSON）</button>
       <button class="btn" id="btnImport">匯入備份</button>
@@ -434,7 +465,7 @@ textarea.txt{min-height:110px}
     <div class="small-note" id="calStatus"></div>
     <div class="small-note">
       使用方式：按「🔒 排班」進入排班模式後才能點格子與日期列，再按一次鎖定防止誤觸。<br>
-      列印／PDF：輸出為 A4 直式，內容整頁旋轉90度呈現橫式整月表格。列印視窗的「縮放」請維持 100%——手動調高倍率是把畫面整個放大再印，斜線等細節容易變粗變糊，效果反而更差。若想要更大張，可在列印視窗把紙張大小改選 A3（印表機需支援），瀏覽器會用向量方式重新排版，字會更大且清晰。<br>
+      列印／PDF：輸出為 A4 直式，內容整頁旋轉90度呈現橫式整月表格。建議用電腦匯出／列印 PDF——手機的列印功能通常沒有縮放或紙張大小選項可調，電腦操作起來更完整、也更容易確認排版正確。<br>
       若斜線沒有顯示，請在列印視窗「更多設定」勾選「背景圖形」。若要去除頁首的時間與網址，請在同個「更多設定」關閉「頁首及頁尾」──這是瀏覽器本身的列印設定，網頁無法直接關閉。<br>
       雲端同步：同一組店家代碼的裝置共用同一份班表，改動即時同步；離線時先存本機，連上後自動補傳。<br>
       行事曆：連線時自動抓取政府公告（TaiwanCalendar 開源資料），離線時使用內建 2026（民國115）年資料；也可在排班模式點日期手動改紅黑字。
@@ -510,7 +541,7 @@ async function initFirebase(){
     let db;
     try{db=fsMod.initializeFirestore(app,{localCache:fsMod.persistentLocalCache()})}
     catch(e){db=fsMod.getFirestore(app)}
-    FB={db,doc:fsMod.doc,getDoc:fsMod.getDoc,setDoc:fsMod.setDoc,onSnapshot:fsMod.onSnapshot,serverTimestamp:fsMod.serverTimestamp};
+    FB={db,doc:fsMod.doc,getDoc:fsMod.getDoc,setDoc:fsMod.setDoc,deleteDoc:fsMod.deleteDoc,onSnapshot:fsMod.onSnapshot,serverTimestamp:fsMod.serverTimestamp};
     cloudStatus='雲端已連線';
     let saved=null;try{saved=localStorage.getItem('paiban-store-code')}catch(e){}
     if(saved)await connectStore(saved,false,true);
@@ -519,6 +550,24 @@ async function initFirebase(){
     FB=null;cloudStatus='雲端無法載入（本機模式）';
     setHint('本機模式');
   }
+}
+function recordCodeHistory(code){ // 記錄「這台裝置」用過的店家代碼，僅存本機，不是全系統清單
+  try{
+    let hist=JSON.parse(localStorage.getItem('paiban-code-history')||'[]');
+    hist=hist.filter(h=>h.code!==code);
+    hist.unshift({code,lastUsed:Date.now()});
+    if(hist.length>20)hist=hist.slice(0,20);
+    localStorage.setItem('paiban-code-history',JSON.stringify(hist));
+  }catch(e){}
+}
+function getCodeHistory(){
+  try{return JSON.parse(localStorage.getItem('paiban-code-history')||'[]')}catch(e){return []}
+}
+function removeCodeHistory(code){
+  try{
+    let hist=getCodeHistory().filter(h=>h.code!==code);
+    localStorage.setItem('paiban-code-history',JSON.stringify(hist));
+  }catch(e){}
 }
 async function connectStore(code,isNew,silent){
   code=code.trim();
@@ -545,6 +594,7 @@ async function connectStore(code,isNew,silent){
   }
   storeCode=code;
   try{localStorage.setItem('paiban-store-code',code)}catch(e){}
+  recordCodeHistory(code);
   if(unsubCloud)unsubCloud();
   unsubCloud=FB.onSnapshot(ref,s=>{
     if(!s.exists())return;
@@ -1076,6 +1126,108 @@ document.getElementById('btnSwitchStore').addEventListener('click',()=>{
   document.getElementById('ovMore').classList.remove('show');
   openSetup();
 });
+const MGR_PASSWORD='markakann';
+document.getElementById('btnManageStore').addEventListener('click',()=>{
+  if(!FB){alert('目前雲端無法載入（可能離線或在預覽環境），僅本機模式可用。');return}
+  document.getElementById('ovMore').classList.remove('show');
+  document.getElementById('mgrPw').value='';
+  document.getElementById('ovMgrPw').classList.add('show');
+});
+document.getElementById('mgrPw').addEventListener('keydown',ev=>{
+  if(ev.key==='Enter'){ev.preventDefault();document.getElementById('btnMgrPwGo').click();}
+});
+document.getElementById('btnMgrPwGo').addEventListener('click',()=>{
+  if(document.getElementById('mgrPw').value!==MGR_PASSWORD){alert('密碼不正確。');return}
+  document.getElementById('ovMgrPw').classList.remove('show');
+  openMgrPanel();
+});
+document.getElementById('btnMgrPwCancel').addEventListener('click',()=>document.getElementById('ovMgrPw').classList.remove('show'));
+function openMgrPanel(){
+  document.getElementById('mgrNewCode').value='';
+  renderMgrList();
+  document.getElementById('ovMgrPanel').classList.add('show');
+}
+function renderMgrList(){
+  const hist=getCodeHistory();
+  const box=document.getElementById('mgrList');
+  if(!hist.length){box.innerHTML='<div class="small-note">這台裝置目前沒有紀錄。</div>';return}
+  box.innerHTML=hist.map(h=>{
+    const cur=h.code===storeCode;
+    return '<div style="display:flex;gap:6px;align-items:center;border:1.5px solid var(--grid);border-radius:8px;padding:8px 10px;margin-bottom:6px">'+
+      '<span style="flex:1;font-weight:700;word-break:break-all">'+esc(h.code)+(cur?'　<span style="color:var(--blue);font-size:12px">（目前使用中）</span>':'')+'</span>'+
+      (cur?'':'<button class="btn" style="padding:5px 8px" data-mgr-switch="'+esc(h.code)+'">切換</button>')+
+      '<button class="btn" style="padding:5px 8px" data-mgr-rename="'+esc(h.code)+'">重新命名</button>'+
+      '<button class="btn danger" style="padding:5px 8px" data-mgr-del="'+esc(h.code)+'">刪除</button>'+
+      '</div>';
+  }).join('');
+}
+document.getElementById('mgrList').addEventListener('click',async ev=>{
+  const sw=ev.target.closest('[data-mgr-switch]');
+  const rn=ev.target.closest('[data-mgr-rename]');
+  const del=ev.target.closest('[data-mgr-del]');
+  if(sw){
+    document.getElementById('ovMgrPanel').classList.remove('show');
+    await connectStore(sw.dataset.mgrSwitch,false,false);
+    return;
+  }
+  if(rn){
+    const oldCode=rn.dataset.mgrRename;
+    let newCode=prompt('將「'+oldCode+'」改成什麼代碼？（英文小寫、數字、"-"，4～30字）',oldCode);
+    if(newCode===null)return;
+    newCode=newCode.trim().toLowerCase();
+    if(!/^[a-z0-9-]{4,30}$/.test(newCode)){alert('格式不正確。');return}
+    if(newCode===oldCode)return;
+    try{
+      const oldRef=FB.doc(FB.db,'stores',oldCode);
+      const newRef=FB.doc(FB.db,'stores',newCode);
+      const newSnap=await FB.getDoc(newRef);
+      if(newSnap.exists()){alert('代碼「'+newCode+'」已經有人使用，請換一個。');return}
+      const oldSnap=await FB.getDoc(oldRef);
+      if(!oldSnap.exists()){alert('找不到原本的資料，可能已被刪除。');removeCodeHistory(oldCode);renderMgrList();return}
+      await FB.setDoc(newRef,oldSnap.data());
+      await FB.deleteDoc(oldRef);
+      removeCodeHistory(oldCode);
+      recordCodeHistory(newCode);
+      if(storeCode===oldCode)await connectStore(newCode,false,true);
+      renderMgrList();
+      alert('已將代碼改為「'+newCode+'」。');
+    }catch(e){alert('操作失敗，請確認網路連線與 Firestore 設定。')}
+    return;
+  }
+  if(del){
+    const code=del.dataset.mgrDel;
+    if(!confirm('確定永久刪除代碼「'+code+'」？雲端上的班表資料將被清除，無法復原。'))return;
+    try{
+      await FB.deleteDoc(FB.doc(FB.db,'stores',code));
+      removeCodeHistory(code);
+      if(storeCode===code){
+        storeCode=null;
+        try{localStorage.removeItem('paiban-store-code')}catch(e){}
+        if(unsubCloud){unsubCloud();unsubCloud=null}
+        cloudStatus='雲端已連線（尚未選擇店家代碼）';
+        setHint('請重新選擇店家代碼');
+      }
+      renderMgrList();
+    }catch(e){alert('刪除失敗，請確認網路連線與 Firestore 設定。')}
+  }
+});
+document.getElementById('btnMgrCreate').addEventListener('click',async()=>{
+  let code=document.getElementById('mgrNewCode').value.trim().toLowerCase();
+  if(code){
+    if(!/^[a-z0-9-]{4,30}$/.test(code)){alert('自訂代碼限用英文小寫、數字與「-」，長度 4～30 字。');return}
+    try{
+      const snap=await FB.getDoc(FB.doc(FB.db,'stores',code));
+      if(snap.exists()){alert('代碼「'+code+'」已存在，請換一個。');return}
+    }catch(e){alert('雲端連線失敗，請稍後再試。');return}
+  }else{
+    code=genCode();
+  }
+  document.getElementById('ovMgrPanel').classList.remove('show');
+  if(await connectStore(code,true,false)){
+    alert('已建立店家代碼：'+code);
+  }
+});
+document.getElementById('btnMgrClose').addEventListener('click',()=>document.getElementById('ovMgrPanel').classList.remove('show'));
 /* 店家代碼設定 */
 function openSetup(){
   if(!FB){alert('目前雲端無法載入（可能離線或在預覽環境），僅本機模式可用。');return}
