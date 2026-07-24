@@ -258,10 +258,37 @@ textarea.txt{min-height:110px}
   .badge{font-size:8px}
   .name-txt{font-size:11px}
 }
+/* ── 截圖式PDF匯出模式（不經過瀏覽器列印，尺寸約為列印版的1.5倍） ── */
+body.export-mode{background:#fff}
+body.export-mode #exportArea{
+  display:inline-block;background:#fff;padding:16px;
+}
+body.export-mode .toolbar,body.export-mode .legend,body.export-mode .save-hint,body.export-mode #btnAddNote{display:none!important}
+body.export-mode .topbar{position:static;box-shadow:none;border-bottom:2px solid var(--grid);padding:6px 0 8px}
+body.export-mode .store-name,body.export-mode .ym-sel,body.export-mode .sheet-title-input,body.export-mode .corner-input{border:none;appearance:none;-webkit-appearance:none}
+body.export-mode .sheet-wrap{max-height:none;overflow:visible;margin:0;box-shadow:none}
+body.export-mode thead th{position:static}
+body.export-mode td.name-cell,body.export-mode th.corner{position:static;min-width:0;max-width:none;width:96px;font-size:15px}
+body.export-mode .day-cell{min-width:0;max-width:none;width:48px;height:48px;font-size:12px}
+body.export-mode .mark.tri{font-size:20px}
+body.export-mode .mark.word{font-size:16px}
+body.export-mode .nat-auto{font-size:13px}
+body.export-mode th .wd{font-size:15px}
+body.export-mode thead tr:nth-child(1) th{font-size:13px;height:24px}
+body.export-mode thead tr:nth-child(2) th{height:30px}
+body.export-mode .notes-sec{margin:10px 0 0}
+body.export-mode .notes-row{box-shadow:none;min-height:0;max-height:140px}
+body.export-mode .note-card{max-height:140px;font-size:14px}
+body.export-mode .rest-count{font-size:13px}
+body.export-mode .typhoon-note{font-size:11px}
+body.export-mode .hours-line{font-size:12px}
+body.export-mode .badge{font-size:12px}
+body.export-mode .name-txt{font-size:15px}
 </style>
 </head>
 <body>
 
+<div id="exportArea">
 <header class="topbar">
   <input id="storeName" class="store-name" value="" placeholder="店名" aria-label="店名">
   <select id="selYear" class="ym-sel" aria-label="年份"></select>
@@ -295,6 +322,7 @@ textarea.txt{min-height:110px}
   <div class="notes-head">備註<button id="btnAddNote" class="btn" style="padding:3px 10px">＋</button></div>
   <div class="notes-row" id="notesRow"></div>
 </section>
+</div>
 
 <!-- 排班彈窗 -->
 <div class="overlay" id="ovCell">
@@ -457,6 +485,7 @@ textarea.txt{min-height:110px}
       <button class="btn" id="btnSwitchStore">建立／更換店家代碼</button>
       <button class="btn" id="btnManageStore">管理店家代碼（需密碼）</button>
       <button class="btn" id="btnPrint">匯出 PDF／列印</button>
+      <button class="btn" id="btnPrintCanvas">下載 PDF（手機適用，較大字）</button>
       <button class="btn" id="btnExport">匯出備份（JSON）</button>
       <button class="btn" id="btnImport">匯入備份</button>
       <input type="file" id="fileImport" accept=".json" style="display:none">
@@ -1290,6 +1319,46 @@ document.getElementById('btnPrint').addEventListener('click',()=>{
     window.print();
     setTimeout(()=>{document.title=oldTitle},500);
   },150);
+});
+function loadScriptOnce(src){
+  return new Promise((resolve,reject)=>{
+    if(document.querySelector('script[data-src="'+src+'"]')){resolve();return}
+    const s=document.createElement('script');
+    s.src=src;s.dataset.src=src;
+    s.onload=()=>resolve();
+    s.onerror=()=>reject(new Error('load fail'));
+    document.head.appendChild(s);
+  });
+}
+document.getElementById('btnPrintCanvas').addEventListener('click',async()=>{
+  document.getElementById('ovMore').classList.remove('show');
+  const btn=document.getElementById('btnMore');
+  setHint('PDF 產生中…');
+  try{
+    await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+    await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+  }catch(e){
+    alert('無法載入 PDF 產生元件，請確認網路連線後再試一次。');
+    setHint('');return;
+  }
+  const area=document.getElementById('exportArea');
+  document.body.classList.add('export-mode');
+  await new Promise(r=>setTimeout(r,60)); // 等版面套用完成再截圖
+  try{
+    const canvas=await html2canvas(area,{scale:2,backgroundColor:'#ffffff',useCORS:true});
+    const {jsPDF}=window.jspdf;
+    const pageW=canvas.width*0.264583/2, pageH=canvas.height*0.264583/2; // canvas px(scale2,96dpi)→mm
+    const pdf=new jsPDF({orientation:pageW>pageH?'landscape':'portrait',unit:'mm',format:[pageW,pageH]});
+    pdf.addImage(canvas.toDataURL('image/png'),'PNG',0,0,pageW,pageH);
+    const fname=(state.store||'排班表')+'_'+state.y+'年'+state.m+'月.pdf';
+    pdf.save(fname);
+    setHint('PDF 已下載 ✓');
+  }catch(e){
+    alert('PDF 產生失敗，請再試一次；若持續失敗，可改用「匯出 PDF／列印」。');
+    setHint('');
+  }finally{
+    document.body.classList.remove('export-mode');
+  }
 });
 document.getElementById('btnExport').addEventListener('click',()=>{
   const blob=new Blob([JSON.stringify(state,null,1)],{type:'application/json'});
