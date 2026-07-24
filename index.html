@@ -485,7 +485,7 @@ body.export-mode .name-txt{font-size:15px}
       <button class="btn" id="btnSwitchStore">建立／更換店家代碼</button>
       <button class="btn" id="btnManageStore">管理店家代碼（需密碼）</button>
       <button class="btn" id="btnPrint">匯出 PDF／列印</button>
-      <button class="btn" id="btnPrintCanvas">下載 PDF（手機適用，較大字）</button>
+      <button class="btn" id="btnPrintCanvas">下載 PDF（手機適用，直式旋轉、較大字）</button>
       <button class="btn" id="btnExport">匯出備份（JSON）</button>
       <button class="btn" id="btnImport">匯入備份</button>
       <input type="file" id="fileImport" accept=".json" style="display:none">
@@ -1346,10 +1346,18 @@ document.getElementById('btnPrintCanvas').addEventListener('click',async()=>{
   await new Promise(r=>setTimeout(r,60)); // 等版面套用完成再截圖
   try{
     const canvas=await html2canvas(area,{scale:2,backgroundColor:'#ffffff',useCORS:true});
+    // 轉90度：橫式截圖 → 直式頁面（跟「匯出PDF／列印」的直式呈現方式一致）
+    const rot=document.createElement('canvas');
+    rot.width=canvas.height;
+    rot.height=canvas.width;
+    const rctx=rot.getContext('2d');
+    rctx.translate(rot.width,0);
+    rctx.rotate(Math.PI/2);
+    rctx.drawImage(canvas,0,0);
     const {jsPDF}=window.jspdf;
-    const pageW=canvas.width*0.264583/2, pageH=canvas.height*0.264583/2; // canvas px(scale2,96dpi)→mm
-    const pdf=new jsPDF({orientation:pageW>pageH?'landscape':'portrait',unit:'mm',format:[pageW,pageH]});
-    pdf.addImage(canvas.toDataURL('image/png'),'PNG',0,0,pageW,pageH);
+    const pageW=rot.width*0.264583/2, pageH=rot.height*0.264583/2; // canvas px(scale2,96dpi)→mm
+    const pdf=new jsPDF({orientation:'portrait',unit:'mm',format:[pageW,pageH]});
+    pdf.addImage(rot.toDataURL('image/png'),'PNG',0,0,pageW,pageH);
     const fname=(state.store||'排班表')+'_'+state.y+'年'+state.m+'月.pdf';
     pdf.save(fname);
     setHint('PDF 已下載 ✓');
