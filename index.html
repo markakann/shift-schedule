@@ -49,7 +49,7 @@ body{
 .sheet-title-input{
   font-size:19px;font-weight:700;letter-spacing:6px;margin-left:auto;
   border:none;border-bottom:1px dashed var(--pencil);background:transparent;
-  color:var(--ink);width:110px;text-align:right;padding:0 2px;font-family:inherit;
+  color:var(--ink);width:150px;text-align:right;padding:0 2px;font-family:inherit;
 }
 .sheet-title-input:focus{outline:none;border-bottom-color:var(--blue)}
 /* ── 工具列 ── */
@@ -258,32 +258,6 @@ textarea.txt{min-height:110px}
   .badge{font-size:8px}
   .name-txt{font-size:11px}
 }
-/* ── 截圖式PDF匯出模式（不經過瀏覽器列印，尺寸約為列印版的1.5倍） ── */
-body.export-mode{background:#fff}
-body.export-mode #exportArea{
-  display:inline-block;background:#fff;padding:16px;
-}
-body.export-mode .toolbar,body.export-mode .legend,body.export-mode .save-hint,body.export-mode #btnAddNote{display:none!important}
-body.export-mode .topbar{position:static;box-shadow:none;border-bottom:2px solid var(--grid);padding:6px 0 8px}
-body.export-mode .store-name,body.export-mode .ym-sel,body.export-mode .sheet-title-input,body.export-mode .corner-input{border:none;appearance:none;-webkit-appearance:none}
-body.export-mode .sheet-wrap{max-height:none;overflow:visible;margin:0;box-shadow:none}
-body.export-mode thead th{position:static}
-body.export-mode td.name-cell,body.export-mode th.corner{position:static;min-width:0;max-width:none;width:96px;font-size:15px}
-body.export-mode .day-cell{min-width:0;max-width:none;width:48px;height:48px;font-size:12px}
-body.export-mode .mark.tri{font-size:20px}
-body.export-mode .mark.word{font-size:16px}
-body.export-mode .nat-auto{font-size:13px}
-body.export-mode th .wd{font-size:15px}
-body.export-mode thead tr:nth-child(1) th{font-size:13px;height:24px}
-body.export-mode thead tr:nth-child(2) th{height:30px}
-body.export-mode .notes-sec{margin:10px 0 0}
-body.export-mode .notes-row{box-shadow:none;min-height:0;max-height:140px}
-body.export-mode .note-card{max-height:140px;font-size:14px}
-body.export-mode .rest-count{font-size:13px}
-body.export-mode .typhoon-note{font-size:11px}
-body.export-mode .hours-line{font-size:12px}
-body.export-mode .badge{font-size:12px}
-body.export-mode .name-txt{font-size:15px}
 </style>
 </head>
 <body>
@@ -299,6 +273,7 @@ body.export-mode .name-txt{font-size:15px}
 <div class="toolbar">
   <button id="btnEdit" class="btn">🔒 排班</button>
   <button id="btnStaff" class="btn">＋ 人員</button>
+  <button id="btnFilter" class="btn">📅 篩選日期</button>
   <button id="btnMore" class="btn">⋯</button>
   <span id="saveHint" class="save-hint"></span>
 </div>
@@ -424,6 +399,25 @@ body.export-mode .name-txt{font-size:15px}
   </div>
 </div>
 
+<!-- 篩選日期 -->
+<div class="overlay" id="ovFilter">
+  <div class="modal">
+    <div class="m-title">篩選顯示日期</div>
+    <div class="m-sub">只是畫面顯示範圍，方便截圖；不影響實際排班資料，匯出/列印仍是完整整月。</div>
+    <div class="stepper-row" style="margin-top:8px">
+      <span style="font-size:13px;color:#888">從</span>
+      <input class="txt" id="filterFrom" type="number" min="1" max="31" style="width:70px;text-align:center" placeholder="1">
+      <span style="font-size:13px;color:#888">到</span>
+      <input class="txt" id="filterTo" type="number" min="1" max="31" style="width:70px;text-align:center" placeholder="31">
+    </div>
+    <div class="m-actions">
+      <button class="btn primary" id="btnApplyFilter">套用</button>
+      <button class="btn" id="btnClearFilter">顯示全部日期</button>
+      <button class="btn" id="btnCloseFilter">關閉</button>
+    </div>
+  </div>
+</div>
+
 <!-- 店家代碼設定 -->
 <div class="overlay" id="ovSetup">
   <div class="modal">
@@ -485,7 +479,6 @@ body.export-mode .name-txt{font-size:15px}
       <button class="btn" id="btnSwitchStore">建立／更換店家代碼</button>
       <button class="btn" id="btnManageStore">管理店家代碼（需密碼）</button>
       <button class="btn" id="btnPrint">匯出 PDF／列印</button>
-      <button class="btn" id="btnPrintCanvas">下載 PDF（手機適用，直式旋轉、較大字）</button>
       <button class="btn" id="btnExport">匯出備份（JSON）</button>
       <button class="btn" id="btnImport">匯入備份</button>
       <input type="file" id="fileImport" accept=".json" style="display:none">
@@ -1320,54 +1313,6 @@ document.getElementById('btnPrint').addEventListener('click',()=>{
     setTimeout(()=>{document.title=oldTitle},500);
   },150);
 });
-function loadScriptOnce(src){
-  return new Promise((resolve,reject)=>{
-    if(document.querySelector('script[data-src="'+src+'"]')){resolve();return}
-    const s=document.createElement('script');
-    s.src=src;s.dataset.src=src;
-    s.onload=()=>resolve();
-    s.onerror=()=>reject(new Error('load fail'));
-    document.head.appendChild(s);
-  });
-}
-document.getElementById('btnPrintCanvas').addEventListener('click',async()=>{
-  document.getElementById('ovMore').classList.remove('show');
-  const btn=document.getElementById('btnMore');
-  setHint('PDF 產生中…');
-  try{
-    await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
-    await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
-  }catch(e){
-    alert('無法載入 PDF 產生元件，請確認網路連線後再試一次。');
-    setHint('');return;
-  }
-  const area=document.getElementById('exportArea');
-  document.body.classList.add('export-mode');
-  await new Promise(r=>setTimeout(r,60)); // 等版面套用完成再截圖
-  try{
-    const canvas=await html2canvas(area,{scale:2,backgroundColor:'#ffffff',useCORS:true});
-    // 轉90度：橫式截圖 → 直式頁面（跟「匯出PDF／列印」的直式呈現方式一致）
-    const rot=document.createElement('canvas');
-    rot.width=canvas.height;
-    rot.height=canvas.width;
-    const rctx=rot.getContext('2d');
-    rctx.translate(rot.width,0);
-    rctx.rotate(Math.PI/2);
-    rctx.drawImage(canvas,0,0);
-    const {jsPDF}=window.jspdf;
-    const pageW=rot.width*0.264583/2, pageH=rot.height*0.264583/2; // canvas px(scale2,96dpi)→mm
-    const pdf=new jsPDF({orientation:'portrait',unit:'mm',format:[pageW,pageH]});
-    pdf.addImage(rot.toDataURL('image/png'),'PNG',0,0,pageW,pageH);
-    const fname=(state.store||'排班表')+'_'+state.y+'年'+state.m+'月.pdf';
-    pdf.save(fname);
-    setHint('PDF 已下載 ✓');
-  }catch(e){
-    alert('PDF 產生失敗，請再試一次；若持續失敗，可改用「匯出 PDF／列印」。');
-    setHint('');
-  }finally{
-    document.body.classList.remove('export-mode');
-  }
-});
 document.getElementById('btnExport').addEventListener('click',()=>{
   const blob=new Blob([JSON.stringify(state,null,1)],{type:'application/json'});
   const a=document.createElement('a');
@@ -1400,8 +1345,8 @@ for(let y=2024;y<=2032;y++){
 for(let m=1;m<=12;m++){
   const o=document.createElement('option');o.value=m;o.textContent=m+'月份';selM.appendChild(o);
 }
-selY.addEventListener('change',()=>{state.y=+selY.value;scheduleSave();renderAll();fetchCalendar(state.y)});
-selM.addEventListener('change',()=>{state.m=+selM.value;scheduleSave();renderAll()});
+selY.addEventListener('change',()=>{state.y=+selY.value;clearDayFilter();scheduleSave();renderAll();fetchCalendar(state.y)});
+selM.addEventListener('change',()=>{state.m=+selM.value;clearDayFilter();scheduleSave();renderAll()});
 document.getElementById('storeName').addEventListener('input',scheduleSave);
 document.getElementById('sheetTitle').addEventListener('input',scheduleSave);
 document.querySelectorAll('.overlay').forEach(ov=>ov.addEventListener('click',ev=>{if(ev.target===ov)ov.classList.remove('show')}));
