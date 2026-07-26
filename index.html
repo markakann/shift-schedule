@@ -1055,6 +1055,49 @@ document.getElementById('smArchived').addEventListener('click',ev=>{
   document.getElementById('ovStaff').classList.remove('show');
 });
 document.getElementById('btnStaff').addEventListener('click',()=>openStaff(null));
+/* 篩選顯示日期（僅畫面顯示，不影響資料與匯出） */
+let dayFilter=null; // {from,to} 或 null
+function applyDayFilterStyle(){
+  let tag=document.getElementById('dayFilterStyle');
+  if(!tag){tag=document.createElement('style');tag.id='dayFilterStyle';document.head.appendChild(tag)}
+  const btn=document.getElementById('btnFilter');
+  if(!dayFilter){
+    tag.textContent='';
+    btn.textContent='📅 篩選日期';
+    btn.classList.remove('editing');
+    return;
+  }
+  const N=daysInMonth();
+  let sel=[];
+  for(let d=1;d<=N;d++)if(d<dayFilter.from||d>dayFilter.to)sel.push('[data-day="'+d+'"]');
+  tag.textContent=sel.length?sel.join(',')+'{display:none!important}':'';
+  btn.textContent='📅 '+dayFilter.from+'～'+dayFilter.to+'日';
+  btn.classList.add('editing');
+}
+function clearDayFilter(){dayFilter=null;applyDayFilterStyle()}
+document.getElementById('btnFilter').addEventListener('click',()=>{
+  document.getElementById('filterFrom').value=dayFilter?dayFilter.from:'';
+  document.getElementById('filterTo').value=dayFilter?dayFilter.to:'';
+  document.getElementById('ovFilter').classList.add('show');
+});
+document.getElementById('btnApplyFilter').addEventListener('click',()=>{
+  const N=daysInMonth();
+  let a=parseInt(document.getElementById('filterFrom').value);
+  let b=parseInt(document.getElementById('filterTo').value);
+  if(isNaN(a))a=1;
+  if(isNaN(b))b=N;
+  a=Math.max(1,Math.min(a,N));
+  b=Math.max(1,Math.min(b,N));
+  if(a>b){const t=a;a=b;b=t}
+  dayFilter={from:a,to:b};
+  applyDayFilterStyle();
+  document.getElementById('ovFilter').classList.remove('show');
+});
+document.getElementById('btnClearFilter').addEventListener('click',()=>{
+  clearDayFilter();
+  document.getElementById('ovFilter').classList.remove('show');
+});
+document.getElementById('btnCloseFilter').addEventListener('click',()=>document.getElementById('ovFilter').classList.remove('show'));
 document.getElementById('smName').addEventListener('keydown',ev=>{
   if(ev.key==='Enter'){ev.preventDefault();document.getElementById('btnSaveStaff').click();}
 });
