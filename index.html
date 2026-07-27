@@ -747,8 +747,9 @@ function calendarRedDays(){ // 行事曆紅字天數：週六日＋國定假日�
 function reqHours(sid){ // 正職本月應上班時數＝(當月天數－行事曆紅字天數，含國定假日)×8，只看行事曆，不看實際排班
   return (daysInMonth()-calendarRedDays())*8;
 }
-function shiftHours(e){ // 班段實際上班時數＝時段長度－0.5小時休息（例：9:00～17:30，8.5小時扣0.5＝8小時）
-  return Math.max(0,(e.e-e.s)/60-0.5);
+function shiftHours(e){ // 班段實際上班時數：時段長度超過4小時才扣0.5小時休息（4小時以內的短班不用休息）
+  const span=(e.e-e.s)/60;
+  return span>4?span-0.5:span;
 }
 function partHours(sid){ // 計時本月已排班總時數（已扣除每班0.5小時休息）
   let h=0;
