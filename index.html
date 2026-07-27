@@ -101,6 +101,12 @@ td.name-cell{
   border-right-width:2px;
   padding:2px 4px;vertical-align:middle;
 }
+.ot-btn{
+  position:absolute;top:1px;right:2px;z-index:1;
+  border:none;background:transparent;color:#aaa;
+  font-size:13px;line-height:1;padding:2px 3px;cursor:pointer;
+}
+.ot-btn:active{color:var(--blue)}
 th.corner{border-right-width:2px;min-width:92px;max-width:92px;width:92px}
 .name-txt{
   color:var(--blue);font-weight:700;font-size:15px;
@@ -395,6 +401,18 @@ textarea.txt{min-height:110px}
       <button class="btn primary" id="btnSaveNote">儲存</button>
       <button class="btn danger" id="btnDelNote">刪除</button>
       <button class="btn" id="btnCloseNote">關閉</button>
+    </div>
+  </div>
+</div>
+
+<!-- 加班時數統計 -->
+<div class="overlay" id="ovOT">
+  <div class="modal">
+    <div class="m-title" id="otTitle">加班時數統計</div>
+    <div class="m-sub" id="otSub"></div>
+    <div id="otBody"></div>
+    <div class="m-actions">
+      <button class="btn" id="btnCloseOT">關閉</button>
     </div>
   </div>
 </div>
@@ -729,15 +747,67 @@ function calendarRedDays(){ // 行事曆紅字天數：週六日＋國定假日�
 function reqHours(sid){ // 正職本月應上班時數＝(當月天數－行事曆紅字天數，含國定假日)×8，只看行事曆，不看實際排班
   return (daysInMonth()-calendarRedDays())*8;
 }
-function partHours(sid){ // 計時本月已排班總時數（實際排入的班段加總）
-  let min=0;
+function shiftHours(e){ // 班段實際上班時數＝時段長度－0.5小時休息（例：9:00～17:30，8.5小時扣0.5＝8小時）
+  return Math.max(0,(e.e-e.s)/60-0.5);
+}
+function partHours(sid){ // 計時本月已排班總時數（已扣除每班0.5小時休息）
+  let h=0;
   for(let d=1;d<=daysInMonth();d++){
     const e=entryOf(sid,d);
-    if(e&&e.t==='shift')min+=(e.e-e.s);
+    if(e&&e.t==='shift')h+=shiftHours(e);
   }
-  return min/60;
+  return h;
 }
 function fmtH(h){return (h%1===0)?String(h):h.toFixed(1)}
+function overtimeStats(sid){ // 本月加班時數統計：國定假日出勤／月休不足時最短班別整日列為加班／連續出勤超標時數
+  const st=state.staff.find(s=>s.id===sid);
+  const N=daysInMonth();
+  const isFull=st&&st.type==='full';
+  const streakThreshold=isFull?7:6; // 正職：第7天起才是真正違法一例；計時：第6天起提前預警
+  let holiday=0,streakHours=0;
+  let run=0;
+  let workDays=[]; // 非國定假日的出勤日 {d,hrs}，供正職判斷月休不足時使用
+  for(let d=1;d<=N;d++){
+    const e=entryOf(sid,d);
+    const worked=e&&e.t==='shift';
+    if(worked){
+      const hrs=shiftHours(e);
+      if(isNational(d)){
+        holiday+=hrs;
+      }else{
+        workDays.push({d,hrs});
+      }
+      run++;
+      if(run>=streakThreshold)streakHours+=hrs;
+    }else{
+      run=0;
+    }
+  }
+  let otHours=0,otDays=[],shortfall=0;
+  if(isFull){
+    const q=quota();
+    const rt=restTally(sid).count;
+    shortfall=Math.max(0,q-rt);
+    if(shortfall>0){
+      const sorted=[...workDays].sort((a,b)=>a.hrs-b.hrs); // 時數最短的優先列為加班
+      const picked=sorted.slice(0,shortfall);
+      otHours=picked.reduce((s,x)=>s+x.hrs,0);
+      otDays=picked.map(x=>x.d).sort((a,b)=>a-b);
+    }
+  }
+  // 平日單日超過8小時仍算加班（全員適用）；已被列為「月休不足」整日加班的日子不重複計算
+  const otDaySet=new Set(otDays);
+  let tier1=0,tier2=0;
+  for(const{d,hrs}of workDays){
+    if(otDaySet.has(d))continue;
+    if(hrs>8){
+      const ot=hrs-8;
+      tier1+=Math.min(ot,2);
+      if(ot>2)tier2+=Math.min(ot-2,2);
+    }
+  }
+  return {holiday,streakHours,otHours,otDays,shortfall,tier1,tier2,isFull,streakThreshold};
+}
 
 /* ────────── 工具 ────────── */
 function fmtDec(min){const h=min/60;return (h%1===0)?String(h):h.toFixed(1)}
@@ -821,7 +891,7 @@ function renderSheet(){
     const hoursLine=st.type==='full'
       ?'<span class="hours-line">應上'+fmtH(reqHours(st.id))+'h</span>'
       :'<span class="hours-line">本月'+fmtH(partHours(st.id))+'h</span>';
-    h+='<tr><td class="name-cell" data-sid="'+st.id+'"><span class="name-txt">'+esc(st.name)+'</span>'+
+    h+='<tr><td class="name-cell" data-sid="'+st.id+'"><button class="ot-btn" data-ot="'+st.id+'">⋯</button><span class="name-txt">'+esc(st.name)+'</span>'+
        '<span class="name-sub"><span class="badge '+st.type+'">'+TYPE_LABEL[st.type][0]+'</span>'+
        (st.type==='full'?'<span class="rest-count'+(tally.count>q?' over':'')+'">休 '+tally.count+'/'+q+
          (tally.typhoonUsed?'<span class="typhoon-note">（含颱'+tally.typhoonUsed+'）</span>':'')+'</span>':'')+
@@ -928,6 +998,8 @@ function setEntry(entry){
 
 /* ────────── 事件 ────────── */
 document.getElementById('sheet').addEventListener('click',ev=>{
+  const otBtn=ev.target.closest('.ot-btn');
+  if(otBtn&&otBtn.dataset.ot){openOT(otBtn.dataset.ot);return}
   const nameCell=ev.target.closest('.name-cell');
   if(nameCell&&nameCell.dataset.sid){openStaff(nameCell.dataset.sid);return}
   if(!editMode)return;
@@ -1055,6 +1127,42 @@ document.getElementById('smArchived').addEventListener('click',ev=>{
   document.getElementById('ovStaff').classList.remove('show');
 });
 document.getElementById('btnStaff').addEventListener('click',()=>openStaff(null));
+function openOT(sid){
+  const st=state.staff.find(s=>s.id===sid);if(!st)return;
+  const t=overtimeStats(sid);
+  document.getElementById('otTitle').textContent=st.name+'　'+state.m+'月加班時數';
+  document.getElementById('otSub').textContent='依國定假日出勤、月休是否休滿、單日超過8小時、連續出勤天數自動計算，僅供參考，實際請以公司規定為準。';
+  const otNote=t.isFull
+    ?'<div class="hr"></div><div class="sec-label">月休是否休滿（正職適用）</div>'+
+     '<div style="font-size:13px;line-height:1.8">'+
+       (t.shortfall>0
+         ?'本月月休少休 <b style="color:var(--red)">'+t.shortfall+'</b> 天，已將時數最短的 '+t.shortfall+' 個出勤日整日列為加班：<br>'+
+          (t.otDays.length?state.m+'月 '+t.otDays.join('、')+' 日':'')
+         :'本月月休已休滿，不列加班')+
+     '</div>'
+    :'';
+  document.getElementById('otBody').innerHTML=
+    '<div class="hr"></div>'+
+    '<div class="sec-label">國定假日出勤</div>'+
+    '<div style="font-size:22px;font-weight:700;color:var(--red)">'+fmtH(t.holiday)+' 小時</div>'+
+    (t.isFull?
+      '<div class="hr"></div>'+
+      '<div class="sec-label">月休不足轉列加班（整日）</div>'+
+      '<div style="font-size:22px;font-weight:700;color:'+(t.otHours>0?'var(--red)':'var(--ink)')+'">'+fmtH(t.otHours)+' 小時</div>'
+      :'')+
+    otNote+
+    '<div class="hr"></div>'+
+    '<div class="sec-label">平日單日超過8小時（不含上方已列整日加班的日子）</div>'+
+    '<div style="display:flex;gap:16px">'+
+      '<div><div style="font-size:12px;color:#888">第9、10小時</div><div style="font-size:20px;font-weight:700">'+fmtH(t.tier1)+' 小時</div></div>'+
+      '<div><div style="font-size:12px;color:#888">第11、12小時</div><div style="font-size:20px;font-weight:700">'+fmtH(t.tier2)+' 小時</div></div>'+
+    '</div>'+
+    '<div class="hr"></div>'+
+    '<div class="sec-label">連續出勤第'+t.streakThreshold+'天起（含）時數</div>'+
+    '<div style="font-size:22px;font-weight:700;color:'+(t.streakHours>0?'var(--red)':'var(--ink)')+'">'+fmtH(t.streakHours)+' 小時</div>';
+  document.getElementById('ovOT').classList.add('show');
+}
+document.getElementById('btnCloseOT').addEventListener('click',()=>document.getElementById('ovOT').classList.remove('show'));
 /* 篩選顯示日期（僅畫面顯示，不影響資料與匯出） */
 let dayFilter=null; // {from,to} 或 null
 function applyDayFilterStyle(){
