@@ -868,12 +868,12 @@ function renderSheet(){
   const md=monthData(),N=daysInMonth();
   let h='<thead><tr><th class="corner" rowspan="2"><input id="cornerLabel" class="corner-input" value="'+esc(state.corner||'')+'" placeholder="標籤" aria-label="表格左上角標籤"></th>';
   for(let d=1;d<=N;d++){
-    h+='<th class="'+(isNational(d)?'nat':'')+'" data-day="'+d+'"><span class="d-num">'+d+'</span></th>';
+    h+='<th class="'+(isNational(d)?'nat':'')+'" data-day="'+d+'" style="width:var(--cell);min-width:var(--cell);max-width:var(--cell)"><span class="d-num">'+d+'</span></th>';
   }
   h+='</tr><tr>';
   for(let d=1;d<=N;d++){
     const red=isRed(d),hn=holidayName(d);
-    h+='<th data-day="'+d+'"><span class="wd'+(red?' red':'')+'">'+WD[weekday(d)]+'</span>'+
+    h+='<th data-day="'+d+'" style="width:var(--cell);min-width:var(--cell);max-width:var(--cell)"><span class="wd'+(red?' red':'')+'">'+WD[weekday(d)]+'</span>'+
        (hn&&md.dayOv[d]!=='black'?'<span class="hname">'+esc(hn.slice(0,3))+'</span>':'')+'</th>';
   }
   h+='</tr></thead><tbody>';
@@ -883,7 +883,7 @@ function renderSheet(){
   for(const st of visible){
     if(prevType!==null&&st.type!==prevType){ // 群組之間空一行（如紙本）
       h+='<tr><td class="name-cell"></td>';
-      for(let d=1;d<=N;d++)h+='<td class="day-cell"></td>';
+      for(let d=1;d<=N;d++)h+='<td class="day-cell" data-day="'+d+'"></td>';
       h+='</tr>';
     }
     prevType=st.type;
