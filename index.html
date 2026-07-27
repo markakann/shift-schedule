@@ -417,6 +417,29 @@ textarea.txt{min-height:110px}
   </div>
 </div>
 
+<!-- JSON to PDF 月份範圍 -->
+<div class="overlay" id="ovColorPdf">
+  <div class="modal">
+    <div class="m-title">JSON to PDF</div>
+    <div class="m-sub">向量色塊＋文字圖層，橫式，一個月一頁，檔案小、文字清晰。可選連續的月份範圍。</div>
+    <div class="sec-label">從</div>
+    <div class="stepper-row">
+      <select class="txt" id="cpFromY" style="width:120px"></select>
+      <select class="txt" id="cpFromM" style="width:90px"></select>
+    </div>
+    <div class="sec-label">到</div>
+    <div class="stepper-row">
+      <select class="txt" id="cpToY" style="width:120px"></select>
+      <select class="txt" id="cpToM" style="width:90px"></select>
+    </div>
+    <div class="m-actions">
+      <button class="btn primary" id="btnGenColorPdf">產生 PDF</button>
+      <button class="btn" id="btnCloseColorPdf">取消</button>
+    </div>
+    <div class="small-note">最多一次 36 個月；若選到還沒建立過資料的月份，會產生空白該月的頁面。</div>
+  </div>
+</div>
+
 <!-- 篩選日期 -->
 <div class="overlay" id="ovFilter">
   <div class="modal">
@@ -497,6 +520,7 @@ textarea.txt{min-height:110px}
       <button class="btn" id="btnSwitchStore">建立／更換店家代碼</button>
       <button class="btn" id="btnManageStore">管理店家代碼（需密碼）</button>
       <button class="btn" id="btnPrint">匯出 PDF／列印</button>
+      <button class="btn" id="btnColorPdf">JSON to PDF（可選月份範圍）</button>
       <button class="btn" id="btnExport">匯出備份（JSON）</button>
       <button class="btn" id="btnImport">匯入備份</button>
       <input type="file" id="fileImport" accept=".json" style="display:none">
@@ -1464,6 +1488,158 @@ document.getElementById('btnPrint').addEventListener('click',()=>{
     window.print();
     setTimeout(()=>{document.title=oldTitle},500);
   },150);
+});
+/* JSON to PDF：向量格線/色塊 + canvas文字圖層（借用瀏覽器中文字型，不需另外載入字型檔） */
+function loadScriptOnce(src){
+  return new Promise((resolve,reject)=>{
+    if(document.querySelector('script[data-src="'+src+'"]')){resolve();return}
+    const s=document.createElement('script');
+    s.src=src;s.dataset.src=src;
+    s.onload=()=>resolve();
+    s.onerror=()=>reject(new Error('load fail'));
+    document.head.appendChild(s);
+  });
+}
+function fmtHHMM(min){const h=Math.floor(min/60),mm=min%60;return String(h).padStart(2,'0')+':'+String(mm).padStart(2,'0')}
+function ctxText(ctx,scale,text,xmm,ymm,opts){
+  opts=opts||{};
+  const px=(opts.size||6)*scale;
+  ctx.font=(opts.bold?'bold ':'')+px+'px "Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif';
+  ctx.fillStyle=opts.color||'#222';
+  ctx.textAlign=opts.align||'left';
+  ctx.textBaseline='alphabetic';
+  ctx.fillText(text,xmm*scale,ymm*scale);
+}
+function drawColorPage(pdf,ctx,scale,y,m){
+  const N=daysInMonth();
+  const roster=monthStaff();
+  const pageW=297,pageH=210,margin=8;
+  const nameColW=22;
+  const titleH=8,headerH=9,legendH=10;
+  const gridTop=margin+titleH;
+  const dayColW=(pageW-margin*2-nameColW)/N;
+  const bodyTop=gridTop+headerH;
+  const bodyH=pageH-margin*2-titleH-headerH-legendH;
+  const rowH=Math.max(4,Math.min(9,bodyH/Math.max(1,roster.length)));
+
+  ctxText(ctx,scale,(state.store||'排班表')+'　'+y+'年'+m+'月　排班表',margin,margin+5,{size:11,bold:true});
+
+  for(let d=1;d<=N;d++){
+    const x=margin+nameColW+(d-1)*dayColW;
+    const red=isRed(d);
+    if(red){pdf.setFillColor(250,215,220);pdf.rect(x,gridTop,dayColW,headerH,'F');}
+    pdf.setDrawColor(130,130,130);
+    pdf.rect(x,gridTop,dayColW,headerH);
+    ctxText(ctx,scale,String(d),x+dayColW/2,gridTop+4,{size:4.5,align:'center'});
+    ctxText(ctx,scale,WD[weekday(d)],x+dayColW/2,gridTop+7.6,{size:4,align:'center',color:red?'#c92f2f':'#444'});
+  }
+  pdf.setFillColor(240,240,240);
+  pdf.rect(margin,gridTop,nameColW,headerH,'F');
+  pdf.setDrawColor(130,130,130);
+  pdf.rect(margin,gridTop,nameColW,headerH);
+  ctxText(ctx,scale,'姓名',margin+nameColW/2,gridTop+6,{size:5.5,align:'center',bold:true});
+
+  roster.forEach((st,ri)=>{
+    const rowY=bodyTop+ri*rowH;
+    pdf.setDrawColor(130,130,130);
+    pdf.rect(margin,rowY,nameColW,rowH);
+    ctxText(ctx,scale,st.name,margin+2,rowY+rowH*0.6,{size:5.5,align:'left',bold:true,color:'#1e4bb8'});
+    for(let d=1;d<=N;d++){
+      const x=margin+nameColW+(d-1)*dayColW;
+      const e=entryOf(st.id,d);
+      let fill=null,label=null,labelColor='#333';
+      if(!e){
+        if(isNational(d)){fill=[250,215,220];label='國';labelColor='#c92f2f';}
+      }else if(e.t==='rest'){fill=[224,224,224];label='休';}
+      else if(e.t==='desig'){fill=[205,222,245];label='休';}
+      else if(e.t==='annual'){fill=[250,235,180];label='特';labelColor='#8a6d00';}
+      else if(e.t==='duty'){fill=[224,210,240];label='公';labelColor='#5a3a8a';}
+      else if(e.t==='typhoon'){fill=[210,235,205];label='颱';labelColor='#2a6a2a';}
+      if(fill){pdf.setFillColor(fill[0],fill[1],fill[2]);pdf.rect(x,rowY,dayColW,rowH,'F');}
+      pdf.setDrawColor(160,160,160);
+      pdf.rect(x,rowY,dayColW,rowH);
+      if(e&&e.t==='shift'){
+        ctxText(ctx,scale,fmtHHMM(e.s),x+dayColW/2,rowY+rowH*0.42,{size:2.5,align:'center'});
+        ctxText(ctx,scale,fmtHHMM(e.e),x+dayColW/2,rowY+rowH*0.86,{size:2.5,align:'center'});
+      }else if(e&&e.t==='redline'){
+        pdf.setDrawColor(170,170,170);
+        pdf.line(x+0.8,rowY+0.8,x+dayColW-0.8,rowY+rowH-0.8);
+        pdf.line(x+0.8,rowY+rowH-0.8,x+dayColW-0.8,rowY+0.8);
+      }else if(label){
+        ctxText(ctx,scale,label,x+dayColW/2,rowY+rowH*0.62,{size:5.5,align:'center',bold:true,color:labelColor});
+      }
+    }
+  });
+
+  const legendY=bodyTop+roster.length*rowH+4;
+  const items=[[[224,224,224],'排休'],[[205,222,245],'指定休息'],[[250,215,220],'國定假日'],[[250,235,180],'特休'],[[224,210,240],'公差'],[[210,235,205],'颱風假']];
+  let lx=margin;
+  items.forEach(([c,label])=>{
+    pdf.setFillColor(c[0],c[1],c[2]);
+    pdf.rect(lx,legendY,4,3,'F');
+    pdf.setDrawColor(150,150,150);
+    pdf.rect(lx,legendY,4,3);
+    ctxText(ctx,scale,label,lx+5,legendY+2.5,{size:4.5,align:'left'});
+    lx+=5+label.length*4.6+6;
+  });
+}
+async function exportColorPdf(fromY,fromM,toY,toM){
+  setHint('JSON to PDF 產生中…');
+  try{
+    await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+    const {jsPDF}=window.jspdf;
+    const pdf=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+    const months=[];
+    let y=fromY,m=fromM,guard=0;
+    while((y<toY||(y===toY&&m<=toM))&&guard<36){
+      months.push([y,m]);
+      m++;if(m>12){m=1;y++;}
+      guard++;
+    }
+    if(!months.length)months.push([fromY,fromM]);
+    const origY=state.y,origM=state.m;
+    const scale=8,pageWpx=297*scale,pageHpx=210*scale;
+    months.forEach(([my,mm],idx)=>{
+      state.y=my;state.m=mm;
+      if(idx>0)pdf.addPage('a4','landscape');
+      const canvas=document.createElement('canvas');
+      canvas.width=pageWpx;canvas.height=pageHpx;
+      const ctx=canvas.getContext('2d');
+      drawColorPage(pdf,ctx,scale,my,mm);
+      pdf.addImage(canvas.toDataURL('image/png'),'PNG',0,0,297,210);
+    });
+    state.y=origY;state.m=origM;
+    const fname=(state.store||'排班表')+'_JSONtoPDF_'+fromY+String(fromM).padStart(2,'0')+'-'+toY+String(toM).padStart(2,'0')+'.pdf';
+    pdf.save(fname);
+    setHint('JSON to PDF 已下載 ✓');
+  }catch(e){
+    alert('JSON to PDF 產生失敗，請確認網路連線後再試一次。');
+    setHint('');
+  }
+}
+document.getElementById('btnColorPdf').addEventListener('click',()=>{
+  document.getElementById('ovMore').classList.remove('show');
+  const ySel=['cpFromY','cpToY'],mSel=['cpFromM','cpToM'];
+  ySel.forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el.options.length)for(let y=2024;y<=2032;y++){const o=document.createElement('option');o.value=y;o.textContent='民國'+(y-1911)+'年';el.appendChild(o);}
+    el.value=state.y;
+  });
+  mSel.forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el.options.length)for(let m=1;m<=12;m++){const o=document.createElement('option');o.value=m;o.textContent=m+'月';el.appendChild(o);}
+  });
+  document.getElementById('cpFromM').value=state.m;
+  document.getElementById('cpToM').value=state.m;
+  document.getElementById('ovColorPdf').classList.add('show');
+});
+document.getElementById('btnCloseColorPdf').addEventListener('click',()=>document.getElementById('ovColorPdf').classList.remove('show'));
+document.getElementById('btnGenColorPdf').addEventListener('click',()=>{
+  const fromY=+document.getElementById('cpFromY').value,fromM=+document.getElementById('cpFromM').value;
+  const toY=+document.getElementById('cpToY').value,toM=+document.getElementById('cpToM').value;
+  if(toY<fromY||(toY===fromY&&toM<fromM)){alert('結束月份不能早於起始月份。');return}
+  document.getElementById('ovColorPdf').classList.remove('show');
+  exportColorPdf(fromY,fromM,toY,toM);
 });
 document.getElementById('btnExport').addEventListener('click',()=>{
   const blob=new Blob([JSON.stringify(state,null,1)],{type:'application/json'});
