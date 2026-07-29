@@ -127,6 +127,7 @@ th.corner{border-right-width:2px;min-width:92px;max-width:92px;width:92px}
   min-width:var(--cell);max-width:var(--cell);width:var(--cell);height:var(--cellh);
   position:relative;font-size:var(--cellfs);overflow:hidden;
 }
+.day-th{min-width:var(--cell);max-width:var(--cell);width:var(--cell)}
 .day-cell::before{ /* 未排：底線／，任何班別都保留。用實心旋轉短條取代漸層，列印才不會糊邊 */
   content:'';position:absolute;left:50%;top:50%;width:170%;height:1px;
   background:var(--pencil);transform:translate(-50%,-50%) rotate(-45deg);
@@ -237,9 +238,9 @@ textarea.txt{min-height:110px}
   html,body{margin:0;padding:0}
   body{
     background:#fff;font-size:12px;padding:0;
-    width:281mm;height:194mm;      /* 橫式內容畫布：A4 橫向可印範圍（297-2×8mm）×（210-2×8mm） */
+    width:281mm;height:var(--printH,194mm);      /* 橫式內容畫布：寬固定281mm；高度依實際人數動態計算，見dynPrintStyle */
     transform-origin:top left;
-    transform:translateX(194mm) rotate(90deg); /* 整頁旋轉90度，塞進直式 A4 紙 */
+    transform:translateX(var(--printH,194mm)) rotate(90deg); /* 整頁旋轉90度，塞進直式 A4 紙 */
   }
   .toolbar,.legend,.overlay,.save-hint,#btnAddNote{display:none!important}
   .topbar{position:static;box-shadow:none;border-bottom:2px solid var(--grid);padding:4px 0 6px}
@@ -248,7 +249,8 @@ textarea.txt{min-height:110px}
   thead th{position:static}
   td.name-cell,th.corner{position:static;min-width:0;max-width:none;width:64px;font-size:10px}
   table{width:100%}
-  .day-cell{min-width:0;max-width:none;width:auto;height:32px;font-size:7.5px}
+  .day-cell,.day-th{min-width:0;max-width:none;width:auto}
+  .day-cell{height:var(--printRowH,32px);font-size:7.5px}
   .mark.tri{font-size:13px}
   .mark.word{font-size:11px}
   .nat-auto{font-size:9px}
@@ -893,12 +895,12 @@ function renderSheet(){
   const md=monthData(),N=daysInMonth();
   let h='<thead><tr><th class="corner" rowspan="2"><input id="cornerLabel" class="corner-input" value="'+esc(state.corner||'')+'" placeholder="標籤" aria-label="表格左上角標籤"></th>';
   for(let d=1;d<=N;d++){
-    h+='<th class="'+(isNational(d)?'nat':'')+'" data-day="'+d+'" style="width:var(--cell);min-width:var(--cell);max-width:var(--cell)"><span class="d-num">'+d+'</span></th>';
+    h+='<th class="day-th '+(isNational(d)?'nat':'')+'" data-day="'+d+'"><span class="d-num">'+d+'</span></th>';
   }
   h+='</tr><tr>';
   for(let d=1;d<=N;d++){
     const red=isRed(d),hn=holidayName(d);
-    h+='<th data-day="'+d+'" style="width:var(--cell);min-width:var(--cell);max-width:var(--cell)"><span class="wd'+(red?' red':'')+'">'+WD[weekday(d)]+'</span>'+
+    h+='<th class="day-th" data-day="'+d+'"><span class="wd'+(red?' red':'')+'">'+WD[weekday(d)]+'</span>'+
        (hn&&md.dayOv[d]!=='black'?'<span class="hname">'+esc(hn.slice(0,3))+'</span>':'')+'</th>';
   }
   h+='</tr></thead><tbody>';
@@ -1480,10 +1482,31 @@ document.getElementById('btnSkipCloud').addEventListener('click',()=>{
   document.getElementById('ovSetup').classList.remove('show');
   setHint('僅本機模式');
 });
+function applyDynamicPrintSizing(){
+  // 依「目前實際人數」動態算出列印用的每列高度與旋轉位移，避免人數增減後又超出寫死的版面高度
+  const roster=monthStaff();
+  let rows=0,prevType=null;
+  roster.forEach(st=>{
+    if(prevType!==null&&st.type!==prevType)rows++; // 分組間的空白列
+    rows++;
+    prevType=st.type;
+  });
+  if(rows<1)rows=1;
+  const availMM=190; // A4直式扣邊界後的可印寬度，即旋轉前的「高度」預算上限
+  const availPx=availMM*(96/25.4);
+  const topbarPx=40,headerPx=36,notesPx=125; // 標題列＋表頭兩排＋備註區的估計高度
+  let rowPx=Math.floor((availPx-topbarPx-headerPx-notesPx)/rows);
+  rowPx=Math.max(16,Math.min(32,rowPx)); // 至少16px維持可讀，最多32px（原始設計值）
+  const totalPx=topbarPx+headerPx+rows*rowPx+notesPx;
+  const totalMM=Math.min(availMM,totalPx*25.4/96);
+  document.documentElement.style.setProperty('--printH',totalMM.toFixed(2)+'mm');
+  document.documentElement.style.setProperty('--printRowH',rowPx+'px');
+}
 document.getElementById('btnPrint').addEventListener('click',()=>{
   document.getElementById('ovMore').classList.remove('show');
   const oldTitle=document.title;
   document.title=(state.store||'排班表')+' '+state.y+'年'+state.m+'月';
+  applyDynamicPrintSizing();
   setTimeout(()=>{
     window.print();
     setTimeout(()=>{document.title=oldTitle},500);
