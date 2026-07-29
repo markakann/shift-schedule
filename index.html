@@ -232,39 +232,38 @@ textarea.txt{min-height:110px}
   .modal{border-radius:14px}
 }
 /* ── 列印／匯出 PDF ── */
+/* 列印尺寸設定：抽成獨立class，供JS在正式列印前先套用做實際量測，量測與正式列印共用同一套數字 */
+body.print-sizing{--printScale:1;width:281mm}
+body.print-sizing .notes-sec{break-inside:avoid;page-break-inside:avoid}
+body.print-sizing .toolbar,body.print-sizing .legend,body.print-sizing .overlay,body.print-sizing .save-hint,body.print-sizing #btnAddNote{display:none!important}
+body.print-sizing .topbar{position:static;box-shadow:none;border-bottom:2px solid var(--grid);padding:4px 0 6px}
+body.print-sizing .store-name,body.print-sizing .ym-sel,body.print-sizing .sheet-title-input,body.print-sizing .corner-input{border:none;appearance:none;-webkit-appearance:none}
+body.print-sizing .sheet-wrap{max-height:none;overflow:visible;margin:0;box-shadow:none}
+body.print-sizing thead th{position:static}
+body.print-sizing td.name-cell,body.print-sizing th.corner{position:static;min-width:0;max-width:none;width:64px;font-size:10px;padding:1px 3px}
+body.print-sizing table{width:100%}
+body.print-sizing .day-cell,body.print-sizing .day-th{min-width:0;max-width:none;width:auto}
+body.print-sizing .day-cell{height:var(--printRowH,32px);font-size:calc(7.5px*var(--printScale))}
+body.print-sizing .mark.tri{font-size:calc(13px*var(--printScale))}
+body.print-sizing .mark.word{font-size:calc(11px*var(--printScale))}
+body.print-sizing .nat-auto{font-size:calc(9px*var(--printScale))}
+body.print-sizing th .wd{font-size:10px}
+body.print-sizing thead tr:nth-child(1) th{font-size:9px;height:16px}
+body.print-sizing thead tr:nth-child(2) th{height:20px}
+body.print-sizing .notes-sec{margin:8px 0 0}
+body.print-sizing .notes-row{box-shadow:none;min-height:0;max-height:100px}
+body.print-sizing .note-card{max-height:100px;font-size:10px}
+body.print-sizing .rest-count{font-size:calc(9px*var(--printScale))}
+body.print-sizing .typhoon-note{font-size:calc(7px*var(--printScale))}
+body.print-sizing .hours-line{font-size:calc(8px*var(--printScale))}
+body.print-sizing .badge{font-size:calc(8px*var(--printScale))}
+body.print-sizing .name-txt{font-size:calc(11px*var(--printScale));line-height:1.15}
+body.print-sizing .name-sub{margin-top:0}
 @media print{
-  @page{size:A4 portrait;margin:8mm}
+  @page{size:A4 landscape;margin:8mm}
   *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
   html,body{margin:0;padding:0}
-  body{
-    background:#fff;font-size:12px;padding:0;
-    width:281mm;height:var(--printH,194mm);      /* 橫式內容畫布：寬固定281mm；高度依實際人數動態計算，見dynPrintStyle */
-    transform-origin:top left;
-    transform:translateX(var(--printH,194mm)) rotate(90deg); /* 整頁旋轉90度，塞進直式 A4 紙 */
-  }
-  .toolbar,.legend,.overlay,.save-hint,#btnAddNote{display:none!important}
-  .topbar{position:static;box-shadow:none;border-bottom:2px solid var(--grid);padding:4px 0 6px}
-  .store-name,.ym-sel,.sheet-title-input,.corner-input{border:none;appearance:none;-webkit-appearance:none}
-  .sheet-wrap{max-height:none;overflow:visible;margin:0;box-shadow:none}
-  thead th{position:static}
-  td.name-cell,th.corner{position:static;min-width:0;max-width:none;width:64px;font-size:10px}
-  table{width:100%}
-  .day-cell,.day-th{min-width:0;max-width:none;width:auto}
-  .day-cell{height:var(--printRowH,32px);font-size:7.5px}
-  .mark.tri{font-size:13px}
-  .mark.word{font-size:11px}
-  .nat-auto{font-size:9px}
-  th .wd{font-size:10px}
-  thead tr:nth-child(1) th{font-size:9px;height:16px}
-  thead tr:nth-child(2) th{height:20px}
-  .notes-sec{margin:8px 0 0}
-  .notes-row{box-shadow:none;min-height:0;max-height:100px}
-  .note-card{max-height:100px;font-size:10px}
-  .rest-count{font-size:9px}
-  .typhoon-note{font-size:7px}
-  .hours-line{font-size:8px}
-  .badge{font-size:8px}
-  .name-txt{font-size:11px}
+  body{background:#fff;font-size:12px;padding:0}
 }
 </style>
 </head>
@@ -531,7 +530,7 @@ textarea.txt{min-height:110px}
     <div class="small-note" id="calStatus"></div>
     <div class="small-note">
       使用方式：按「🔒 排班」進入排班模式後才能點格子與日期列，再按一次鎖定防止誤觸。<br>
-      列印／PDF：輸出為 A4 直式，內容整頁旋轉90度呈現橫式整月表格。建議用電腦匯出／列印 PDF——手機的列印功能通常沒有縮放或紙張大小選項可調，電腦操作起來更完整、也更容易確認排版正確。<br>
+      列印／PDF：輸出為 A4 橫式整月表格。建議用電腦匯出／列印 PDF——手機的列印功能通常沒有縮放或紙張大小選項可調，電腦操作起來更完整、也更容易確認排版正確。<br>
       若斜線沒有顯示，請在列印視窗「更多設定」勾選「背景圖形」。若要去除頁首的時間與網址，請在同個「更多設定」關閉「頁首及頁尾」──這是瀏覽器本身的列印設定，網頁無法直接關閉。<br>
       雲端同步：同一組店家代碼的裝置共用同一份班表，改動即時同步；離線時先存本機，連上後自動補傳。<br>
       行事曆：連線時自動抓取政府公告（TaiwanCalendar 開源資料），離線時使用內建 2026（民國115）年資料；也可在排班模式點日期手動改紅黑字。
@@ -1482,34 +1481,38 @@ document.getElementById('btnSkipCloud').addEventListener('click',()=>{
   document.getElementById('ovSetup').classList.remove('show');
   setHint('僅本機模式');
 });
-function applyDynamicPrintSizing(){
-  // 依「目前實際人數」動態算出列印用的每列高度與旋轉位移，避免人數增減後又超出寫死的版面高度
-  const roster=monthStaff();
-  let rows=0,prevType=null;
-  roster.forEach(st=>{
-    if(prevType!==null&&st.type!==prevType)rows++; // 分組間的空白列
-    rows++;
-    prevType=st.type;
-  });
-  if(rows<1)rows=1;
-  const availMM=190; // A4直式扣邊界後的可印寬度，即旋轉前的「高度」預算上限
-  const availPx=availMM*(96/25.4);
-  const topbarPx=40,headerPx=36,notesPx=125; // 標題列＋表頭兩排＋備註區的估計高度
-  let rowPx=Math.floor((availPx-topbarPx-headerPx-notesPx)/rows);
-  rowPx=Math.max(16,Math.min(32,rowPx)); // 至少16px維持可讀，最多32px（原始設計值）
-  const totalPx=topbarPx+headerPx+rows*rowPx+notesPx;
-  const totalMM=Math.min(availMM,totalPx*25.4/96);
-  document.documentElement.style.setProperty('--printH',totalMM.toFixed(2)+'mm');
-  document.documentElement.style.setProperty('--printRowH',rowPx+'px');
+function computeAndApplyPrintSizing(){
+  // 實際套上列印用樣式量出真實高度，不用猜的公釐數字；量測跟正式列印共用同一套CSS數字
+  document.body.classList.add('print-sizing');
+  const area=document.getElementById('exportArea');
+  const availPx=186*(96/25.4); // 可印高度194mm再保留8mm餘裕，避免邊框累積誤差導致表格被推到第二頁
+  let scale=1;
+  document.documentElement.style.setProperty('--printRowH','32px');
+  document.documentElement.style.setProperty('--printScale','1');
+  void document.body.offsetHeight; // 強制reflow確保樣式生效
+  let hPx=area.getBoundingClientRect().height;
+  for(let i=0;i<5&&hPx>availPx;i++){
+    scale=Math.max(0.4,scale*(availPx/hPx)*0.95); // 迭代收斂，留餘裕避免邊界反覆震盪
+    const rowPx=Math.max(13,Math.round(32*scale));
+    document.documentElement.style.setProperty('--printRowH',rowPx+'px');
+    document.documentElement.style.setProperty('--printScale',String(scale));
+    void document.body.offsetHeight;
+    hPx=area.getBoundingClientRect().height;
+  }
+  document.body.classList.remove('print-sizing');
 }
 document.getElementById('btnPrint').addEventListener('click',()=>{
   document.getElementById('ovMore').classList.remove('show');
   const oldTitle=document.title;
   document.title=(state.store||'排班表')+' '+state.y+'年'+state.m+'月';
-  applyDynamicPrintSizing();
+  computeAndApplyPrintSizing();
+  document.body.classList.add('print-sizing'); // 正式列印期間也要維持同一套尺寸樣式
   setTimeout(()=>{
     window.print();
-    setTimeout(()=>{document.title=oldTitle},500);
+    setTimeout(()=>{
+      document.title=oldTitle;
+      document.body.classList.remove('print-sizing');
+    },500);
   },150);
 });
 /* JSON to PDF：向量格線/色塊 + canvas文字圖層（借用瀏覽器中文字型，不需另外載入字型檔） */
