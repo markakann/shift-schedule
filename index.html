@@ -157,7 +157,10 @@ body.editing .day-cell:active{background-color:#fdf3d8}
 th .d-num{display:block;line-height:1.1}
 th .wd{display:block;font-size:14px;font-weight:700;line-height:1.1}
 th .wd.red{color:var(--red)}
-th .hname{display:block;font-size:8px;color:var(--red);line-height:1.1;white-space:nowrap;overflow:hidden}
+th .hname{display:block;font-size:8px;line-height:1.1;white-space:nowrap;overflow:hidden}
+th .hname.red{color:var(--red)}
+th .hname.black{color:var(--ink)}
+th .cov-warn{display:block;font-size:10px;color:#fff;background:var(--red);border-radius:50%;width:13px;height:13px;line-height:13px;margin:1px auto 0;font-weight:700;cursor:pointer}
 th.nat .d-num{color:var(--red)}
 body.editing thead tr:nth-child(2) th:not(.corner){cursor:pointer}
 /* ── 備註 ── */
@@ -235,6 +238,7 @@ textarea.txt{min-height:110px}
 /* 列印尺寸設定：抽成獨立class，供JS在正式列印前先套用做實際量測，量測與正式列印共用同一套數字 */
 body.print-sizing{--printScale:1;width:281mm}
 body.print-sizing .notes-sec{break-inside:avoid;page-break-inside:avoid}
+body.print-sizing .cov-warn{display:none!important}
 body.print-sizing .toolbar,body.print-sizing .legend,body.print-sizing .overlay,body.print-sizing .save-hint,body.print-sizing #btnAddNote{display:none!important}
 body.print-sizing .topbar{position:static;box-shadow:none;border-bottom:2px solid var(--grid);padding:4px 0 6px}
 body.print-sizing .store-name,body.print-sizing .ym-sel,body.print-sizing .sheet-title-input,body.print-sizing .corner-input{border:none;appearance:none;-webkit-appearance:none}
@@ -385,6 +389,8 @@ body.print-sizing .name-sub{margin-top:0}
       <label><input type="radio" name="dmRed" value="red">手動設為紅字日</label>
       <label><input type="radio" name="dmRed" value="black">手動設為黑字日</label>
     </div>
+    <div class="sec-label">日期名稱（選填，會顯示在日期下方，例如：情人節）</div>
+    <input class="txt" id="dmName" placeholder="輸入名稱" maxlength="10">
     <div class="m-actions">
       <button class="btn primary" id="btnSaveDay">儲存</button>
       <button class="btn" id="btnCloseDay">關閉</button>
@@ -414,6 +420,18 @@ body.print-sizing .name-sub{margin-top:0}
     <div id="otBody"></div>
     <div class="m-actions">
       <button class="btn" id="btnCloseOT">關閉</button>
+    </div>
+  </div>
+</div>
+
+<!-- 班次覆蓋檢查 -->
+<div class="overlay" id="ovCoverage">
+  <div class="modal">
+    <div class="m-title" id="covTitle">班次覆蓋檢查</div>
+    <div class="m-sub">規則：每日至少1人 9:00 上班、1人 10:00～11:00 上班、1人 13:30／14:00 上班、2人下班到 22:00／22:30；週六日、國定假日與紅字日排班至少 5 人（特殊節日可在排班模式點日期手動設為紅字納入檢查）。</div>
+    <div id="covBody" style="font-size:14px;line-height:1.9;max-height:50vh;overflow-y:auto"></div>
+    <div class="m-actions">
+      <button class="btn" id="btnCloseCoverage">關閉</button>
     </div>
   </div>
 </div>
@@ -705,7 +723,7 @@ function ym(){return state.y+'-'+state.m}
 function monthData(){
   if(!state.months[ym()]) state.months[ym()]={sched:{},notes:[],dayOv:{},roster:null};
   const md=state.months[ym()];
-  md.sched=md.sched||{}; md.notes=md.notes||[]; md.dayOv=md.dayOv||{};
+  md.sched=md.sched||{}; md.notes=md.notes||[]; md.dayOv=md.dayOv||{}; md.dayNames=md.dayNames||{};
   if(md.roster===undefined)md.roster=state.staff.map(s=>s.id); // 舊版資料相容：預設全員
   return md;
 }
@@ -751,6 +769,30 @@ function quota(){ // 月休額度＝紅字天數，但不含國定假日
   return n;
 }
 function entryOf(sid,d){const s=monthData().sched[sid];return s?s[d]:undefined}
+/* 每日班次覆蓋規則：開店、午班、下午班、晚班收店人力 */
+const COVERAGE_RULES=[
+  {test:list=>list.some(e=>e.s===540),need:'缺 9:00 上班人員'},
+  {test:list=>list.some(e=>e.s===600||e.s===630||e.s===660),need:'缺 10:00～11:00 上班人員'},
+  {test:list=>list.some(e=>e.s===810||e.s===840),need:'缺 13:30／14:00 上班人員'},
+  {test:list=>list.filter(e=>e.e>=1320).length>=2,need:'下班到 22:00／22:30 不足 2 人'},
+];
+function coverageIssues(d){ // 回傳該日缺少的覆蓋項目；完全沒排班的日子回傳null(不檢查)
+  const shifts=[];
+  for(const st of monthStaff()){
+    const e=entryOf(st.id,d);
+    if(e&&e.t==='shift')shifts.push(e);
+  }
+  if(!shifts.length)return null;
+  const miss=[];
+  for(const r of COVERAGE_RULES)if(!r.test(shifts))miss.push(r.need);
+  if(isRed(d)&&shifts.length<=4){ // 紅字日（週末／國定假日／手動標紅的特殊節日）人數檢查
+    const w=weekday(d);
+    const custom=monthData().dayNames[d];
+    const label=custom||(isNational(d)?'國定假日':(w===0||w===6)?'週末':'特殊節日');
+    miss.push(label+'排班僅 '+shifts.length+' 人');
+  }
+  return miss;
+}
 function restTally(sid){ // 正職月休：排休＋指定休息優先計算；不足額時優先以颱風假補足（國定假日當天不計）
   let base=0,typhoon=0;
   for(let d=1;d<=daysInMonth();d++){
@@ -899,8 +941,11 @@ function renderSheet(){
   h+='</tr><tr>';
   for(let d=1;d<=N;d++){
     const red=isRed(d),hn=holidayName(d);
+    const cov=coverageIssues(d);
+    const dispName=md.dayNames[d]||(md.dayOv[d]!=='black'?hn:null); // 自訂名稱優先（黑字日也顯示），行事曆假日名在黑字日隱藏
     h+='<th class="day-th" data-day="'+d+'"><span class="wd'+(red?' red':'')+'">'+WD[weekday(d)]+'</span>'+
-       (hn&&md.dayOv[d]!=='black'?'<span class="hname">'+esc(hn.slice(0,3))+'</span>':'')+'</th>';
+       (dispName?'<span class="hname '+(red?'red':'black')+'">'+esc(dispName.slice(0,4))+'</span>':'')+
+       (cov&&cov.length?'<span class="cov-warn" title="'+esc(cov.join('、'))+'">！</span>':'')+'</th>';
   }
   h+='</tr></thead><tbody>';
   const q=quota();
@@ -948,7 +993,7 @@ function renderSheet(){
 }
 function renderNotes(){
   const notes=monthData().notes,row=document.getElementById('notesRow');
-  if(!notes.length){row.innerHTML='<div class="note-empty">按「＋」新增備註，會以直式分段排列（如紙本）。</div>';return}
+  if(!notes.length){row.innerHTML='';return}
   row.innerHTML=notes.map((n,i)=>'<div class="note-card" data-i="'+i+'">'+esc(n)+'</div>').join('');
 }
 
@@ -1024,6 +1069,11 @@ function setEntry(entry){
 
 /* ────────── 事件 ────────── */
 document.getElementById('sheet').addEventListener('click',ev=>{
+  const cw=ev.target.closest('.cov-warn');
+  if(cw){
+    const th=cw.closest('th[data-day]');
+    if(th){openCoverageDay(parseInt(th.dataset.day));return}
+  }
   const otBtn=ev.target.closest('.ot-btn');
   if(otBtn&&otBtn.dataset.ot){openOT(otBtn.dataset.ot);return}
   const nameCell=ev.target.closest('.name-cell');
@@ -1108,14 +1158,19 @@ function clearCell(){ // 清除此格；若為紅線，可選擇清除整段
 /* 日期紅黑字 */
 function openDayOv(d){
   curDayForOv=d;
-  const ov=monthData().dayOv[d]||'auto';
+  const md=monthData();
+  const ov=md.dayOv[d]||'auto';
   document.getElementById('dmTitle').textContent=state.m+'/'+d+'（'+WD[weekday(d)]+'）'+(holidayName(d)?'　'+holidayName(d):'');
   document.querySelectorAll('input[name=dmRed]').forEach(r=>r.checked=(r.value===ov));
+  document.getElementById('dmName').value=md.dayNames[d]||'';
   document.getElementById('ovDay').classList.add('show');
 }
 document.getElementById('btnSaveDay').addEventListener('click',()=>{
+  const md=monthData();
   const v=document.querySelector('input[name=dmRed]:checked').value;
-  if(v==='auto')delete monthData().dayOv[curDayForOv];else monthData().dayOv[curDayForOv]=v;
+  if(v==='auto')delete md.dayOv[curDayForOv];else md.dayOv[curDayForOv]=v;
+  const name=document.getElementById('dmName').value.trim();
+  if(name)md.dayNames[curDayForOv]=name;else delete md.dayNames[curDayForOv];
   scheduleSave();renderSheet();
   document.getElementById('ovDay').classList.remove('show');
 });
@@ -1643,6 +1698,17 @@ async function exportColorPdf(fromY,fromM,toY,toM){
     setHint('');
   }
 }
+function openCoverageDay(d){ // 點擊表頭驚嘆號時顯示該日覆蓋不足的具體原因
+  const cov=coverageIssues(d);
+  document.getElementById('covTitle').textContent=state.m+'/'+d+'（'+WD[weekday(d)]+'）班次檢查';
+  let html;
+  if(cov===null)html='<div style="color:#999">該日尚未排任何班，未列入檢查。</div>';
+  else if(!cov.length)html='<div style="color:#2a8a4a;font-weight:700">該日符合所有覆蓋規則 ✓</div>';
+  else html=cov.map(c=>'<div><b style="color:var(--red)">✗</b>　'+esc(c)+'</div>').join('');
+  document.getElementById('covBody').innerHTML=html;
+  document.getElementById('ovCoverage').classList.add('show');
+}
+document.getElementById('btnCloseCoverage').addEventListener('click',()=>document.getElementById('ovCoverage').classList.remove('show'));
 document.getElementById('btnColorPdf').addEventListener('click',()=>{
   document.getElementById('ovMore').classList.remove('show');
   const ySel=['cpFromY','cpToY'],mSel=['cpFromM','cpToM'];
