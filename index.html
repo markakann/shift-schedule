@@ -74,6 +74,8 @@ body{
   display:flex;gap:12px;flex-wrap:wrap;line-height:1.7;
 }
 .legend b{color:var(--red);font-weight:600}
+.legend b.yellow-txt{color:#b8860b}
+.legend b.green-txt{color:#2a8a4a}
 /* ── 表格 ── */
 .sheet-wrap{
   margin:0 8px;background:var(--paper);
@@ -150,6 +152,8 @@ body.editing .day-cell:active{background-color:#fdf3d8}
 }
 .mark.tri{font-size:20px;font-weight:400}
 .mark.word{font-size:17px}
+.mark.yellow{color:#b8860b}
+.mark.green{color:#2a8a4a}
 .nat-auto{
   position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
   color:var(--red);opacity:.55;font-size:12px;font-weight:700;pointer-events:none;
@@ -160,7 +164,8 @@ th .wd.red{color:var(--red)}
 th .hname{display:block;font-size:8px;line-height:1.1;white-space:nowrap;overflow:hidden}
 th .hname.red{color:var(--red)}
 th .hname.black{color:var(--ink)}
-th .cov-warn{display:block;font-size:10px;color:#fff;background:var(--red);border-radius:50%;width:13px;height:13px;line-height:13px;margin:1px auto 0;font-weight:700;cursor:pointer}
+th .warn-row{display:flex;justify-content:center;gap:2px;margin-top:1px}
+th .cov-warn{display:inline-flex;align-items:center;justify-content:center;font-size:10px;color:#fff;background:var(--red);border-radius:50%;width:13px;height:13px;line-height:13px;font-weight:700;cursor:pointer}
 th .cov-warn.yellow{background:#d99a00}
 th.nat .d-num{color:var(--red)}
 body.editing thead tr:nth-child(2) th:not(.corner){cursor:pointer}
@@ -207,6 +212,8 @@ body.editing thead tr:nth-child(2) th:not(.corner){cursor:pointer}
 .chip:active{background:#eef3ff}
 .chip.part-extra{border-style:dashed;color:#555}
 .chip.leave{color:var(--red);border-color:var(--red);background:#fff8f8}
+.chip.leave.yellow{color:#b8860b;border-color:#b8860b;background:#fffaf0}
+.chip.leave.green{color:#2a8a4a;border-color:#2a8a4a;background:#f3fbf5}
 .chip.plain{color:var(--ink)}
 .stepper-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .stepper{display:flex;align-items:center;border:1.5px solid var(--grid);border-radius:8px;overflow:hidden}
@@ -239,7 +246,7 @@ textarea.txt{min-height:110px}
 /* 列印尺寸設定：抽成獨立class，供JS在正式列印前先套用做實際量測，量測與正式列印共用同一套數字 */
 body.print-sizing{--printScale:1;width:281mm}
 body.print-sizing .notes-sec{break-inside:avoid;page-break-inside:avoid}
-body.print-sizing .cov-warn{display:none!important}
+body.print-sizing .cov-warn,body.print-sizing .warn-row{display:none!important}
 body.print-sizing .toolbar,body.print-sizing .legend,body.print-sizing .overlay,body.print-sizing .save-hint,body.print-sizing #btnAddNote{display:none!important}
 body.print-sizing .topbar{position:static;box-shadow:none;border-bottom:2px solid var(--grid);padding:4px 0 6px}
 body.print-sizing .store-name,body.print-sizing .ym-sel,body.print-sizing .sheet-title-input,body.print-sizing .corner-input{border:none;appearance:none;-webkit-appearance:none}
@@ -296,6 +303,8 @@ body.print-sizing .name-sub{margin-top:0}
   <span><b>△</b> 指定休息</span>
   <span><b>特</b>＝特休</span>
   <span><b>公</b>＝公差</span>
+  <span><b class="yellow-txt">事</b>＝事假</span>
+  <span><b class="green-txt">病</b>＝病假</span>
   <span><b>颱</b>＝颱風假（月休不足時優先抵用）</span>
   <span><b>─</b> 紅線＝到職前／離職後不排班</span>
   <span><b>國</b>＝國定假日未排班，不扣薪，不計入月休</span>
@@ -341,6 +350,8 @@ body.print-sizing .name-sub{margin-top:0}
       <button class="chip plain" data-leave="rest">╲ 排休</button>
       <button class="chip leave" data-leave="annual">特休</button>
       <button class="chip leave" data-leave="duty">公差</button>
+      <button class="chip leave yellow" data-leave="personal">事假</button>
+      <button class="chip leave green" data-leave="sick">病假</button>
       <button class="chip leave" data-leave="typhoon">颱風假</button>
       <button class="chip leave" data-leave="redline">─ 紅線（到職／離職區間）</button>
     </div>
@@ -573,7 +584,7 @@ body.print-sizing .name-sub{margin-top:0}
 const WD = ['日','一','二','三','四','五','六'];
 const PRESETS_COMMON = [[540,1050],[630,1140],[660,1170],[720,1230],[750,1260],[810,1320],[840,1350]];
 const PRESETS_PART   = [[540,960],[720,960],[960,1320],[1080,1320],[1110,1350]];
-const LEAVE_LABEL = {rest:'排休', desig:'指定休息', annual:'特休', duty:'公差', typhoon:'颱風假', redline:'紅線'};
+const LEAVE_LABEL = {rest:'排休', desig:'指定休息', annual:'特休', duty:'公差', personal:'事假', sick:'病假', typhoon:'颱風假', redline:'紅線'};
 const GROUP_ORDER = {full:0, part:1, sup:2};
 const TYPE_LABEL  = {full:'正職', part:'計時', sup:'支援'};
 function sortStaff(){ // 穩定排序：正職固定在上，計時居中，支援在最下
@@ -860,10 +871,13 @@ function coverageIssues(d){ // 回傳該日缺少的覆蓋項目；排班模式�
   }
   return miss;
 }
-function workedOnYM(y,m,sid,d){ // 讀取任意月份某日是否有排班（供跨月連續計算，不經過monthData避免誤建月份資料）
+function countsTowardStreak(e){ // 連續出勤計算：上班、特休、公差、事假、病假都算「有出勤」，不會中斷連續天數；只有真正的休息日才會中斷
+  return !!(e&&(e.t==='shift'||e.t==='annual'||e.t==='duty'||e.t==='personal'||e.t==='sick'));
+}
+function workedOnYM(y,m,sid,d){ // 讀取任意月份某日是否算連續出勤（供跨月連續計算，不經過monthData避免誤建月份資料）
   const mo=state.months[y+'-'+m];
   const e=mo&&mo.sched&&mo.sched[sid]?mo.sched[sid][d]:undefined;
-  return !!(e&&e.t==='shift');
+  return countsTowardStreak(e);
 }
 function streakCarryIn(sid){ // 本月1號之前已連續出勤的天數（往前最多回溯60天，跨月接續）
   let y=state.y,m=state.m,count=0;
@@ -884,7 +898,7 @@ function streakViolationsMap(){ // 回傳 {日:[超標說明,...]}：正職連6�
     let run=streakCarryIn(st.id);
     for(let d=1;d<=N;d++){
       const e=entryOf(st.id,d);
-      if(e&&e.t==='shift'){
+      if(countsTowardStreak(e)){
         run++;
         if(run>limit)(map[d]=map[d]||[]).push(st.name+' 連續出勤第'+run+'天（上限連'+limit+'）');
       }else run=0;
@@ -1046,8 +1060,12 @@ function renderSheet(){
     const stk=streakMap[d]||[];
     const dispName=md.dayNames[d]||(md.dayOv[d]!=='black'?hn:null); // 自訂名稱優先（黑字日也顯示），行事曆假日名在黑字日隱藏
     let mark='';
-    if(cov.length)mark='<span class="cov-warn" title="'+esc(cov.concat(stk).join('、'))+'">！</span>';
-    else if(stk.length)mark='<span class="cov-warn yellow" title="'+esc(stk.join('、'))+'">！</span>';
+    if(cov.length||stk.length){
+      mark='<span class="warn-row">'+
+        (cov.length?'<span class="cov-warn" title="'+esc(cov.join('、'))+'">！</span>':'')+
+        (stk.length?'<span class="cov-warn yellow" title="'+esc(stk.join('、'))+'">！</span>':'')+
+        '</span>';
+    }
     h+='<th class="day-th" data-day="'+d+'"><span class="wd'+(red?' red':'')+'">'+WD[weekday(d)]+'</span>'+
        (dispName?'<span class="hname '+(red?'red':'black')+'">'+esc(dispName.slice(0,4))+'</span>':'')+
        mark+'</th>';
@@ -1084,6 +1102,8 @@ function renderSheet(){
       else if(e.t==='desig'){cls+=' filled';inner='<span class="mark tri">△</span>';}
       else if(e.t==='annual'){cls+=' filled';inner='<span class="mark word">特</span>';}
       else if(e.t==='duty'){cls+=' filled';inner='<span class="mark word">公</span>';}
+      else if(e.t==='personal'){cls+=' filled';inner='<span class="mark word yellow">事</span>';}
+      else if(e.t==='sick'){cls+=' filled';inner='<span class="mark word green">病</span>';}
       else if(e.t==='typhoon'){cls+=' filled';inner='<span class="mark word">颱</span>';}
       else if(e.t==='redline'){cls+=' redline';}
       h+='<td class="'+cls+'" data-sid="'+st.id+'" data-day="'+d+'">'+inner+'</td>';
@@ -1783,6 +1803,8 @@ function drawColorPage(pdf,ctx,scale,y,m){
       else if(e.t==='desig'){fill=[205,222,245];label='休';}
       else if(e.t==='annual'){fill=[250,235,180];label='特';labelColor='#8a6d00';}
       else if(e.t==='duty'){fill=[224,210,240];label='公';labelColor='#5a3a8a';}
+      else if(e.t==='personal'){fill=[250,240,190];label='事';labelColor='#8a6d00';}
+      else if(e.t==='sick'){fill=[210,235,215];label='病';labelColor='#2a6a2a';}
       else if(e.t==='typhoon'){fill=[210,235,205];label='颱';labelColor='#2a6a2a';}
       if(fill){pdf.setFillColor(fill[0],fill[1],fill[2]);pdf.rect(x,rowY,dayColW,rowH,'F');}
       pdf.setDrawColor(160,160,160);
@@ -1801,7 +1823,7 @@ function drawColorPage(pdf,ctx,scale,y,m){
   });
 
   const legendY=bodyTop+roster.length*rowH+4;
-  const items=[[[224,224,224],'排休'],[[205,222,245],'指定休息'],[[250,215,220],'國定假日'],[[250,235,180],'特休'],[[224,210,240],'公差'],[[210,235,205],'颱風假']];
+  const items=[[[224,224,224],'排休'],[[205,222,245],'指定休息'],[[250,215,220],'國定假日'],[[250,235,180],'特休'],[[224,210,240],'公差'],[[250,240,190],'事假'],[[210,235,215],'病假'],[[210,235,205],'颱風假']];
   let lx=margin;
   items.forEach(([c,label])=>{
     pdf.setFillColor(c[0],c[1],c[2]);
