@@ -161,6 +161,7 @@ th .hname{display:block;font-size:8px;line-height:1.1;white-space:nowrap;overflo
 th .hname.red{color:var(--red)}
 th .hname.black{color:var(--ink)}
 th .cov-warn{display:block;font-size:10px;color:#fff;background:var(--red);border-radius:50%;width:13px;height:13px;line-height:13px;margin:1px auto 0;font-weight:700;cursor:pointer}
+th .cov-warn.yellow{background:#d99a00}
 th.nat .d-num{color:var(--red)}
 body.editing thead tr:nth-child(2) th:not(.corner){cursor:pointer}
 /* ── 備註 ── */
@@ -428,7 +429,7 @@ body.print-sizing .name-sub{margin-top:0}
 <div class="overlay" id="ovCoverage">
   <div class="modal">
     <div class="m-title" id="covTitle">班次覆蓋檢查</div>
-    <div class="m-sub">規則：每日至少1人 9:00 上班、1人 10:00～11:00 上班、1人 13:30／14:00 上班、2人下班到 22:00／22:30；週六日、國定假日與紅字日排班至少 5 人（特殊節日可在排班模式點日期手動設為紅字納入檢查）。</div>
+    <div class="m-sub">規則：每日至少1人 9:00 上班、1人 10:00～11:00 上班、1人 13:30／14:00 上班、2人下班到 22:00／22:30；週六日、國定假日與紅字日排班至少 5 人。紅色驚嘆號只在「排班」鎖定、且該日所有非支援人員都已排入內容後才會檢查。連續出勤（含跨月接續）：正職上限連 6 天、計時／支援上限連 5 天，超過以黃色標示，不受排班鎖定狀態影響。</div>
     <div id="covBody" style="font-size:14px;line-height:1.9;max-height:50vh;overflow-y:auto"></div>
     <div class="m-actions">
       <button class="btn" id="btnCloseCoverage">關閉</button>
@@ -839,13 +840,16 @@ const COVERAGE_RULES=[
   {test:list=>list.some(e=>e.s===810||e.s===840),need:'缺 13:30／14:00 上班人員'},
   {test:list=>list.filter(e=>e.e>=1320).length>=2,need:'下班到 22:00／22:30 不足 2 人'},
 ];
-function coverageIssues(d){ // 回傳該日缺少的覆蓋項目；完全沒排班的日子回傳null(不檢查)
+function coverageIssues(d){ // 回傳該日缺少的覆蓋項目；排班模式中或該日尚未排完所有人（不含支援）時回傳null(不檢查)
+  if(editMode)return null; // 排班鈕還開著（正在排班）先不檢查，鎖定後才檢查
+  const roster=monthStaff();
+  const core=roster.filter(st=>st.type!=='sup'); // 不含支援人員
+  if(!core.length||!core.every(st=>!!entryOf(st.id,d)))return null; // 還有人（不含支援）該日是空白格，代表還沒排完
   const shifts=[];
-  for(const st of monthStaff()){
+  for(const st of roster){
     const e=entryOf(st.id,d);
     if(e&&e.t==='shift')shifts.push(e);
   }
-  if(!shifts.length)return null;
   const miss=[];
   for(const r of COVERAGE_RULES)if(!r.test(shifts))miss.push(r.need);
   if(isRed(d)&&shifts.length<=4){ // 紅字日（週末／國定假日／手動標紅的特殊節日）人數檢查
@@ -855,6 +859,38 @@ function coverageIssues(d){ // 回傳該日缺少的覆蓋項目；完全沒排�
     miss.push(label+'排班僅 '+shifts.length+' 人');
   }
   return miss;
+}
+function workedOnYM(y,m,sid,d){ // 讀取任意月份某日是否有排班（供跨月連續計算，不經過monthData避免誤建月份資料）
+  const mo=state.months[y+'-'+m];
+  const e=mo&&mo.sched&&mo.sched[sid]?mo.sched[sid][d]:undefined;
+  return !!(e&&e.t==='shift');
+}
+function streakCarryIn(sid){ // 本月1號之前已連續出勤的天數（往前最多回溯60天，跨月接續）
+  let y=state.y,m=state.m,count=0;
+  m--;if(m===0){m=12;y--}
+  let d=new Date(y,m,0).getDate(); // 該月最後一天
+  for(let i=0;i<60;i++){
+    if(!workedOnYM(y,m,sid,d))break;
+    count++;
+    d--;
+    if(d===0){m--;if(m===0){m=12;y--}d=new Date(y,m,0).getDate();}
+  }
+  return count;
+}
+function streakViolationsMap(){ // 回傳 {日:[超標說明,...]}：正職連6為上限、計時/支援連5為上限，含跨月接續
+  const N=daysInMonth(),map={};
+  for(const st of monthStaff()){
+    const limit=st.type==='full'?6:5;
+    let run=streakCarryIn(st.id);
+    for(let d=1;d<=N;d++){
+      const e=entryOf(st.id,d);
+      if(e&&e.t==='shift'){
+        run++;
+        if(run>limit)(map[d]=map[d]||[]).push(st.name+' 連續出勤第'+run+'天（上限連'+limit+'）');
+      }else run=0;
+    }
+  }
+  return map;
 }
 function restTally(sid){ // 正職月休：排休＋指定休息優先計算；不足額時優先以颱風假補足（國定假日當天不計）
   let base=0,typhoon=0;
@@ -1003,13 +1039,18 @@ function renderSheet(){
     h+='<th class="day-th '+(isNational(d)?'nat':'')+'" data-day="'+d+'"><span class="d-num">'+d+'</span></th>';
   }
   h+='</tr><tr>';
+  const streakMap=streakViolationsMap();
   for(let d=1;d<=N;d++){
     const red=isRed(d),hn=holidayName(d);
-    const cov=coverageIssues(d);
+    const cov=coverageIssues(d)||[];
+    const stk=streakMap[d]||[];
     const dispName=md.dayNames[d]||(md.dayOv[d]!=='black'?hn:null); // 自訂名稱優先（黑字日也顯示），行事曆假日名在黑字日隱藏
+    let mark='';
+    if(cov.length)mark='<span class="cov-warn" title="'+esc(cov.concat(stk).join('、'))+'">！</span>';
+    else if(stk.length)mark='<span class="cov-warn yellow" title="'+esc(stk.join('、'))+'">！</span>';
     h+='<th class="day-th" data-day="'+d+'"><span class="wd'+(red?' red':'')+'">'+WD[weekday(d)]+'</span>'+
        (dispName?'<span class="hname '+(red?'red':'black')+'">'+esc(dispName.slice(0,4))+'</span>':'')+
-       (cov&&cov.length?'<span class="cov-warn" title="'+esc(cov.join('、'))+'">！</span>':'')+'</th>';
+       mark+'</th>';
   }
   h+='</tr></thead><tbody>';
   const q=quota();
@@ -1157,6 +1198,7 @@ document.getElementById('btnEdit').addEventListener('click',()=>{
   const b=document.getElementById('btnEdit');
   b.textContent=editMode?'🔓 排班中（按此鎖定）':'🔒 排班';
   b.classList.toggle('editing',editMode);
+  renderSheet(); // 紅色驚嘆號只在鎖定後才檢查，切換狀態要立即反映
 });
 document.getElementById('ovCell').addEventListener('click',ev=>{
   const chip=ev.target.closest('.chip[data-s]');
@@ -1804,13 +1846,17 @@ async function exportColorPdf(fromY,fromM,toY,toM){
     setHint('');
   }
 }
-function openCoverageDay(d){ // 點擊表頭驚嘆號時顯示該日覆蓋不足的具體原因
+function openCoverageDay(d){ // 點擊表頭驚嘆號時顯示該日覆蓋不足與連續出勤超標的具體原因
   const cov=coverageIssues(d);
+  const stk=streakViolationsMap()[d]||[];
   document.getElementById('covTitle').textContent=state.m+'/'+d+'（'+WD[weekday(d)]+'）班次檢查';
-  let html;
-  if(cov===null)html='<div style="color:#999">該日尚未排任何班，未列入檢查。</div>';
-  else if(!cov.length)html='<div style="color:#2a8a4a;font-weight:700">該日符合所有覆蓋規則 ✓</div>';
-  else html=cov.map(c=>'<div><b style="color:var(--red)">✗</b>　'+esc(c)+'</div>').join('');
+  let html='';
+  if(cov===null&&!stk.length)html='<div style="color:#999">該日尚未排任何班，未列入檢查。</div>';
+  else{
+    if(cov&&cov.length)html+=cov.map(c=>'<div><b style="color:var(--red)">✗</b>　'+esc(c)+'</div>').join('');
+    if(stk.length)html+=stk.map(c=>'<div><b style="color:#d99a00">⚠</b>　'+esc(c)+'</div>').join('');
+    if(!html)html='<div style="color:#2a8a4a;font-weight:700">該日符合所有檢查規則 ✓</div>';
+  }
   document.getElementById('covBody').innerHTML=html;
   document.getElementById('ovCoverage').classList.add('show');
 }
