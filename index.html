@@ -519,6 +519,15 @@ body.print-sizing .name-sub{margin-top:0}
     <div class="m-title">店家代碼管理</div>
     <div class="m-sub">以下是<b>這台裝置</b>曾經建立或加入過的代碼（僅記錄在本機，非全系統清單）。</div>
     <div id="mgrList" class="chips" style="flex-direction:column;align-items:stretch"></div>
+    <div id="mgrViewSection" style="display:none">
+      <div class="hr"></div>
+      <div class="sec-label">目前店家的檢視代碼（唯讀分享用）</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span id="mgrViewCode" style="flex:1;font-weight:700;word-break:break-all"></span>
+        <button class="btn" id="btnMgrRenameView" style="padding:6px 10px">更改</button>
+      </div>
+      <div class="small-note">※ 更改後舊的檢視代碼立即失效，記得把新代碼重新發給店員。</div>
+    </div>
     <div class="hr"></div>
     <div class="sec-label">建立新代碼</div>
     <input class="txt" id="mgrNewCode" placeholder="自訂代碼（可留空，自動產生）" autocapitalize="off" autocorrect="off">
@@ -536,9 +545,9 @@ body.print-sizing .name-sub{margin-top:0}
     <div class="small-note" id="cloudInfo" style="margin:6px 0 12px;font-size:13px;color:#555"></div>
     <div class="m-actions" style="flex-direction:column">
       <button class="btn" id="btnCopyCode">複製店家代碼</button>
-      <button class="btn" id="btnCopyView">複製檢視代碼（唯讀分享用）</button>
+      <button class="btn" id="btnCopyView">複製檢視代碼</button>
       <button class="btn" id="btnSwitchStore">建立／更換店家代碼</button>
-      <button class="btn" id="btnManageStore">管理店家代碼（需密碼）</button>
+      <button class="btn" id="btnManageStore">管理店家代碼</button>
       <button class="btn" id="btnPrint">匯出 PDF／列印</button>
       <button class="btn" id="btnColorPdf">JSON to PDF（可選月份範圍）</button>
       <button class="btn" id="btnExport">匯出備份（JSON）</button>
@@ -1463,8 +1472,40 @@ document.getElementById('btnMgrPwCancel').addEventListener('click',()=>document.
 function openMgrPanel(){
   document.getElementById('mgrNewCode').value='';
   renderMgrList();
+  const vs=document.getElementById('mgrViewSection');
+  if(!viewerMode&&storeCode&&state.viewCode){
+    document.getElementById('mgrViewCode').textContent=state.viewCode;
+    vs.style.display='';
+  }else vs.style.display='none';
   document.getElementById('ovMgrPanel').classList.add('show');
 }
+document.getElementById('btnMgrRenameView').addEventListener('click',async()=>{
+  let newCode=prompt('將檢視代碼「'+state.viewCode+'」改成什麼？\n（英文小寫、數字、"-"，4～30字；留空按確定＝自動產生隨機代碼）','');
+  if(newCode===null)return;
+  newCode=newCode.trim().toLowerCase();
+  if(!newCode)newCode='view-'+genCodeSuffix();
+  if(!/^[a-z0-9-]{4,30}$/.test(newCode)){alert('格式不正確。');return}
+  if(newCode===state.viewCode)return;
+  try{
+    // 不能跟任何現有的店家代碼或檢視代碼重複，避免誤連到別人的資料
+    const sSnap=await FB.getDoc(FB.doc(FB.db,'stores',newCode));
+    if(sSnap.exists()){alert('此代碼已被店家代碼使用，請換一個。');return}
+    const vSnap=await FB.getDoc(FB.doc(FB.db,'views',newCode));
+    if(vSnap.exists()){alert('此代碼已被其他檢視代碼使用，請換一個。');return}
+    const oldCode=state.viewCode;
+    state.viewCode=newCode;
+    const p=payloadStr();
+    await FB.setDoc(FB.doc(FB.db,'stores',storeCode),{data:p,updatedAt:FB.serverTimestamp()});
+    await FB.setDoc(FB.doc(FB.db,'views',newCode),{data:p,updatedAt:FB.serverTimestamp()});
+    await FB.deleteDoc(FB.doc(FB.db,'views',oldCode));
+    lastWritten=p;
+    cloudStatus='雲端已連線｜店家代碼：'+storeCode+'｜檢視代碼：'+state.viewCode;
+    document.getElementById('mgrViewCode').textContent=state.viewCode;
+    alert('檢視代碼已改為「'+newCode+'」。\n舊代碼已失效，請把新代碼重新發給店員。');
+  }catch(e){
+    alert('更改失敗，請確認網路連線與 Firestore 設定。');
+  }
+});
 function renderMgrList(){
   const hist=getCodeHistory();
   const box=document.getElementById('mgrList');
