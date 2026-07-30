@@ -490,7 +490,7 @@ body.print-sizing .name-sub{margin-top:0}
     </div>
     <div class="hr"></div>
     <div class="sec-label">或加入現有店家</div>
-    <input class="txt" id="joinCode" placeholder="輸入店家代碼，例如 kbk-a1b2c3" autocapitalize="off" autocorrect="off">
+    <input class="txt" id="joinCode" placeholder="輸入店家代碼或檢視代碼" autocapitalize="off" autocorrect="off">
     <div class="m-actions">
       <button class="btn primary" id="btnJoinStore">加入</button>
       <button class="btn" id="btnSkipCloud">先不用（僅存本機）</button>
@@ -536,6 +536,7 @@ body.print-sizing .name-sub{margin-top:0}
     <div class="small-note" id="cloudInfo" style="margin:6px 0 12px;font-size:13px;color:#555"></div>
     <div class="m-actions" style="flex-direction:column">
       <button class="btn" id="btnCopyCode">複製店家代碼</button>
+      <button class="btn" id="btnCopyView">複製檢視代碼（唯讀分享用）</button>
       <button class="btn" id="btnSwitchStore">建立／更換店家代碼</button>
       <button class="btn" id="btnManageStore">管理店家代碼（需密碼）</button>
       <button class="btn" id="btnPrint">匯出 PDF／列印</button>
@@ -600,15 +601,16 @@ const firebaseConfig={
   messagingSenderId:"566165247359",
   appId:"1:566165247359:web:eb0986693f8c5f0b6b764a"
 };
-let FB=null, storeCode=null, unsubCloud=null, lastWritten='', cloudStatus='雲端載入中…';
+let FB=null, storeCode=null, unsubCloud=null, lastWritten='', cloudStatus='雲端載入中…', viewerMode=false;
 function payloadStr(){
-  return JSON.stringify({store:state.store,title:state.title,corner:state.corner,staff:state.staff,months:state.months,calCache:state.calCache});
+  return JSON.stringify({store:state.store,title:state.title,corner:state.corner,viewCode:state.viewCode||'',staff:state.staff,months:state.months,calCache:state.calCache});
 }
 function applyPayload(json){
   try{
     const d=JSON.parse(json);
     if(!d.staff||!d.months)return false;
     state.store=d.store||'';state.title=d.title||'排班表';state.corner=d.corner||'';
+    state.viewCode=d.viewCode||state.viewCode||'';
     state.staff=d.staff;state.months=d.months;state.calCache=d.calCache||{};
     sortStaff();
     document.getElementById('storeName').value=state.store;
@@ -663,11 +665,13 @@ async function connectStore(code,isNew,silent){
       applyPayload(lastWritten);
       renderAll();
     }else if(isNew){
+      if(!state.viewCode)state.viewCode='view-'+genCodeSuffix();
       lastWritten=payloadStr();
       await FB.setDoc(ref,{data:lastWritten,updatedAt:FB.serverTimestamp()});
-    }else if(!silent){
-      alert('查無此店家代碼，請確認輸入是否正確。');
-      return false;
+    }else{
+      // 找不到編輯代碼 → 試試是不是檢視代碼（唯讀鏡像）
+      const ok=await connectViewer(code,silent);
+      return ok;
     }
   }catch(e){
     cloudStatus='雲端連線失敗（請確認 Firestore 已建立、安全規則有效）';
@@ -675,6 +679,7 @@ async function connectStore(code,isNew,silent){
     if(!silent)alert('雲端連線失敗：請確認 Firebase 控制台已建立 Firestore 資料庫，且安全規則允許讀寫。');
     return false;
   }
+  viewerMode=false;
   storeCode=code;
   try{localStorage.setItem('paiban-store-code',code)}catch(e){}
   recordCodeHistory(code);
@@ -689,17 +694,66 @@ async function connectStore(code,isNew,silent){
       setHint('已同步其他裝置的更新 ✓');
     }
   },()=>{cloudStatus='雲端監聽中斷';setHint('雲端監聽中斷')});
-  cloudStatus='雲端已連線｜店家代碼：'+code;
+  if(!state.viewCode){ // 舊資料尚無檢視代碼：自動補產生並上傳
+    state.viewCode='view-'+genCodeSuffix();
+    pushCloud();
+  }
+  cloudStatus='雲端已連線｜店家代碼：'+code+'｜檢視代碼：'+state.viewCode;
   setHint('雲端已連線 ✓');
+  applyViewerUI();
   return true;
 }
+async function connectViewer(code,silent){ // 以檢視代碼連線：唯讀，只讀鏡像文件，接觸不到編輯代碼
+  const vref=FB.doc(FB.db,'views',code);
+  try{
+    const vsnap=await FB.getDoc(vref);
+    if(!(vsnap.exists()&&vsnap.data().data)){
+      if(!silent)alert('查無此代碼，請確認輸入是否正確。');
+      return false;
+    }
+    lastWritten=vsnap.data().data;
+    applyPayload(lastWritten);
+    renderAll();
+  }catch(e){
+    if(!silent)alert('雲端連線失敗，請稍後再試。');
+    return false;
+  }
+  viewerMode=true;
+  storeCode=code;
+  try{localStorage.setItem('paiban-store-code',code)}catch(e){}
+  if(unsubCloud)unsubCloud();
+  unsubCloud=FB.onSnapshot(vref,s=>{
+    if(!s.exists())return;
+    const d=s.data().data;
+    if(d&&d!==lastWritten){
+      lastWritten=d;
+      applyPayload(d);
+      renderAll();
+      setHint('檢視模式（唯讀）｜已更新');
+    }
+  },()=>{setHint('雲端監聽中斷')});
+  cloudStatus='檢視模式（唯讀）｜檢視代碼：'+code;
+  setHint('檢視模式（唯讀）');
+  applyViewerUI();
+  return true;
+}
+function applyViewerUI(){ // 檢視模式下隱藏所有可編輯入口；回到編輯模式則還原
+  const hide=viewerMode?'none':'';
+  ['btnEdit','btnStaff','btnAddNote'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=hide});
+  document.getElementById('storeName').readOnly=viewerMode;
+  document.getElementById('sheetTitle').readOnly=viewerMode;
+  if(viewerMode&&editMode){editMode=false;document.body.classList.remove('editing')}
+}
 async function pushCloud(){
-  if(!FB||!storeCode)return false;
+  if(!FB||!storeCode||viewerMode)return false;
   const p=payloadStr();
   if(p===lastWritten)return true;
   try{
     lastWritten=p;
     await FB.setDoc(FB.doc(FB.db,'stores',storeCode),{data:p,updatedAt:FB.serverTimestamp()});
+    if(state.viewCode){ // 同步唯讀鏡像，供檢視代碼讀取
+      await FB.setDoc(FB.doc(FB.db,'views',state.viewCode),{data:p,updatedAt:FB.serverTimestamp()});
+    }
     return true;
   }catch(e){return false}
 }
@@ -882,6 +936,7 @@ function fmtDec(min){const h=min/60;return (h%1===0)?String(h):h.toFixed(1)}
 function fmtHM(min){const h=Math.floor(min/60),m=min%60;return h+':'+String(m).padStart(2,'0')}
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 function scheduleSave(){
+  if(viewerMode){setHint('檢視模式（唯讀）');return}
   clearTimeout(saveTimer);
   setHint('儲存中…');
   saveTimer=setTimeout(async()=>{
@@ -1085,7 +1140,7 @@ document.getElementById('sheet').addEventListener('click',ev=>{
   if(th)openDayOv(parseInt(th.dataset.day));
 });
 document.getElementById('sheet').addEventListener('input',ev=>{
-  if(ev.target.id==='cornerLabel'){state.corner=ev.target.value;scheduleSave()}
+  if(ev.target.id==='cornerLabel'&&!viewerMode){state.corner=ev.target.value;scheduleSave()}
 });
 document.getElementById('btnEdit').addEventListener('click',()=>{
   editMode=!editMode;
@@ -1178,6 +1233,7 @@ document.getElementById('btnCloseDay').addEventListener('click',()=>document.get
 
 /* 人員 */
 function openStaff(id){
+  if(viewerMode)return;
   curStaffId=id||null;
   const st=id?state.staff.find(s=>s.id===id):null;
   document.getElementById('smTitle').textContent=st?'編輯人員':'新增人員';
@@ -1343,6 +1399,7 @@ document.getElementById('btnAddNote').addEventListener('click',()=>{
   document.getElementById('ovNote').classList.add('show');
 });
 document.getElementById('notesRow').addEventListener('click',ev=>{
+  if(viewerMode)return;
   const card=ev.target.closest('.note-card');if(!card)return;
   curNoteIdx=+card.dataset.i;
   document.getElementById('noteText').value=monthData().notes[curNoteIdx];
@@ -1368,8 +1425,15 @@ document.getElementById('btnCloseNote').addEventListener('click',()=>document.ge
 document.getElementById('btnMore').addEventListener('click',()=>{
   document.getElementById('calStatus').textContent='行事曆來源：'+calSource;
   document.getElementById('cloudInfo').textContent=cloudStatus;
-  document.getElementById('btnCopyCode').style.display=storeCode?'':'none';
+  document.getElementById('btnCopyCode').style.display=(storeCode&&!viewerMode)?'':'none';
+  document.getElementById('btnCopyView').style.display=(!viewerMode&&state.viewCode)?'':'none';
+  document.getElementById('btnImport').style.display=viewerMode?'none':'';
+  document.getElementById('btnManageStore').style.display=viewerMode?'none':'';
   document.getElementById('ovMore').classList.add('show');
+});
+document.getElementById('btnCopyView').addEventListener('click',async()=>{
+  try{await navigator.clipboard.writeText(state.viewCode);alert('已複製檢視代碼：'+state.viewCode+'\n\n拿到這組代碼的人只能查看班表，無法修改。')}
+  catch(e){prompt('請手動複製檢視代碼：',state.viewCode)}
 });
 document.getElementById('btnCloseMore').addEventListener('click',()=>document.getElementById('ovMore').classList.remove('show'));
 document.getElementById('btnCopyCode').addEventListener('click',async()=>{
@@ -1489,12 +1553,13 @@ function openSetup(){
   document.getElementById('newCode').value='';
   document.getElementById('ovSetup').classList.add('show');
 }
-function genCode(){
+function genCodeSuffix(){
   const chars='abcdefghjkmnpqrstuvwxyz23456789';let s='';
   const rnd=new Uint8Array(6);crypto.getRandomValues(rnd);
   for(const b of rnd)s+=chars[b%chars.length];
-  return 'kbk-'+s;
+  return s;
 }
+function genCode(){return 'kbk-'+genCodeSuffix()}
 document.getElementById('newCode').addEventListener('keydown',ev=>{
   if(ev.key==='Enter'){ev.preventDefault();document.getElementById('btnNewStore').click();}
 });
