@@ -848,7 +848,7 @@ function entryOf(sid,d){const s=monthData().sched[sid];return s?s[d]:undefined}
 const COVERAGE_RULES=[
   {test:list=>list.some(e=>e.s===540),need:'缺 9:00 上班人員'},
   {test:list=>list.some(e=>e.s===600||e.s===630||e.s===660),need:'缺 10:00～11:00 上班人員'},
-  {test:list=>list.some(e=>e.s===810||e.s===840),need:'缺 13:30／14:00 上班人員'},
+  {test:list=>list.some(e=>e.s<=840&&e.e>810),need:'缺 13:30／14:00 上班人員'}, // 涵蓋13:30~14:00這段時間即可，不限剛好那個時間點上班
   {test:list=>list.filter(e=>e.e>=1320).length>=2,need:'下班到 22:00／22:30 不足 2 人'},
 ];
 function coverageIssues(d){ // 回傳該日缺少的覆蓋項目；排班模式中或該日尚未排完所有人（不含支援）時回傳null(不檢查)
