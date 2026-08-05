@@ -17,7 +17,6 @@
   --cell:46px;   /* 依螢幕寬度由 JS 動態調整 */
   --cellh:46px;
   --cellfs:11px;
-  --cellfsW:14px; /* 橫向計算出的字級，供直向縮放時取兩者較小值 */
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0}
@@ -79,7 +78,7 @@ body{
 .sheet-wrap{
   margin:0 8px;background:var(--paper);
   border:2px solid var(--grid);border-radius:2px;
-  overflow:auto;max-height:88vh;
+  overflow:auto;max-height:72vh;
   box-shadow:2px 3px 8px rgba(0,0,0,.15);
 }
 table{border-collapse:separate;border-spacing:0;table-layout:fixed}
@@ -207,6 +206,15 @@ body.editing thead tr:nth-child(2) th:not(.corner){cursor:pointer}
 .m-sub .red{color:var(--red);font-weight:700}
 .sec-label{font-size:13px;color:#888;margin:12px 0 6px;letter-spacing:1px}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
+.staff-row{
+  display:flex;align-items:center;gap:8px;padding:10px 4px;
+  border-bottom:1px solid #eee;cursor:pointer;
+}
+.staff-row:active{background:#f5f3ea}
+.staff-row .name-txt{color:var(--blue);font-weight:700;flex:1}
+.staff-row .badge{flex-shrink:0}
+.staff-row .chev{color:#bbb;font-size:18px}
+.staff-group-label{font-size:12px;color:#999;padding:10px 4px 4px;font-weight:700}
 .chip{
   border:1.5px solid var(--grid);border-radius:8px;background:#fff;
   padding:8px 10px;font-size:14px;cursor:pointer;font-weight:600;
@@ -342,6 +350,18 @@ body.print-sizing .name-sub{margin-top:0}
     <div class="m-actions">
       <button class="btn danger" id="btnClearCell">清除此格</button>
       <button class="btn" id="btnCloseCell">關閉</button>
+    </div>
+  </div>
+</div>
+
+<!-- 人員清單（+人員入口） -->
+<div class="overlay" id="ovStaffList">
+  <div class="modal">
+    <div class="m-title">人員</div>
+    <div id="staffListBody" style="max-height:55vh;overflow-y:auto"></div>
+    <div class="m-actions">
+      <button class="btn primary" id="btnAddNewStaff">＋ 新增人員</button>
+      <button class="btn" id="btnCloseStaffList">關閉</button>
     </div>
   </div>
 </div>
@@ -1071,18 +1091,11 @@ function fitCells(){ // 依可用寬度撐滿整個月份；窄螢幕維持 46px
   const avail=wrap.clientWidth-79-N; // 扣掉名字欄與格線
   const w=Math.max(46,Math.floor(avail/N));
   document.documentElement.style.setProperty('--cell',w+'px');
-  document.documentElement.style.setProperty('--cellfsW',(w>=72?14:w>=58?13:11)+'px');
+  document.documentElement.style.setProperty('--cellh',Math.min(Math.max(46,Math.round(w*.9)),72)+'px');
+  document.documentElement.style.setProperty('--cellfs',(w>=72?14:w>=58?13:11)+'px');
 }
-function fitRows(){ // 格高依寬度給一個舒服的大小；人多就讓頁面自然變長、往下捲動，不犧牲格子大小換取「不用捲動」
-  const w=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cell'))||46;
-  const rowH=Math.min(Math.max(52,Math.round(w*1.1)),90);
-  document.documentElement.style.setProperty('--cellh',rowH+'px');
-  const fsH=rowH>=72?15:rowH>=60?14:13;
-  const fsW=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cellfsW'))||14;
-  document.documentElement.style.setProperty('--cellfs',Math.min(fsW,fsH)+'px');
-}
-window.addEventListener('resize',()=>{fitCells();fitRows()});
-function renderAll(){ensureRoster();fitCells();renderSheet();renderNotes();fitRows()}
+window.addEventListener('resize',()=>{fitCells()});
+function renderAll(){ensureRoster();fitCells();renderSheet();renderNotes()}
 function renderSheet(){
   const md=monthData(),N=daysInMonth();
   let h='<thead><tr><th class="corner" rowspan="2"><input id="cornerLabel" class="corner-input" value="'+esc(state.corner||'')+'" placeholder="標籤" aria-label="表格左上角標籤"></th>';
@@ -1247,8 +1260,6 @@ document.getElementById('sheet').addEventListener('click',ev=>{
   }
   const otBtn=ev.target.closest('.ot-btn');
   if(otBtn&&otBtn.dataset.ot){openOT(otBtn.dataset.ot);return}
-  const nameCell=ev.target.closest('.name-cell');
-  if(nameCell&&nameCell.dataset.sid){openStaff(nameCell.dataset.sid);return}
   if(!editMode)return;
   const td=ev.target.closest('td.day-cell');
   if(td&&td.dataset.sid){openCell(td.dataset.sid,parseInt(td.dataset.day));return}
@@ -1380,7 +1391,36 @@ document.getElementById('smArchived').addEventListener('click',ev=>{
   scheduleSave();renderSheet();
   document.getElementById('ovStaff').classList.remove('show');
 });
-document.getElementById('btnStaff').addEventListener('click',()=>openStaff(null));
+document.getElementById('btnStaff').addEventListener('click',()=>{
+  if(viewerMode)return;
+  renderStaffList();
+  document.getElementById('ovStaffList').classList.add('show');
+});
+function renderStaffList(){
+  const box=document.getElementById('staffListBody');
+  if(!state.staff.length){box.innerHTML='<div class="small-note">還沒有任何人員，按下方「新增人員」開始。</div>';return}
+  let html='',prevType=null;
+  state.staff.forEach(st=>{
+    if(prevType!==st.type)html+='<div class="staff-group-label">'+TYPE_LABEL[st.type]+'</div>';
+    prevType=st.type;
+    html+='<div class="staff-row" data-sid="'+st.id+'">'+
+      '<span class="name-txt">'+esc(st.name)+'</span>'+
+      '<span class="badge '+st.type+'">'+TYPE_LABEL[st.type][0]+'</span>'+
+      '<span class="chev">›</span></div>';
+  });
+  box.innerHTML=html;
+}
+document.getElementById('staffListBody').addEventListener('click',ev=>{
+  const row=ev.target.closest('.staff-row');
+  if(!row)return;
+  document.getElementById('ovStaffList').classList.remove('show');
+  openStaff(row.dataset.sid);
+});
+document.getElementById('btnAddNewStaff').addEventListener('click',()=>{
+  document.getElementById('ovStaffList').classList.remove('show');
+  openStaff(null);
+});
+document.getElementById('btnCloseStaffList').addEventListener('click',()=>document.getElementById('ovStaffList').classList.remove('show'));
 function openOT(sid){
   const st=state.staff.find(s=>s.id===sid);if(!st)return;
   const t=overtimeStats(sid);
