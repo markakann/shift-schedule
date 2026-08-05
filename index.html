@@ -17,6 +17,7 @@
   --cell:46px;   /* 依螢幕寬度由 JS 動態調整 */
   --cellh:46px;
   --cellfs:11px;
+  --cellfsW:14px; /* 橫向計算出的字級，供直向縮放時取兩者較小值 */
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0}
@@ -68,14 +69,12 @@ body{
 .btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
 .btn.editing{background:var(--red);border-color:var(--red);color:#fff}
 .save-hint{font-size:12px;color:#888;margin-left:auto}
-/* ── 圖例 ── */
+/* ── 圖例（沿用於「如何使用」說明彈窗） ── */
 .legend{
-  padding:2px 12px 6px;font-size:12px;color:#666;
-  display:flex;gap:12px;flex-wrap:wrap;line-height:1.7;
+  padding:2px 0 6px;font-size:13px;color:#666;
+  display:flex;gap:12px;flex-wrap:wrap;line-height:1.8;
 }
 .legend b{color:var(--red);font-weight:600}
-.legend b.yellow-txt{color:#b8860b}
-.legend b.green-txt{color:#2a8a4a}
 /* ── 表格 ── */
 .sheet-wrap{
   margin:0 8px;background:var(--paper);
@@ -130,6 +129,11 @@ th.corner{border-right-width:2px;min-width:92px;max-width:92px;width:92px}
   position:relative;font-size:var(--cellfs);overflow:hidden;
 }
 .day-th{min-width:var(--cell);max-width:var(--cell);width:var(--cell)}
+tr.sum-row td.name-cell{background:#f2efe4;vertical-align:middle}
+tr.sum-row .sum-label{font-weight:700;font-size:11px;line-height:1.3}
+tr.sum-row .sum-cell{background:#f8f6ee}
+tr.sum-row .sum-cell::before{content:none}
+tr.sum-row .t-s,tr.sum-row .t-e{font-weight:700;color:#6b5a1e}
 .day-cell::before{ /* 未排：底線／，任何班別都保留。用實心旋轉短條取代漸層，列印才不會糊邊 */
   content:'';position:absolute;left:50%;top:50%;width:170%;height:1px;
   background:var(--pencil);transform:translate(-50%,-50%) rotate(-45deg);
@@ -152,8 +156,6 @@ body.editing .day-cell:active{background-color:#fdf3d8}
 }
 .mark.tri{font-size:20px;font-weight:400}
 .mark.word{font-size:17px}
-.mark.yellow{color:#b8860b}
-.mark.green{color:#2a8a4a}
 .nat-auto{
   position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
   color:var(--red);opacity:.55;font-size:12px;font-weight:700;pointer-events:none;
@@ -212,8 +214,6 @@ body.editing thead tr:nth-child(2) th:not(.corner){cursor:pointer}
 .chip:active{background:#eef3ff}
 .chip.part-extra{border-style:dashed;color:#555}
 .chip.leave{color:var(--red);border-color:var(--red);background:#fff8f8}
-.chip.leave.yellow{color:#b8860b;border-color:#b8860b;background:#fffaf0}
-.chip.leave.green{color:#2a8a4a;border-color:#2a8a4a;background:#f3fbf5}
 .chip.plain{color:var(--ink)}
 .stepper-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .stepper{display:flex;align-items:center;border:1.5px solid var(--grid);border-radius:8px;overflow:hidden}
@@ -297,19 +297,6 @@ body.print-sizing .name-sub{margin-top:0}
   <span id="saveHint" class="save-hint"></span>
 </div>
 
-<div class="legend">
-  <span>╱ 未排</span>
-  <span>✕ 排休</span>
-  <span><b>△</b> 指定休息</span>
-  <span><b>特</b>＝特休</span>
-  <span><b>公</b>＝公差</span>
-  <span><b class="yellow-txt">事</b>＝事假</span>
-  <span><b class="green-txt">病</b>＝病假</span>
-  <span><b>颱</b>＝颱風假（月休不足時優先抵用）</span>
-  <span><b>─</b> 紅線＝到職前／離職後不排班</span>
-  <span><b>國</b>＝國定假日未排班，不扣薪，不計入月休</span>
-</div>
-
 <div class="sheet-wrap">
   <table id="sheet"></table>
 </div>
@@ -343,15 +330,12 @@ body.print-sizing .name-sub{margin-top:0}
       </div>
       <button class="btn primary" id="btnApplyTime">套用</button>
     </div>
-    <div class="small-note" style="margin-top:4px">只接受整點或半點，例如 900、930、1500；下班需晚於上班。輸入完按 Enter 或點其他地方即會檢查。</div>
     <div class="sec-label">假別</div>
     <div class="chips">
       <button class="chip leave" data-leave="desig">△ 指定休息</button>
       <button class="chip plain" data-leave="rest">╲ 排休</button>
       <button class="chip leave" data-leave="annual">特休</button>
       <button class="chip leave" data-leave="duty">公差</button>
-      <button class="chip leave yellow" data-leave="personal">事假</button>
-      <button class="chip leave green" data-leave="sick">病假</button>
       <button class="chip leave" data-leave="typhoon">颱風假</button>
       <button class="chip leave" data-leave="redline">─ 紅線（到職／離職區間）</button>
     </div>
@@ -387,7 +371,6 @@ body.print-sizing .name-sub{margin-top:0}
       <button class="btn danger" id="btnDelStaff">永久刪除</button>
       <button class="btn" id="btnCloseStaff">關閉</button>
     </div>
-    <div class="small-note">※ 名單自動分組：正職在上、計時居中、支援在最下，群組間空一行。「自本月移除」只影響本月起的名單，過去月份班表完整保留（離職請用這個）；「永久刪除」會清掉所有月份的紀錄，僅在打錯人時使用。</div>
   </div>
 </div>
 
@@ -395,7 +378,6 @@ body.print-sizing .name-sub{margin-top:0}
 <div class="overlay" id="ovDay">
   <div class="modal">
     <div class="m-title" id="dmTitle"></div>
-    <div class="m-sub">紅字日會計入正職「月休天數」總額。</div>
     <div class="radio-row" style="flex-direction:column;gap:10px">
       <label><input type="radio" name="dmRed" value="auto">依政府行事曆（預設）</label>
       <label><input type="radio" name="dmRed" value="red">手動設為紅字日</label>
@@ -414,7 +396,6 @@ body.print-sizing .name-sub{margin-top:0}
 <div class="overlay" id="ovNote">
   <div class="modal">
     <div class="m-title">備註</div>
-    <div class="m-sub">記錄計時人員特殊需求，例如「Amy 週三晚上不能班」。</div>
     <textarea class="txt" id="noteText"></textarea>
     <div class="m-actions">
       <button class="btn primary" id="btnSaveNote">儲存</button>
@@ -440,7 +421,6 @@ body.print-sizing .name-sub{margin-top:0}
 <div class="overlay" id="ovCoverage">
   <div class="modal">
     <div class="m-title" id="covTitle">班次覆蓋檢查</div>
-    <div class="m-sub">規則：每日至少1人 9:00 上班、1人 10:00～11:00 上班、1人 13:30／14:00 上班、2人下班到 22:00／22:30；週六日、國定假日與紅字日排班至少 5 人。紅色驚嘆號只在「排班」鎖定、且該日所有非支援人員都已排入內容後才會檢查。連續出勤（含跨月接續）：正職上限連 6 天、計時／支援上限連 5 天，超過以黃色標示，不受排班鎖定狀態影響。</div>
     <div id="covBody" style="font-size:14px;line-height:1.9;max-height:50vh;overflow-y:auto"></div>
     <div class="m-actions">
       <button class="btn" id="btnCloseCoverage">關閉</button>
@@ -452,7 +432,6 @@ body.print-sizing .name-sub{margin-top:0}
 <div class="overlay" id="ovColorPdf">
   <div class="modal">
     <div class="m-title">JSON to PDF</div>
-    <div class="m-sub">向量色塊＋文字圖層，橫式，一個月一頁，檔案小、文字清晰。可選連續的月份範圍。</div>
     <div class="sec-label">從</div>
     <div class="stepper-row">
       <select class="txt" id="cpFromY" style="width:120px"></select>
@@ -467,7 +446,6 @@ body.print-sizing .name-sub{margin-top:0}
       <button class="btn primary" id="btnGenColorPdf">產生 PDF</button>
       <button class="btn" id="btnCloseColorPdf">取消</button>
     </div>
-    <div class="small-note">最多一次 36 個月；若選到還沒建立過資料的月份，會產生空白該月的頁面。</div>
   </div>
 </div>
 
@@ -475,7 +453,6 @@ body.print-sizing .name-sub{margin-top:0}
 <div class="overlay" id="ovFilter">
   <div class="modal">
     <div class="m-title">篩選顯示日期</div>
-    <div class="m-sub">只是畫面顯示範圍，方便截圖；不影響實際排班資料，匯出/列印仍是完整整月。</div>
     <div class="stepper-row" style="margin-top:8px">
       <span style="font-size:13px;color:#888">從</span>
       <input class="txt" id="filterFrom" type="number" min="1" max="31" style="width:70px;text-align:center" placeholder="1">
@@ -494,7 +471,6 @@ body.print-sizing .name-sub{margin-top:0}
 <div class="overlay" id="ovSetup">
   <div class="modal">
     <div class="m-title">雲端同步設定</div>
-    <div class="m-sub">同一組店家代碼的裝置會共用同一份班表。手機排班，平板打開就看得到。</div>
     <div class="sec-label">建立新店家</div>
     <input class="txt" id="newCode" placeholder="自訂代碼（可留空，自動產生隨機代碼）" autocapitalize="off" autocorrect="off">
     <div class="m-actions" style="flex-direction:column">
@@ -507,7 +483,6 @@ body.print-sizing .name-sub{margin-top:0}
       <button class="btn primary" id="btnJoinStore">加入</button>
       <button class="btn" id="btnSkipCloud">先不用（僅存本機）</button>
     </div>
-    <div class="small-note">※ 知道代碼的人就能查看與編輯這份班表，請只分享給需要的人。</div>
   </div>
 </div>
 
@@ -515,13 +490,11 @@ body.print-sizing .name-sub{margin-top:0}
 <div class="overlay" id="ovMgrPw">
   <div class="modal">
     <div class="m-title">管理店家代碼</div>
-    <div class="m-sub">重新命名或刪除代碼屬於較危險的操作，請先輸入管理密碼。</div>
     <input class="txt" id="mgrPw" type="password" placeholder="管理密碼" autocapitalize="off" autocorrect="off">
     <div class="m-actions">
       <button class="btn primary" id="btnMgrPwGo">確認</button>
       <button class="btn" id="btnMgrPwCancel">取消</button>
     </div>
-    <div class="small-note">※ 提醒：這道密碼寫在網頁程式碼裡，只能防止誤觸，不是真正的資安防護——請勿把重要機密資料存在這份班表裡。</div>
   </div>
 </div>
 
@@ -529,7 +502,6 @@ body.print-sizing .name-sub{margin-top:0}
 <div class="overlay" id="ovMgrPanel">
   <div class="modal">
     <div class="m-title">店家代碼管理</div>
-    <div class="m-sub">以下是<b>這台裝置</b>曾經建立或加入過的代碼（僅記錄在本機，非全系統清單）。</div>
     <div id="mgrList" class="chips" style="flex-direction:column;align-items:stretch"></div>
     <div id="mgrViewSection" style="display:none">
       <div class="hr"></div>
@@ -538,7 +510,6 @@ body.print-sizing .name-sub{margin-top:0}
         <span id="mgrViewCode" style="flex:1;font-weight:700;word-break:break-all"></span>
         <button class="btn" id="btnMgrRenameView" style="padding:6px 10px">更改</button>
       </div>
-      <div class="small-note">※ 更改後舊的檢視代碼立即失效，記得把新代碼重新發給店員。</div>
     </div>
     <div class="hr"></div>
     <div class="sec-label">建立新代碼</div>
@@ -556,6 +527,7 @@ body.print-sizing .name-sub{margin-top:0}
     <div class="m-title">更多</div>
     <div class="small-note" id="cloudInfo" style="margin:6px 0 12px;font-size:13px;color:#555"></div>
     <div class="m-actions" style="flex-direction:column">
+      <button class="btn" id="btnHelp">如何使用</button>
       <button class="btn" id="btnCopyCode">複製店家代碼</button>
       <button class="btn" id="btnCopyView">複製檢視代碼</button>
       <button class="btn" id="btnSwitchStore">建立／更換店家代碼</button>
@@ -567,13 +539,59 @@ body.print-sizing .name-sub{margin-top:0}
       <input type="file" id="fileImport" accept=".json" style="display:none">
       <button class="btn" id="btnCloseMore">關閉</button>
     </div>
-    <div class="small-note" id="calStatus"></div>
+  </div>
+</div>
+
+<!-- 如何使用 -->
+<div class="overlay" id="ovHelp">
+  <div class="modal">
+    <div class="m-title">如何使用</div>
+    <div class="sec-label">表格符號</div>
+    <div class="legend">
+      <span>╱ 未排</span>
+      <span>✕ 排休</span>
+      <span><b>△</b> 指定休息</span>
+      <span><b>特</b>＝特休</span>
+      <span><b>公</b>＝公差</span>
+      <span><b>颱</b>＝颱風假（月休不足時優先抵用）</span>
+      <span><b>─</b> 紅線＝到職前／離職後不排班</span>
+      <span><b>國</b>＝國定假日未排班，不扣薪，不計入月休</span>
+    </div>
+    <div class="hr"></div>
+    <div class="sec-label">排班</div>
+    <div class="small-note">按「🔒 排班」進入排班模式後才能點格子與日期列，再按一次鎖定防止誤觸。自訂時間只接受整點或半點（例如 900、1330、1500），下班需晚於上班，輸入完按 Enter 或點其他地方即會檢查。紅字日會計入正職「月休天數」總額。</div>
+    <div class="hr"></div>
+    <div class="sec-label">人員</div>
+    <div class="small-note">名單自動分組：正職在上、計時居中、支援在最下，群組間空一行。「自本月移除」只影響本月起的名單，過去月份班表完整保留（離職請用這個）；「永久刪除」會清掉所有月份的紀錄，僅在打錯人時使用。</div>
+    <div class="hr"></div>
+    <div class="sec-label">備註</div>
+    <div class="small-note">可用來記錄計時人員的特殊需求，例如「Amy 週三晚上不能班」。</div>
+    <div class="hr"></div>
+    <div class="sec-label">班次覆蓋檢查（驚嘆號）</div>
+    <div class="small-note">規則：每日至少1人 9:00 上班、1人 10:00～11:00 上班、1人涵蓋 13:30／14:00、2人下班到 22:00／22:30；週六日、國定假日與紅字日排班至少 5 人。紅色只在「排班」鎖定、且該日所有非支援人員都已排入內容後才會檢查。連續出勤（含跨月接續）：正職上限連 6 天、計時／支援上限連 5 天，超過以黃色標示，不受排班鎖定狀態影響。</div>
+    <div class="hr"></div>
+    <div class="sec-label">早／晚工時列</div>
+    <div class="small-note">表格最下方會列出每天早班／晚班的總工時，以 16:00 為分界，時數含休息時間。</div>
+    <div class="hr"></div>
+    <div class="sec-label">篩選顯示日期</div>
+    <div class="small-note">只是畫面顯示範圍，方便截圖；不影響實際排班資料，匯出／列印仍是完整整月。</div>
+    <div class="hr"></div>
+    <div class="sec-label">列印／PDF</div>
     <div class="small-note">
-      使用方式：按「🔒 排班」進入排班模式後才能點格子與日期列，再按一次鎖定防止誤觸。<br>
-      列印／PDF：輸出為 A4 橫式整月表格。建議用電腦匯出／列印 PDF——手機的列印功能通常沒有縮放或紙張大小選項可調，電腦操作起來更完整、也更容易確認排版正確。<br>
-      若斜線沒有顯示，請在列印視窗「更多設定」勾選「背景圖形」。若要去除頁首的時間與網址，請在同個「更多設定」關閉「頁首及頁尾」──這是瀏覽器本身的列印設定，網頁無法直接關閉。<br>
-      雲端同步：同一組店家代碼的裝置共用同一份班表，改動即時同步；離線時先存本機，連上後自動補傳。<br>
-      行事曆：連線時自動抓取政府公告（TaiwanCalendar 開源資料），離線時使用內建 2026（民國115）年資料；也可在排班模式點日期手動改紅黑字。
+      輸出為 A4 橫式整月表格。建議用電腦匯出／列印——手機的列印功能通常沒有縮放或紙張大小選項可調。若斜線沒有顯示，請在列印視窗「更多設定」勾選「背景圖形」；若要去除頁首的時間與網址，同樣在「更多設定」關閉「頁首及頁尾」（瀏覽器本身的列印設定，網頁無法直接關閉）。
+    </div>
+    <div class="hr"></div>
+    <div class="sec-label">JSON to PDF</div>
+    <div class="small-note">向量色塊＋文字圖層，橫式，一個月一頁，檔案小、文字清晰；可選連續的月份範圍，最多一次 36 個月。若選到還沒建立過資料的月份，會產生空白該月的頁面。</div>
+    <div class="hr"></div>
+    <div class="sec-label">雲端同步</div>
+    <div class="small-note">同一組店家代碼的裝置共用同一份班表，改動即時同步；離線時先存本機，連上後自動補傳。手機排班，平板打開就看得到。知道代碼的人就能查看與編輯這份班表，請只分享給需要的人；檢視代碼只能看不能改，適合分享給店員。</div>
+    <div class="hr"></div>
+    <div class="sec-label">行事曆</div>
+    <div class="small-note" id="calStatus"></div>
+    <div class="small-note">連線時自動抓取政府公告（TaiwanCalendar 開源資料），離線時使用內建資料；也可在排班模式點日期手動改紅黑字。</div>
+    <div class="m-actions">
+      <button class="btn" id="btnCloseHelp">關閉</button>
     </div>
   </div>
 </div>
@@ -584,7 +602,7 @@ body.print-sizing .name-sub{margin-top:0}
 const WD = ['日','一','二','三','四','五','六'];
 const PRESETS_COMMON = [[540,1050],[630,1140],[660,1170],[720,1230],[750,1260],[810,1320],[840,1350]];
 const PRESETS_PART   = [[540,960],[720,960],[960,1320],[1080,1320],[1110,1350]];
-const LEAVE_LABEL = {rest:'排休', desig:'指定休息', annual:'特休', duty:'公差', personal:'事假', sick:'病假', typhoon:'颱風假', redline:'紅線'};
+const LEAVE_LABEL = {rest:'排休', desig:'指定休息', annual:'特休', duty:'公差', typhoon:'颱風假', redline:'紅線'};
 const GROUP_ORDER = {full:0, part:1, sup:2};
 const TYPE_LABEL  = {full:'正職', part:'計時', sup:'支援'};
 function sortStaff(){ // 穩定排序：正職固定在上，計時居中，支援在最下
@@ -871,8 +889,8 @@ function coverageIssues(d){ // 回傳該日缺少的覆蓋項目；排班模式�
   }
   return miss;
 }
-function countsTowardStreak(e){ // 連續出勤計算：上班、特休、公差、事假、病假都算「有出勤」，不會中斷連續天數；只有真正的休息日才會中斷
-  return !!(e&&(e.t==='shift'||e.t==='annual'||e.t==='duty'||e.t==='personal'||e.t==='sick'));
+function countsTowardStreak(e){ // 連續出勤計算：上班、特休、公差都算「有出勤」，不會中斷連續天數；只有真正的休息日才會中斷
+  return !!(e&&(e.t==='shift'||e.t==='annual'||e.t==='duty'));
 }
 function workedOnYM(y,m,sid,d){ // 讀取任意月份某日是否算連續出勤（供跨月連續計算，不經過monthData避免誤建月份資料）
   const mo=state.months[y+'-'+m];
@@ -992,6 +1010,18 @@ function overtimeStats(sid){ // 本月加班時數統計：國定假日出勤／
 
 /* ────────── 工具 ────────── */
 function fmtDec(min){const h=min/60;return (h%1===0)?String(h):h.toFixed(1)}
+function dailySplitHours(d){ // 當天早／晚班總工時（分鐘，含休息時間，不扣0.5小時），以16:00為界，全店已排班人員加總
+  let morning=0,evening=0;
+  const CUT=960; // 16:00
+  for(const st of monthStaff()){
+    const e=entryOf(st.id,d);
+    if(e&&e.t==='shift'){
+      morning+=Math.max(0,Math.min(e.e,CUT)-e.s);
+      evening+=Math.max(0,e.e-Math.max(e.s,CUT));
+    }
+  }
+  return {morning,evening};
+}
 function fmtHM(min){const h=Math.floor(min/60),m=min%60;return h+':'+String(m).padStart(2,'0')}
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 function scheduleSave(){
@@ -1041,11 +1071,35 @@ function fitCells(){ // 依可用寬度撐滿整個月份；窄螢幕維持 46px
   const avail=wrap.clientWidth-79-N; // 扣掉名字欄與格線
   const w=Math.max(46,Math.floor(avail/N));
   document.documentElement.style.setProperty('--cell',w+'px');
-  document.documentElement.style.setProperty('--cellh',Math.min(Math.max(46,Math.round(w*.9)),72)+'px');
-  document.documentElement.style.setProperty('--cellfs',(w>=72?14:w>=58?13:11)+'px');
+  document.documentElement.style.setProperty('--cellfsW',(w>=72?14:w>=58?13:11)+'px');
 }
-window.addEventListener('resize',()=>{fitCells()});
-function renderAll(){ensureRoster();fitCells();renderSheet();renderNotes()}
+function fitRows(){ // 依實際可用垂直空間縮放列高，讓整張表格盡量不用捲動就能看完（平板/桌機視窗較矮時特別有用）
+  const wrap=document.querySelector('.sheet-wrap');
+  if(!wrap)return;
+  const roster=monthStaff();
+  if(!roster.length)return;
+  let rows=0,prevType=null;
+  roster.forEach(st=>{
+    if(prevType!==null&&st.type!==prevType)rows++; // 分組間的空白列
+    rows++;
+    prevType=st.type;
+  });
+  rows++; // 早／晚班工時總計列
+  const thead=wrap.querySelector('thead');
+  const headerH=thead?thead.getBoundingClientRect().height:0;
+  const wrapTop=wrap.getBoundingClientRect().top;
+  const notesEl=document.querySelector('.notes-sec');
+  const notesH=notesEl?notesEl.getBoundingClientRect().height:0;
+  const buffer=24;
+  const availH=window.innerHeight-wrapTop-headerH-notesH-buffer;
+  const rowH=Math.max(30,Math.min(72,Math.floor(availH/rows)));
+  document.documentElement.style.setProperty('--cellh',rowH+'px');
+  const fsH=rowH>=54?14:rowH>=42?12.5:rowH>=34?11:9.5;
+  const fsW=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cellfsW'))||14;
+  document.documentElement.style.setProperty('--cellfs',Math.min(fsW,fsH)+'px');
+}
+window.addEventListener('resize',()=>{fitCells();fitRows()});
+function renderAll(){ensureRoster();fitCells();renderSheet();renderNotes();fitRows()}
 function renderSheet(){
   const md=monthData(),N=daysInMonth();
   let h='<thead><tr><th class="corner" rowspan="2"><input id="cornerLabel" class="corner-input" value="'+esc(state.corner||'')+'" placeholder="標籤" aria-label="表格左上角標籤"></th>';
@@ -1102,11 +1156,20 @@ function renderSheet(){
       else if(e.t==='desig'){cls+=' filled';inner='<span class="mark tri">△</span>';}
       else if(e.t==='annual'){cls+=' filled';inner='<span class="mark word">特</span>';}
       else if(e.t==='duty'){cls+=' filled';inner='<span class="mark word">公</span>';}
-      else if(e.t==='personal'){cls+=' filled';inner='<span class="mark word yellow">事</span>';}
-      else if(e.t==='sick'){cls+=' filled';inner='<span class="mark word green">病</span>';}
       else if(e.t==='typhoon'){cls+=' filled';inner='<span class="mark word">颱</span>';}
       else if(e.t==='redline'){cls+=' redline';}
       h+='<td class="'+cls+'" data-sid="'+st.id+'" data-day="'+d+'">'+inner+'</td>';
+    }
+    h+='</tr>';
+  }
+  if(visible.length){
+    h+='<tr class="sum-row"><td class="name-cell sum-label">早／晚工時</td>';
+    for(let d=1;d<=N;d++){
+      const sp=dailySplitHours(d);
+      h+='<td class="day-cell sum-cell" data-day="'+d+'">'+
+         (sp.morning>0?'<span class="t-s">'+fmtDec(sp.morning)+'</span>':'')+
+         (sp.evening>0?'<span class="t-e">'+fmtDec(sp.evening)+'</span>':'')+
+         '</td>';
     }
     h+='</tr>';
   }
@@ -1502,6 +1565,12 @@ document.getElementById('btnMore').addEventListener('click',()=>{
   document.getElementById('btnManageStore').style.display=viewerMode?'none':'';
   document.getElementById('ovMore').classList.add('show');
 });
+document.getElementById('btnHelp').addEventListener('click',()=>{
+  document.getElementById('ovMore').classList.remove('show');
+  document.getElementById('calStatus').textContent='行事曆來源：'+calSource;
+  document.getElementById('ovHelp').classList.add('show');
+});
+document.getElementById('btnCloseHelp').addEventListener('click',()=>document.getElementById('ovHelp').classList.remove('show'));
 document.getElementById('btnCopyView').addEventListener('click',async()=>{
   try{await navigator.clipboard.writeText(state.viewCode);alert('已複製檢視代碼：'+state.viewCode+'\n\n拿到這組代碼的人只能查看班表，無法修改。')}
   catch(e){prompt('請手動複製檢視代碼：',state.viewCode)}
@@ -1803,8 +1872,6 @@ function drawColorPage(pdf,ctx,scale,y,m){
       else if(e.t==='desig'){fill=[205,222,245];label='休';}
       else if(e.t==='annual'){fill=[250,235,180];label='特';labelColor='#8a6d00';}
       else if(e.t==='duty'){fill=[224,210,240];label='公';labelColor='#5a3a8a';}
-      else if(e.t==='personal'){fill=[250,240,190];label='事';labelColor='#8a6d00';}
-      else if(e.t==='sick'){fill=[210,235,215];label='病';labelColor='#2a6a2a';}
       else if(e.t==='typhoon'){fill=[210,235,205];label='颱';labelColor='#2a6a2a';}
       if(fill){pdf.setFillColor(fill[0],fill[1],fill[2]);pdf.rect(x,rowY,dayColW,rowH,'F');}
       pdf.setDrawColor(160,160,160);
@@ -1823,7 +1890,7 @@ function drawColorPage(pdf,ctx,scale,y,m){
   });
 
   const legendY=bodyTop+roster.length*rowH+4;
-  const items=[[[224,224,224],'排休'],[[205,222,245],'指定休息'],[[250,215,220],'國定假日'],[[250,235,180],'特休'],[[224,210,240],'公差'],[[250,240,190],'事假'],[[210,235,215],'病假'],[[210,235,205],'颱風假']];
+  const items=[[[224,224,224],'排休'],[[205,222,245],'指定休息'],[[250,215,220],'國定假日'],[[250,235,180],'特休'],[[224,210,240],'公差'],[[210,235,205],'颱風假']];
   let lx=margin;
   items.forEach(([c,label])=>{
     pdf.setFillColor(c[0],c[1],c[2]);
