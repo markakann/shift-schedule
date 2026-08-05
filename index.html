@@ -79,7 +79,7 @@ body{
 .sheet-wrap{
   margin:0 8px;background:var(--paper);
   border:2px solid var(--grid);border-radius:2px;
-  overflow:auto;max-height:72vh;
+  overflow:auto;max-height:88vh;
   box-shadow:2px 3px 8px rgba(0,0,0,.15);
 }
 table{border-collapse:separate;border-spacing:0;table-layout:fixed}
@@ -1073,28 +1073,11 @@ function fitCells(){ // 依可用寬度撐滿整個月份；窄螢幕維持 46px
   document.documentElement.style.setProperty('--cell',w+'px');
   document.documentElement.style.setProperty('--cellfsW',(w>=72?14:w>=58?13:11)+'px');
 }
-function fitRows(){ // 依實際可用垂直空間縮放列高，讓整張表格盡量不用捲動就能看完（平板/桌機視窗較矮時特別有用）
-  const wrap=document.querySelector('.sheet-wrap');
-  if(!wrap)return;
-  const roster=monthStaff();
-  if(!roster.length)return;
-  let rows=0,prevType=null;
-  roster.forEach(st=>{
-    if(prevType!==null&&st.type!==prevType)rows++; // 分組間的空白列
-    rows++;
-    prevType=st.type;
-  });
-  rows++; // 早／晚班工時總計列
-  const thead=wrap.querySelector('thead');
-  const headerH=thead?thead.getBoundingClientRect().height:0;
-  const wrapTop=wrap.getBoundingClientRect().top;
-  const notesEl=document.querySelector('.notes-sec');
-  const notesH=notesEl?notesEl.getBoundingClientRect().height:0;
-  const buffer=24;
-  const availH=window.innerHeight-wrapTop-headerH-notesH-buffer;
-  const rowH=Math.max(30,Math.min(72,Math.floor(availH/rows)));
+function fitRows(){ // 格高依寬度給一個舒服的大小；人多就讓頁面自然變長、往下捲動，不犧牲格子大小換取「不用捲動」
+  const w=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cell'))||46;
+  const rowH=Math.min(Math.max(52,Math.round(w*1.1)),90);
   document.documentElement.style.setProperty('--cellh',rowH+'px');
-  const fsH=rowH>=54?14:rowH>=42?12.5:rowH>=34?11:9.5;
+  const fsH=rowH>=72?15:rowH>=60?14:13;
   const fsW=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--cellfsW'))||14;
   document.documentElement.style.setProperty('--cellfs',Math.min(fsW,fsH)+'px');
 }
