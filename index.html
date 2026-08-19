@@ -158,6 +158,8 @@ body.editing .day-cell:active{background-color:#fdf3d8}
 .mark.green{color:#2a8a4a}
 .mark.injury-mark{font-size:11px}
 body.print-sizing .mark.injury-mark{font-size:calc(7.5px*var(--printScale))}
+.injury-tag{position:absolute;top:0;right:2px;font-size:8px;color:#2a8a4a;font-weight:700;line-height:1.1}
+body.print-sizing .injury-tag{font-size:calc(5.5px*var(--printScale))}
 .nat-auto{
   position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
   color:var(--red);opacity:.55;font-size:12px;font-weight:700;pointer-events:none;
@@ -218,6 +220,13 @@ body.editing thead tr:nth-child(2) th:not(.corner){cursor:pointer}
 .staff-row .badge{flex-shrink:0}
 .staff-row .chev{color:#bbb;font-size:18px}
 .staff-group-label{font-size:12px;color:#999;padding:10px 4px 4px;font-weight:700}
+.hidden-row{
+  display:flex;align-items:center;gap:8px;padding:10px 4px;
+  border-bottom:1px solid #eee;
+}
+.hidden-row .name-txt{color:#888;font-weight:700;flex:1}
+.hidden-row .badge{flex-shrink:0}
+.hidden-row .btn{padding:5px 10px;font-size:12px}
 .chip{
   border:1.5px solid var(--grid);border-radius:8px;background:#fff;
   padding:8px 10px;font-size:14px;cursor:pointer;font-weight:600;
@@ -226,6 +235,7 @@ body.editing thead tr:nth-child(2) th:not(.corner){cursor:pointer}
 .chip.part-extra{border-style:dashed;color:#555}
 .chip.leave{color:var(--red);border-color:var(--red);background:#fff8f8}
 .chip.leave.green{color:#2a8a4a;border-color:#2a8a4a;background:#f3fbf5}
+.chip.active{background:#2a8a4a;color:#fff;border-color:#2a8a4a}
 .chip.plain{color:var(--ink)}
 .stepper-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .stepper{display:flex;align-items:center;border:1.5px solid var(--grid);border-radius:8px;overflow:hidden}
@@ -352,9 +362,22 @@ body.print-sizing .name-sub{margin-top:0}
       <button class="chip leave" data-leave="typhoon">颱風假</button>
       <button class="chip leave" data-leave="redline">─ 紅線（到職／離職區間）</button>
     </div>
+    <div class="small-note" id="injuryHint" style="display:none;color:#2a8a4a">已選取「職災」，請從上方班別或自訂時間挑選一個時段套用，會記錄成職災＋該時段。</div>
     <div class="m-actions">
       <button class="btn danger" id="btnClearCell">清除此格</button>
       <button class="btn" id="btnCloseCell">關閉</button>
+    </div>
+  </div>
+</div>
+
+<!-- 已隱藏人員（離職管理） -->
+<div class="overlay" id="ovHidden">
+  <div class="modal">
+    <div class="m-title">已隱藏人員</div>
+    <div class="small-note">離職後保留在這裡，歷史班表不受影響。可以完全刪除，或讓夥伴回歸人員清單。</div>
+    <div id="hiddenListBody" style="max-height:50vh;overflow-y:auto;margin-top:8px"></div>
+    <div class="m-actions">
+      <button class="btn" id="btnCloseHidden">關閉</button>
     </div>
   </div>
 </div>
@@ -392,8 +415,8 @@ body.print-sizing .name-sub{margin-top:0}
       <button class="btn primary" id="btnSaveStaff">儲存</button>
       <button class="btn" id="btnMoveUp">↑ 上移</button>
       <button class="btn" id="btnMoveDown">↓ 下移</button>
-      <button class="btn danger" id="btnRemoveMonth">自本月移除</button>
-      <button class="btn danger" id="btnDelStaff">永久刪除</button>
+      <button class="btn danger" id="btnRemoveMonth">離職</button>
+      <button class="btn danger" id="btnDelStaff">刪除</button>
       <button class="btn" id="btnCloseStaff">關閉</button>
     </div>
   </div>
@@ -553,6 +576,7 @@ body.print-sizing .name-sub{margin-top:0}
     <div class="small-note" id="cloudInfo" style="margin:6px 0 12px;font-size:13px;color:#555"></div>
     <div class="m-actions" style="flex-direction:column">
       <button class="btn" id="btnHelp">如何使用</button>
+      <button class="btn" id="btnHiddenStaff">已隱藏人員</button>
       <button class="btn" id="btnCopyCode">複製店家代碼</button>
       <button class="btn" id="btnCopyView">複製檢視代碼</button>
       <button class="btn" id="btnSwitchStore">建立／更換店家代碼</button>
@@ -588,7 +612,7 @@ body.print-sizing .name-sub{margin-top:0}
     <div class="small-note">按「🔒 排班」進入排班模式後才能點格子與日期列，再按一次鎖定防止誤觸。自訂時間只接受整點或半點（例如 900、1330、1500），下班需晚於上班，輸入完按 Enter 或點其他地方即會檢查。紅字日會計入正職「月休天數」總額。</div>
     <div class="hr"></div>
     <div class="sec-label">人員</div>
-    <div class="small-note">名單自動分組：正職在上、計時居中、支援在最下，群組間空一行。「自本月移除」只影響本月起的名單，過去月份班表完整保留（離職請用這個）；「永久刪除」會清掉所有月份的紀錄，僅在打錯人時使用。</div>
+    <div class="small-note">名單自動分組：正職在上、計時居中、支援在最下，群組間空一行。「離職」只影響本月起的名單，過去月份班表完整保留，姓名會加註「（離）」避免跟未來同名新人混淆；「刪除」會清掉所有月份的紀錄，僅在打錯人時使用。</div>
     <div class="hr"></div>
     <div class="sec-label">備註</div>
     <div class="small-note">可用來記錄計時人員的特殊需求，例如「Amy 週三晚上不能班」。</div>
@@ -631,6 +655,20 @@ const PRESETS_PART   = [[540,960],[720,960],[960,1320],[1080,1320],[1110,1350]];
 const LEAVE_LABEL = {rest:'排休', desig:'指定休息', annual:'特休', duty:'公差', injury:'職業傷害', typhoon:'颱風假', redline:'紅線'};
 const GROUP_ORDER = {full:0, part:1, sup:2};
 const TYPE_LABEL  = {full:'正職', part:'計時', sup:'支援'};
+function nextLeaveName(baseName){ // 產生不重複的離職註記名稱：（離）、（離2）、（離3）...
+  if(!state.staff.some(s=>s.name===baseName+'（離）'))return baseName+'（離）';
+  let n=2;
+  while(state.staff.some(s=>s.name===baseName+'（離'+n+'）'))n++;
+  return baseName+'（離'+n+'）';
+}
+function permanentlyDeleteStaff(sid){ // 完全刪除：清掉此人與所有月份的排班紀錄，無法復原
+  state.staff=state.staff.filter(s=>s.id!==sid);
+  for(const k in state.months){
+    if(state.months[k].sched)delete state.months[k].sched[sid];
+    if(Array.isArray(state.months[k].roster))state.months[k].roster=state.months[k].roster.filter(id=>id!==sid);
+  }
+  scheduleSave();
+}
 function sortStaff(){ // 穩定排序：正職固定在上，計時居中，支援在最下
   state.staff.sort((a,b)=>(GROUP_ORDER[a.type]??1)-(GROUP_ORDER[b.type]??1));
 }
@@ -835,7 +873,7 @@ let state={
   y:2026, m:6
 };
 let editMode=false, saveTimer=null, calSource='內建資料';
-let cur={sid:null,day:null,s:810,e:1320}; // 彈窗暫存
+let cur={sid:null,day:null,s:810,e:1320,leaveTag:null}; // 彈窗暫存；leaveTag用於「職災+時段」的待套用狀態
 let curNoteIdx=-1, curStaffId=null, curDayForOv=null;
 
 function ym(){return state.y+'-'+state.m}
@@ -975,11 +1013,11 @@ function shiftHours(e){ // 班段實際上班時數：時段長度超過4小時�
   const span=(e.e-e.s)/60;
   return span>4?span-0.5:span;
 }
-function partHours(sid){ // 計時本月已排班總時數（已扣除每班0.5小時休息）
+function partHours(sid){ // 計時／支援本月已排班總時數（已扣除每班0.5小時休息）；職災比照全薪，時數一併計入
   let h=0;
   for(let d=1;d<=daysInMonth();d++){
     const e=entryOf(sid,d);
-    if(e&&e.t==='shift')h+=shiftHours(e);
+    if(e&&(e.t==='shift'||e.t==='injury'))h+=shiftHours(e);
   }
   return h;
 }
@@ -1158,7 +1196,14 @@ function renderSheet(){
       else if(e.t==='desig'){cls+=' filled';inner='<span class="mark tri">△</span>';}
       else if(e.t==='annual'){cls+=' filled';inner='<span class="mark word">特</span>';}
       else if(e.t==='duty'){cls+=' filled';inner='<span class="mark word">公</span>';}
-      else if(e.t==='injury'){cls+=' filled';inner='<span class="mark word green injury-mark">職災</span>';}
+      else if(e.t==='injury'){
+        cls+=' filled';
+        if(e.s!=null&&e.e!=null){
+          inner='<span class="injury-tag">職災</span><span class="t-s">'+fmtDec(e.s)+'</span><span class="t-e">'+fmtDec(e.e)+'</span>';
+        }else{
+          inner='<span class="mark word green injury-mark">職災</span>';
+        }
+      }
       else if(e.t==='typhoon'){cls+=' filled';inner='<span class="mark word">颱</span>';}
       else if(e.t==='redline'){cls+=' redline';}
       h+='<td class="'+cls+'" data-sid="'+st.id+'" data-day="'+d+'">'+inner+'</td>';
@@ -1191,18 +1236,27 @@ function renderNotes(){
 /* ────────── 排班彈窗 ────────── */
 function openCell(sid,day){
   const st=state.staff.find(s=>s.id===sid);if(!st)return;
-  cur.sid=sid;cur.day=day;
+  cur.sid=sid;cur.day=day;cur.leaveTag=null;
   const e=entryOf(sid,day);
-  cur.s=(e&&e.t==='shift')?e.s:810; cur.e=(e&&e.t==='shift')?e.e:1320;
+  const hasTime=e&&(e.t==='shift'||e.t==='injury')&&e.s!=null&&e.e!=null;
+  cur.s=hasTime?e.s:810; cur.e=hasTime?e.e:1320;
   document.getElementById('cmTitle').textContent=st.name+'（'+TYPE_LABEL[st.type]+'）';
   const hn=holidayName(day);
+  let curText='';
+  if(e){
+    if(e.t==='shift')curText=fmtHM(e.s)+'～'+fmtHM(e.e);
+    else if(e.t==='injury'&&hasTime)curText='職業傷害（'+fmtHM(e.s)+'～'+fmtHM(e.e)+'）';
+    else curText=LEAVE_LABEL[e.t];
+  }
   document.getElementById('cmSub').innerHTML=state.m+'/'+day+'（'+WD[weekday(day)]+'）'+
     (hn?' <span class="red">'+esc(hn)+'</span>':'')+
-    (e?'　目前：'+(e.t==='shift'?fmtHM(e.s)+'～'+fmtHM(e.e):LEAVE_LABEL[e.t]):'');
+    (curText?'　目前：'+curText:'');
   let chips=PRESETS_COMMON.map(p=>'<button class="chip" data-s="'+p[0]+'" data-e="'+p[1]+'">'+fmtHM(p[0])+'～'+fmtHM(p[1])+'</button>').join('');
   if(st.type!=='full')
     chips+=PRESETS_PART.map(p=>'<button class="chip part-extra" data-s="'+p[0]+'" data-e="'+p[1]+'">'+fmtHM(p[0])+'～'+fmtHM(p[1])+'</button>').join('');
   document.getElementById('cmPresets').innerHTML=chips;
+  document.querySelectorAll('#ovCell .chip[data-leave]').forEach(c=>c.classList.remove('active'));
+  document.getElementById('injuryHint').style.display='none';
   syncTv();
   document.getElementById('ovCell').classList.add('show');
 }
@@ -1286,10 +1340,20 @@ document.getElementById('btnEdit').addEventListener('click',()=>{
 });
 document.getElementById('ovCell').addEventListener('click',ev=>{
   const chip=ev.target.closest('.chip[data-s]');
-  if(chip){cur.s=+chip.dataset.s;cur.e=+chip.dataset.e;setEntry({t:'shift',s:cur.s,e:cur.e});return}
+  if(chip){
+    cur.s=+chip.dataset.s;cur.e=+chip.dataset.e;
+    setEntry(cur.leaveTag?{t:cur.leaveTag,s:cur.s,e:cur.e}:{t:'shift',s:cur.s,e:cur.e});
+    cur.leaveTag=null;return;
+  }
   const lv=ev.target.closest('.chip[data-leave]');
   if(lv){
     if(lv.dataset.leave==='redline'){applyRedline();return}
+    if(lv.dataset.leave==='injury'){ // 職災：先選取，等下再挑時段一起套用（申報用需要記錄時段）
+      cur.leaveTag=(cur.leaveTag==='injury')?null:'injury';
+      lv.classList.toggle('active',cur.leaveTag==='injury');
+      document.getElementById('injuryHint').style.display=cur.leaveTag==='injury'?'':'none';
+      return;
+    }
     setEntry({t:lv.dataset.leave});return;
   }
   const stp=ev.target.closest('.stepper button');
@@ -1299,7 +1363,10 @@ document.getElementById('ovCell').addEventListener('click',ev=>{
     else cur.e=Math.min(Math.max(cur.e+d,cur.s+30),1440);
     syncTv();return;
   }
-  if(ev.target.id==='btnApplyTime'){setEntry({t:'shift',s:cur.s,e:cur.e});return}
+  if(ev.target.id==='btnApplyTime'){
+    setEntry(cur.leaveTag?{t:cur.leaveTag,s:cur.s,e:cur.e}:{t:'shift',s:cur.s,e:cur.e});
+    cur.leaveTag=null;return;
+  }
   if(ev.target.id==='btnClearCell'){clearCell();return}
   if(ev.target.id==='btnCloseCell'||ev.target===document.getElementById('ovCell'))
     document.getElementById('ovCell').classList.remove('show');
@@ -1383,7 +1450,7 @@ function openStaff(id){
   const wrap=document.getElementById('smArchivedWrap');
   if(!st){
     const roster=monthData().roster||[];
-    const archived=state.staff.filter(s=>!roster.includes(s.id));
+    const archived=state.staff.filter(s=>!roster.includes(s.id)&&!s.hidden);
     if(archived.length){
       document.getElementById('smArchived').innerHTML=archived.map(s=>
         '<button class="chip" data-readd="'+s.id+'">'+esc(s.name)+'（'+TYPE_LABEL[s.type]+'）</button>').join('');
@@ -1405,9 +1472,10 @@ document.getElementById('btnStaff').addEventListener('click',()=>{
 });
 function renderStaffList(){
   const box=document.getElementById('staffListBody');
-  if(!state.staff.length){box.innerHTML='<div class="small-note">還沒有任何人員，按下方「新增人員」開始。</div>';return}
+  const visible=state.staff.filter(s=>!s.hidden);
+  if(!visible.length){box.innerHTML='<div class="small-note">還沒有任何人員，按下方「新增人員」開始。</div>';return}
   let html='',prevType=null;
-  state.staff.forEach(st=>{
+  visible.forEach(st=>{
     if(prevType!==st.type)html+='<div class="staff-group-label">'+TYPE_LABEL[st.type]+'</div>';
     prevType=st.type;
     html+='<div class="staff-row" data-sid="'+st.id+'">'+
@@ -1428,6 +1496,47 @@ document.getElementById('btnAddNewStaff').addEventListener('click',()=>{
   openStaff(null);
 });
 document.getElementById('btnCloseStaffList').addEventListener('click',()=>document.getElementById('ovStaffList').classList.remove('show'));
+document.getElementById('btnHiddenStaff').addEventListener('click',()=>{
+  document.getElementById('ovMore').classList.remove('show');
+  renderHiddenList();
+  document.getElementById('ovHidden').classList.add('show');
+});
+document.getElementById('btnCloseHidden').addEventListener('click',()=>document.getElementById('ovHidden').classList.remove('show'));
+function renderHiddenList(){
+  const box=document.getElementById('hiddenListBody');
+  const hidden=state.staff.filter(s=>s.hidden);
+  if(!hidden.length){box.innerHTML='<div class="small-note">目前沒有已隱藏（離職）的人員。</div>';return}
+  box.innerHTML=hidden.map(st=>
+    '<div class="hidden-row" data-sid="'+st.id+'">'+
+    '<span class="name-txt">'+esc(st.name)+'</span>'+
+    '<span class="badge '+st.type+'">'+TYPE_LABEL[st.type][0]+'</span>'+
+    '<button class="btn" data-restore="'+st.id+'">回歸</button>'+
+    '<button class="btn danger" data-purge="'+st.id+'">刪除</button>'+
+    '</div>').join('');
+}
+document.getElementById('hiddenListBody').addEventListener('click',ev=>{
+  const restore=ev.target.closest('[data-restore]');
+  if(restore){
+    const st=state.staff.find(s=>s.id===restore.dataset.restore);
+    if(!st)return;
+    if(!confirm('讓 '+st.name+' 回歸人員清單？\n姓名會恢復原本的樣子（移除「（離）」註記），並加回本月名單。'))return;
+    st.hidden=false;
+    st.name=st.name.replace(/（離\d*）$/,'');
+    const md=monthData();
+    if(!md.roster.includes(st.id))md.roster.push(st.id);
+    scheduleSave();renderSheet();renderHiddenList();
+    return;
+  }
+  const purge=ev.target.closest('[data-purge]');
+  if(purge){
+    const st=state.staff.find(s=>s.id===purge.dataset.purge);
+    if(!st)return;
+    if(!confirm('完全刪除 '+st.name+'？\n所有月份的排班紀錄都會刪除、無法復原。'))return;
+    permanentlyDeleteStaff(purge.dataset.purge);
+    renderHiddenList();
+    return;
+  }
+});
 function openOT(sid){
   const st=state.staff.find(s=>s.id===sid);if(!st)return;
   const t=overtimeStats(sid);
@@ -1527,21 +1636,18 @@ document.getElementById('btnSaveStaff').addEventListener('click',()=>{
 });
 document.getElementById('btnRemoveMonth').addEventListener('click',()=>{
   const st=state.staff.find(s=>s.id===curStaffId);
-  if(!confirm('將 '+st.name+' 自本月名單移除？\n過去月份的班表完整保留；本月已排的班會隱藏但不刪除，之後可從「過往人員」加回。'))return;
+  if(!confirm('將 '+st.name+' 設為離職？\n過去月份的班表完整保留；姓名會加註「（離）」避免跟未來同名新人混淆。之後可在「⋯」選單的「已隱藏人員」查看、復原或完全刪除。'))return;
   const md=monthData();
   md.roster=md.roster.filter(id=>id!==curStaffId);
+  if(!/（離\d*）$/.test(st.name))st.name=nextLeaveName(st.name);
+  st.hidden=true;
   scheduleSave();renderSheet();
   document.getElementById('ovStaff').classList.remove('show');
 });
 document.getElementById('btnDelStaff').addEventListener('click',()=>{
   const st=state.staff.find(s=>s.id===curStaffId);
-  if(!confirm('【永久刪除】'+st.name+'？\n所有月份的排班紀錄都會刪除、無法復原。\n若是離職，請改用「自本月移除」以保留歷史班表。'))return;
-  state.staff=state.staff.filter(s=>s.id!==curStaffId);
-  for(const k in state.months){
-    if(state.months[k].sched)delete state.months[k].sched[curStaffId];
-    if(Array.isArray(state.months[k].roster))state.months[k].roster=state.months[k].roster.filter(id=>id!==curStaffId);
-  }
-  scheduleSave();renderSheet();
+  if(!confirm('刪除 '+st.name+'？\n所有月份的排班紀錄都會刪除、無法復原。\n若是離職，請改用「離職」以保留歷史班表。'))return;
+  permanentlyDeleteStaff(curStaffId);renderSheet();
   document.getElementById('ovStaff').classList.remove('show');
 });
 function moveStaff(dir){
@@ -1593,6 +1699,7 @@ document.getElementById('btnMore').addEventListener('click',()=>{
   document.getElementById('btnCopyView').style.display=(!viewerMode&&state.viewCode)?'':'none';
   document.getElementById('btnImport').style.display=viewerMode?'none':'';
   document.getElementById('btnManageStore').style.display=viewerMode?'none':'';
+  document.getElementById('btnHiddenStaff').style.display=viewerMode?'none':'';
   document.getElementById('ovMore').classList.add('show');
 });
 document.getElementById('btnHelp').addEventListener('click',()=>{
