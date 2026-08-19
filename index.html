@@ -219,6 +219,12 @@ body.editing thead tr:nth-child(2) th:not(.corner){cursor:pointer}
 .staff-row .name-txt{color:var(--blue);font-weight:700;flex:1}
 .staff-row .badge{flex-shrink:0}
 .staff-row .chev{color:#bbb;font-size:18px}
+.mtoggle{position:relative;display:inline-block;width:38px;height:22px;flex-shrink:0}
+.mtoggle input{opacity:0;width:0;height:0}
+.mtoggle-track{position:absolute;inset:0;background:#ddd;border-radius:22px;transition:background .15s}
+.mtoggle-track::before{content:'';position:absolute;left:2px;top:2px;width:18px;height:18px;background:#fff;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .15s}
+.mtoggle input:checked+.mtoggle-track{background:var(--blue)}
+.mtoggle input:checked+.mtoggle-track::before{transform:translateX(16px)}
 .staff-group-label{font-size:12px;color:#999;padding:10px 4px 4px;font-weight:700}
 .hidden-row{
   display:flex;align-items:center;gap:8px;padding:10px 4px;
@@ -1474,17 +1480,31 @@ function renderStaffList(){
   const box=document.getElementById('staffListBody');
   const visible=state.staff.filter(s=>!s.hidden);
   if(!visible.length){box.innerHTML='<div class="small-note">還沒有任何人員，按下方「新增人員」開始。</div>';return}
+  const roster=monthData().roster||[];
   let html='',prevType=null;
   visible.forEach(st=>{
     if(prevType!==st.type)html+='<div class="staff-group-label">'+TYPE_LABEL[st.type]+'</div>';
     prevType=st.type;
+    const inMonth=roster.includes(st.id);
     html+='<div class="staff-row" data-sid="'+st.id+'">'+
       '<span class="name-txt">'+esc(st.name)+'</span>'+
       '<span class="badge '+st.type+'">'+TYPE_LABEL[st.type][0]+'</span>'+
+      '<label class="mtoggle" title="是否列入本月班表" onclick="event.stopPropagation()">'+
+        '<input type="checkbox" data-inmonth="'+st.id+'" '+(inMonth?'checked':'')+'><span class="mtoggle-track"></span>'+
+      '</label>'+
       '<span class="chev">›</span></div>';
   });
   box.innerHTML=html;
 }
+document.getElementById('staffListBody').addEventListener('change',ev=>{
+  const cb=ev.target.closest('[data-inmonth]');
+  if(!cb)return;
+  const md=monthData();
+  const sid=cb.dataset.inmonth;
+  if(cb.checked){ if(!md.roster.includes(sid))md.roster.push(sid); }
+  else{ md.roster=md.roster.filter(id=>id!==sid); }
+  scheduleSave();renderSheet();
+});
 document.getElementById('staffListBody').addEventListener('click',ev=>{
   const row=ev.target.closest('.staff-row');
   if(!row)return;
