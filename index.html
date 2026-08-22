@@ -526,20 +526,61 @@ body.print-sizing .name-sub{margin-top:0}
 </div>
 
 <!-- 店家代碼設定 -->
-<div class="overlay" id="ovSetup">
+<!-- 首次使用選擇器 -->
+<div class="overlay" id="ovFirstSetup">
   <div class="modal">
     <div class="m-title">雲端同步設定</div>
-    <div class="sec-label">建立新店家</div>
+    <div class="m-actions" style="flex-direction:column">
+      <button class="btn primary" id="btnFirstCreate">建立新店家</button>
+      <button class="btn" id="btnFirstJoin">加入現有代碼</button>
+      <button class="btn" id="btnSkipCloud">先不用（僅存本機）</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="ovSetup">
+  <div class="modal">
+    <div class="m-title">建立新店家</div>
     <input class="txt" id="newCode" placeholder="自訂代碼（可留空，自動產生隨機代碼）" autocapitalize="off" autocorrect="off">
     <div class="m-actions" style="flex-direction:column">
       <button class="btn primary" id="btnNewStore">建立</button>
+      <button class="btn" id="btnCloseSetup">取消</button>
     </div>
-    <div class="hr"></div>
-    <div class="sec-label">或加入現有店家</div>
+  </div>
+</div>
+
+<!-- 加入現有代碼 -->
+<div class="overlay" id="ovJoinStore">
+  <div class="modal">
+    <div class="m-title">加入現有代碼</div>
     <input class="txt" id="joinCode" placeholder="輸入店家代碼或檢視代碼" autocapitalize="off" autocorrect="off">
-    <div class="m-actions">
+    <div class="m-actions" style="flex-direction:column">
       <button class="btn primary" id="btnJoinStore">加入</button>
-      <button class="btn" id="btnSkipCloud">先不用（僅存本機）</button>
+      <button class="btn" id="btnCloseJoin">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- 建立／管理店家代碼 選擇器 -->
+<div class="overlay" id="ovCodeHub">
+  <div class="modal">
+    <div class="m-title">建立／管理店家代碼</div>
+    <div class="m-actions" style="flex-direction:column">
+      <button class="btn primary" id="btnHubCreate">建立新店家</button>
+      <button class="btn" id="btnHubManage">管理店家代碼</button>
+      <button class="btn" id="btnCloseHub">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- 複製代碼 選擇器 -->
+<div class="overlay" id="ovCopyChoice">
+  <div class="modal">
+    <div class="m-title">複製代碼</div>
+    <div class="m-actions" style="flex-direction:column">
+      <button class="btn primary" id="btnCopyChoiceStore">複製店家代碼</button>
+      <button class="btn" id="btnCopyChoiceView">複製檢視代碼</button>
+      <button class="btn" id="btnCloseCopyChoice">取消</button>
     </div>
   </div>
 </div>
@@ -601,10 +642,9 @@ body.print-sizing .name-sub{margin-top:0}
     <div class="m-actions" style="flex-direction:column">
       <button class="btn" id="btnHelp">如何使用</button>
       <button class="btn" id="btnHiddenStaff">已隱藏人員</button>
-      <button class="btn" id="btnCopyCode">複製店家代碼</button>
-      <button class="btn" id="btnCopyView">複製檢視代碼</button>
-      <button class="btn" id="btnSwitchStore">建立／更換店家代碼</button>
-      <button class="btn" id="btnManageStore">管理店家代碼</button>
+      <button class="btn" id="btnCopyMenu">複製代碼</button>
+      <button class="btn" id="btnOpenHub">建立／管理店家代碼</button>
+      <button class="btn" id="btnOpenJoin">加入現有代碼</button>
       <button class="btn" id="btnPrint">匯出 PDF／列印</button>
       <button class="btn" id="btnColorPdf">JSON to PDF（可選月份範圍）</button>
       <button class="btn" id="btnExport">匯出備份（JSON）</button>
@@ -757,7 +797,7 @@ async function initFirebase(){
     cloudStatus='雲端已連線';
     let saved=null;try{saved=localStorage.getItem('paiban-store-code')}catch(e){}
     if(saved)await connectStore(saved,false,true);
-    else openSetup();
+    else openFirstSetup();
   }catch(e){
     FB=null;cloudStatus='雲端無法載入（本機模式）';
     setHint('本機模式');
@@ -1111,6 +1151,13 @@ function entryShortLabel(e){ // 把任意班段/假別壓縮成一個簡短字�
   const short={rest:'休',desig:'指',annual:'特',duty:'公',injury:'職災',typhoon:'颱',redline:'線'};
   return short[e.t]||'';
 }
+function entriesEqual(a,b){ // 判斷兩個班段/假別內容是否完全相同(用於判斷是否真的有異動)
+  if(!a&&!b)return true;
+  if(!a||!b)return false;
+  if(a.t!==b.t)return false;
+  if(a.t==='shift'||a.t==='injury')return a.s===b.s&&a.e===b.e;
+  return true;
+}
 function dailySplitHours(d){ // 當天早／晚班總工時（分鐘，含休息時間，不扣0.5小時），以16:00為界，全店已排班人員加總
   let morning=0,evening=0;
   const CUT=960; // 16:00
@@ -1359,8 +1406,10 @@ function setEntry(entry){
   }
   const prevEntry=entryOf(cur.sid,cur.day); // 覆蓋前先記下目前的值
   if(entry)md.sched[cur.sid][cur.day]=entry;else delete md.sched[cur.sid][cur.day];
-  const chKey=cur.sid+':'+cur.day;
-  if(!changedCells.has(chKey))changedCells.set(chKey,prevEntry||null); // 只記第一次改動前的樣子，同一格改第二次不覆蓋
+  if(!entriesEqual(prevEntry,entry)){ // 內容完全沒變就不算異動，不顯示灰字
+    const chKey=cur.sid+':'+cur.day;
+    if(!changedCells.has(chKey))changedCells.set(chKey,prevEntry||null); // 只記第一次改動前的樣子，同一格改第二次不覆蓋
+  }
   scheduleSave();renderSheet();
   document.getElementById('ovCell').classList.remove('show');
 }
@@ -1774,10 +1823,8 @@ document.getElementById('btnCloseNote').addEventListener('click',()=>document.ge
 document.getElementById('btnMore').addEventListener('click',()=>{
   document.getElementById('calStatus').textContent='行事曆來源：'+calSource;
   document.getElementById('cloudInfo').textContent=cloudStatus;
-  document.getElementById('btnCopyCode').style.display=(storeCode&&!viewerMode)?'':'none';
-  document.getElementById('btnCopyView').style.display=(!viewerMode&&state.viewCode)?'':'none';
+  document.getElementById('btnCopyMenu').style.display=(storeCode||viewerMode)?'':'none';
   document.getElementById('btnImport').style.display=viewerMode?'none':'';
-  document.getElementById('btnManageStore').style.display=viewerMode?'none':'';
   document.getElementById('btnHiddenStaff').style.display=viewerMode?'none':'';
   document.getElementById('ovMore').classList.add('show');
 });
@@ -1787,26 +1834,51 @@ document.getElementById('btnHelp').addEventListener('click',()=>{
   document.getElementById('ovHelp').classList.add('show');
 });
 document.getElementById('btnCloseHelp').addEventListener('click',()=>document.getElementById('ovHelp').classList.remove('show'));
-document.getElementById('btnCopyView').addEventListener('click',async()=>{
-  try{await navigator.clipboard.writeText(state.viewCode);alert('已複製檢視代碼：'+state.viewCode+'\n\n拿到這組代碼的人只能查看班表，無法修改。')}
-  catch(e){prompt('請手動複製檢視代碼：',state.viewCode)}
-});
-document.getElementById('btnCloseMore').addEventListener('click',()=>document.getElementById('ovMore').classList.remove('show'));
-document.getElementById('btnCopyCode').addEventListener('click',async()=>{
+async function copyStoreCode(){
   try{await navigator.clipboard.writeText(storeCode);alert('已複製店家代碼：'+storeCode)}
   catch(e){prompt('請手動複製店家代碼：',storeCode)}
-});
-document.getElementById('btnSwitchStore').addEventListener('click',()=>{
+}
+async function copyViewCode(){
+  try{await navigator.clipboard.writeText(state.viewCode);alert('已複製檢視代碼：'+state.viewCode+'\n\n拿到這組代碼的人只能查看班表，無法修改。')}
+  catch(e){prompt('請手動複製檢視代碼：',state.viewCode)}
+}
+document.getElementById('btnCopyMenu').addEventListener('click',()=>{
   document.getElementById('ovMore').classList.remove('show');
+  if(viewerMode){copyViewCode();return} // 檢視模式手上只有檢視代碼，直接複製不用選
+  document.getElementById('ovCopyChoice').classList.add('show');
+});
+document.getElementById('btnCopyChoiceStore').addEventListener('click',()=>{
+  document.getElementById('ovCopyChoice').classList.remove('show');
+  copyStoreCode();
+});
+document.getElementById('btnCopyChoiceView').addEventListener('click',()=>{
+  document.getElementById('ovCopyChoice').classList.remove('show');
+  copyViewCode();
+});
+document.getElementById('btnCloseCopyChoice').addEventListener('click',()=>document.getElementById('ovCopyChoice').classList.remove('show'));
+document.getElementById('btnCloseMore').addEventListener('click',()=>document.getElementById('ovMore').classList.remove('show'));
+document.getElementById('btnOpenHub').addEventListener('click',()=>{
+  document.getElementById('ovMore').classList.remove('show');
+  document.getElementById('ovCodeHub').classList.add('show');
+});
+document.getElementById('btnCloseHub').addEventListener('click',()=>document.getElementById('ovCodeHub').classList.remove('show'));
+document.getElementById('btnHubCreate').addEventListener('click',()=>{
+  document.getElementById('ovCodeHub').classList.remove('show');
   openSetup();
 });
 const MGR_PASSWORD='markakann';
-document.getElementById('btnManageStore').addEventListener('click',()=>{
+document.getElementById('btnHubManage').addEventListener('click',()=>{
   if(!FB){alert('目前雲端無法載入（可能離線或在預覽環境），僅本機模式可用。');return}
-  document.getElementById('ovMore').classList.remove('show');
+  document.getElementById('ovCodeHub').classList.remove('show');
   document.getElementById('mgrPw').value='';
   document.getElementById('ovMgrPw').classList.add('show');
 });
+document.getElementById('btnOpenJoin').addEventListener('click',()=>{
+  document.getElementById('ovMore').classList.remove('show');
+  document.getElementById('joinCode').value='';
+  document.getElementById('ovJoinStore').classList.add('show');
+});
+document.getElementById('btnCloseJoin').addEventListener('click',()=>document.getElementById('ovJoinStore').classList.remove('show'));
 document.getElementById('mgrPw').addEventListener('keydown',ev=>{
   if(ev.key==='Enter'){ev.preventDefault();document.getElementById('btnMgrPwGo').click();}
 });
@@ -1949,12 +2021,25 @@ document.getElementById('btnMgrCreate').addEventListener('click',async()=>{
 });
 document.getElementById('btnMgrClose').addEventListener('click',()=>document.getElementById('ovMgrPanel').classList.remove('show'));
 /* 店家代碼設定 */
-function openSetup(){
+function openFirstSetup(){ // 首次使用（尚未有任何店家代碼）時顯示的選擇器：建立／加入／僅本機
   if(!FB){alert('目前雲端無法載入（可能離線或在預覽環境），僅本機模式可用。');return}
-  document.getElementById('joinCode').value='';
+  document.getElementById('ovFirstSetup').classList.add('show');
+}
+function openSetup(){ // 建立新店家（單一用途，供選擇器或「更多」選單呼叫）
+  if(!FB){alert('目前雲端無法載入（可能離線或在預覽環境），僅本機模式可用。');return}
   document.getElementById('newCode').value='';
   document.getElementById('ovSetup').classList.add('show');
 }
+document.getElementById('btnCloseSetup').addEventListener('click',()=>document.getElementById('ovSetup').classList.remove('show'));
+document.getElementById('btnFirstCreate').addEventListener('click',()=>{
+  document.getElementById('ovFirstSetup').classList.remove('show');
+  openSetup();
+});
+document.getElementById('btnFirstJoin').addEventListener('click',()=>{
+  document.getElementById('ovFirstSetup').classList.remove('show');
+  document.getElementById('joinCode').value='';
+  document.getElementById('ovJoinStore').classList.add('show');
+});
 function genCodeSuffix(){
   const chars='abcdefghjkmnpqrstuvwxyz23456789';let s='';
   const rnd=new Uint8Array(6);crypto.getRandomValues(rnd);
@@ -1996,11 +2081,11 @@ document.getElementById('btnJoinStore').addEventListener('click',async()=>{
   const code=document.getElementById('joinCode').value;
   if(!code.trim()){alert('請輸入店家代碼');return}
   if(await connectStore(code,false,false)){
-    document.getElementById('ovSetup').classList.remove('show');
+    document.getElementById('ovJoinStore').classList.remove('show');
   }
 });
 document.getElementById('btnSkipCloud').addEventListener('click',()=>{
-  document.getElementById('ovSetup').classList.remove('show');
+  document.getElementById('ovFirstSetup').classList.remove('show');
   setHint('僅本機模式');
 });
 function computeAndApplyPrintSizing(){
