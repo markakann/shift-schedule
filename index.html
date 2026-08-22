@@ -578,6 +578,20 @@ body.print-sizing .name-sub{margin-top:0}
   </div>
 </div>
 
+<!-- 刪除店家代碼確認 -->
+<div class="overlay" id="ovConfirmDelCode">
+  <div class="modal">
+    <div class="m-title">刪除店家代碼</div>
+    <div class="m-sub">即將刪除代碼：</div>
+    <div id="delCodeName" style="color:var(--red);font-weight:700;font-size:18px;word-break:break-all;margin:4px 0 10px"></div>
+    <div class="small-note" style="color:var(--red)">此操作無法復原：雲端上這個代碼的班表資料、對應的檢視代碼都會一併被永久刪除。</div>
+    <div class="m-actions">
+      <button class="btn danger" id="btnConfirmDelCode">確定刪除</button>
+      <button class="btn" id="btnCancelDelCode">取消</button>
+    </div>
+  </div>
+</div>
+
 <!-- 更多選單 -->
 <div class="overlay" id="ovMore">
   <div class="modal">
@@ -777,9 +791,15 @@ async function connectStore(code,isNew,silent){
       applyPayload(lastWritten);
       renderAll();
     }else if(isNew){
-      if(!state.viewCode)state.viewCode='view-'+genCodeSuffix();
+      // 建立全新店家前，先清空目前畫面資料，避免把原本店家的人員／班表複製過去
+      state.store='';state.title='排班表';state.corner='';state.viewCode='';
+      state.staff=[];state.months={};state.calCache={};
+      state.viewCode='view-'+genCodeSuffix();
+      document.getElementById('storeName').value='';
+      document.getElementById('sheetTitle').value='排班表';
       lastWritten=payloadStr();
       await FB.setDoc(ref,{data:lastWritten,updatedAt:FB.serverTimestamp()});
+      renderAll();
     }else{
       // 找不到編輯代碼 → 試試是不是檢視代碼（唯讀鏡像）
       const ok=await connectViewer(code,silent);
@@ -1862,20 +1882,34 @@ document.getElementById('mgrList').addEventListener('click',async ev=>{
   }
   if(del){
     const code=del.dataset.mgrDel;
-    if(!confirm('確定永久刪除代碼「'+code+'」？雲端上的班表資料將被清除，無法復原。'))return;
-    try{
-      await FB.deleteDoc(FB.doc(FB.db,'stores',code));
-      removeCodeHistory(code);
-      if(storeCode===code){
-        storeCode=null;
-        try{localStorage.removeItem('paiban-store-code')}catch(e){}
-        if(unsubCloud){unsubCloud();unsubCloud=null}
-        cloudStatus='雲端已連線（尚未選擇店家代碼）';
-        setHint('請重新選擇店家代碼');
-      }
-      renderMgrList();
-    }catch(e){alert('刪除失敗，請確認網路連線與 Firestore 設定。')}
+    document.getElementById('delCodeName').textContent=code;
+    document.getElementById('ovConfirmDelCode').classList.add('show');
+    document.getElementById('ovConfirmDelCode').dataset.pendingCode=code;
   }
+});
+document.getElementById('btnCancelDelCode').addEventListener('click',()=>document.getElementById('ovConfirmDelCode').classList.remove('show'));
+document.getElementById('btnConfirmDelCode').addEventListener('click',async()=>{
+  const code=document.getElementById('ovConfirmDelCode').dataset.pendingCode;
+  document.getElementById('ovConfirmDelCode').classList.remove('show');
+  try{
+    // 檢視代碼跟店家代碼是綁在一起的一組，刪除前先讀出對應的檢視代碼一併清除
+    const snap=await FB.getDoc(FB.doc(FB.db,'stores',code));
+    let pairedView=null;
+    if(snap.exists()&&snap.data().data){
+      try{pairedView=JSON.parse(snap.data().data).viewCode||null}catch(e){}
+    }
+    await FB.deleteDoc(FB.doc(FB.db,'stores',code));
+    if(pairedView)await FB.deleteDoc(FB.doc(FB.db,'views',pairedView));
+    removeCodeHistory(code);
+    if(storeCode===code){
+      storeCode=null;
+      try{localStorage.removeItem('paiban-store-code')}catch(e){}
+      if(unsubCloud){unsubCloud();unsubCloud=null}
+      cloudStatus='雲端已連線（尚未選擇店家代碼）';
+      setHint('請重新選擇店家代碼');
+    }
+    renderMgrList();
+  }catch(e){alert('刪除失敗，請確認網路連線與 Firestore 設定。')}
 });
 document.getElementById('btnMgrCreate').addEventListener('click',async()=>{
   let code=document.getElementById('mgrNewCode').value.trim().toLowerCase();
