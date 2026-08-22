@@ -126,6 +126,7 @@ th.corner{border-right-width:2px;min-width:92px;max-width:92px;width:92px}
 .day-cell{
   min-width:var(--cell);max-width:var(--cell);width:var(--cell);height:var(--cellh);
   position:relative;font-size:var(--cellfs);overflow:hidden;
+  transition:background-color 1.8s ease;
 }
 .day-th{min-width:var(--cell);max-width:var(--cell);width:var(--cell)}
 tr.sum-row td.name-cell{background:#f2efe4;vertical-align:middle;height:34px}
@@ -148,6 +149,8 @@ tr.sum-row .t-s,tr.sum-row .t-e{font-weight:700;color:#6b5a1e;font-size:10px}
 body.editing .day-cell{cursor:pointer}
 body.editing .day-cell:active{background-color:#fdf3d8}
 .t-s{position:absolute;top:1px;left:3px;font-weight:600}
+.day-cell.changed-mark{background-color:#e3edfa!important}
+.t-s.fs-warn,.t-e.fs-warn{color:#d6336c}
 .t-e{position:absolute;bottom:1px;right:3px;font-weight:600}
 .mark{
   position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
@@ -624,7 +627,7 @@ body.print-sizing .name-sub{margin-top:0}
     <div class="small-note">可用來記錄計時人員的特殊需求，例如「Amy 週三晚上不能班」。</div>
     <div class="hr"></div>
     <div class="sec-label">班次覆蓋檢查（驚嘆號）</div>
-    <div class="small-note">規則：每日至少1人 9:00 上班、1人 10:00～11:00 上班、1人涵蓋 13:30／14:00、2人下班到 22:00／22:30；週六日、國定假日與紅字日排班至少 5 人。紅色只在「排班」鎖定、且該日所有非支援人員都已排入內容後才會檢查。連續出勤（含跨月接續）：正職上限連 6 天、計時／支援上限連 5 天，超過以黃色標示，不受排班鎖定狀態影響。</div>
+    <div class="small-note">規則：每日至少1人 9:00 上班、1人 10:00～11:00 上班、2人下班到 22:00／22:30；週六日、國定假日與紅字日排班至少 5 人。紅色只在「排班」鎖定、且該日所有非支援人員都已排入內容後才會檢查。連續出勤（含跨月接續）：正職上限連 6 天、計時／支援上限連 5 天，超過以黃色標示，不受排班鎖定狀態影響。</div>
     <div class="hr"></div>
     <div class="sec-label">早／晚工時列</div>
     <div class="small-note">表格最下方會列出每天早班／晚班的總工時，以 16:00 為分界，時數含休息時間。</div>
@@ -879,6 +882,7 @@ let state={
   y:2026, m:6
 };
 let editMode=false, saveTimer=null, calSource='內建資料';
+let changedCells=new Set(); // 本次排班（解鎖到鎖定之間）異動過的格子，鎖定後淡出提示用
 let cur={sid:null,day:null,s:810,e:1320,leaveTag:null}; // 彈窗暫存；leaveTag用於「職災+時段」的待套用狀態
 let curNoteIdx=-1, curStaffId=null, curDayForOv=null;
 
@@ -936,7 +940,6 @@ function entryOf(sid,d){const s=monthData().sched[sid];return s?s[d]:undefined}
 const COVERAGE_RULES=[
   {test:list=>list.some(e=>e.s===540),need:'缺 9:00 上班人員'},
   {test:list=>list.some(e=>e.s===600||e.s===630||e.s===660),need:'缺 10:00～11:00 上班人員'},
-  {test:list=>list.some(e=>e.s<=840&&e.e>810),need:'缺 13:30／14:00 上班人員'}, // 涵蓋13:30~14:00這段時間即可，不限剛好那個時間點上班
   {test:list=>list.filter(e=>e.e>=1320).length>=2,need:'下班到 22:00／22:30 不足 2 人'},
 ];
 function coverageIssues(d){ // 回傳該日缺少的覆蓋項目；排班模式中或該日尚未排完所有人（不含支援）時回傳null(不檢查)
@@ -1197,7 +1200,13 @@ function renderSheet(){
         if(st.type==='full'&&isNational(d))inner='<span class="nat-auto">國</span>';
       }else if(e.t==='shift'){
         cls+=' filled';
-        inner='<span class="t-s">'+fmtDec(e.s)+'</span><span class="t-e">'+fmtDec(e.e)+'</span>';
+        const wd=weekday(d);
+        const startWarn=editMode&&(wd===5||wd===6)&&(e.s===720||e.s===810); // 五六常見誤植：忘記晚半小時開始(應12:30/14:00)
+        const endWarn=editMode&&(
+          (wd>=0&&wd<=4&&e.e===1260) || // 日到四卻誤用五六的21:00下班
+          ((wd===5||wd===6)&&e.e===1230)  // 五六卻誤用平日的20:30下班
+        );
+        inner='<span class="t-s'+(startWarn?' fs-warn':'')+'">'+fmtDec(e.s)+'</span><span class="t-e'+(endWarn?' fs-warn':'')+'">'+fmtDec(e.e)+'</span>';
       }else if(e.t==='rest'){cls+=' off';}
       else if(e.t==='desig'){cls+=' filled';inner='<span class="mark tri">△</span>';}
       else if(e.t==='annual'){cls+=' filled';inner='<span class="mark word">特</span>';}
@@ -1212,6 +1221,7 @@ function renderSheet(){
       }
       else if(e.t==='typhoon'){cls+=' filled';inner='<span class="mark word">颱</span>';}
       else if(e.t==='redline'){cls+=' redline';}
+      if(changedCells.has(st.id+':'+d))cls+=' changed-mark';
       h+='<td class="'+cls+'" data-sid="'+st.id+'" data-day="'+d+'">'+inner+'</td>';
     }
     h+='</tr>';
@@ -1314,6 +1324,7 @@ function setEntry(entry){
     if(after>quota()&&!confirm('本月月休天數為 '+quota()+' 天（行事曆紅字，不含國定假日），'+st.name+' 排入後將達 '+after+' 天。仍要排入嗎？'))return;
   }
   if(entry)md.sched[cur.sid][cur.day]=entry;else delete md.sched[cur.sid][cur.day];
+  changedCells.add(cur.sid+':'+cur.day);
   scheduleSave();renderSheet();
   document.getElementById('ovCell').classList.remove('show');
 }
@@ -1342,6 +1353,14 @@ document.getElementById('btnEdit').addEventListener('click',()=>{
   const b=document.getElementById('btnEdit');
   b.textContent=editMode?'🔓 排班中（按此鎖定）':'🔒 排班';
   b.classList.toggle('editing',editMode);
+  if(editMode){
+    changedCells.clear(); // 解鎖開始新的排班時段，清空上次的異動痕跡重新追蹤
+  }else if(changedCells.size){
+    setTimeout(()=>{
+      document.querySelectorAll('.day-cell.changed-mark').forEach(el=>el.classList.remove('changed-mark')); // 直接移除class讓CSS transition淡出，而非整表重繪瞬間消失
+      changedCells.clear();
+    },2000);
+  }
   renderSheet(); // 紅色驚嘆號只在鎖定後才檢查，切換狀態要立即反映
 });
 document.getElementById('ovCell').addEventListener('click',ev=>{
