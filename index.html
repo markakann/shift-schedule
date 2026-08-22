@@ -859,7 +859,23 @@ async function connectStore(code,isNew,silent){
   recordCodeHistory(code);
   if(unsubCloud)unsubCloud();
   unsubCloud=FB.onSnapshot(ref,s=>{
-    if(!s.exists())return;
+    if(!s.exists()){
+      // 這個店家代碼在雲端被刪除了（可能在別的分頁/裝置操作），這個視窗也要立即反應，不能停留在已失效的舊畫面
+      if(storeCode!==code)return; // 已經切換到別的店家了，跟這個舊監聽無關
+      storeCode=null;
+      try{localStorage.removeItem('paiban-store-code')}catch(e){}
+      if(unsubCloud){unsubCloud();unsubCloud=null}
+      state.store='';state.title='排班表';state.corner='';state.viewCode='';
+      state.staff=[];state.months={};state.calCache={};
+      document.getElementById('storeName').value='';
+      document.getElementById('sheetTitle').value='排班表';
+      renderAll();
+      cloudStatus='雲端已連線（尚未選擇店家代碼）';
+      setHint('請重新選擇店家代碼');
+      alert('店家代碼「'+code+'」已被刪除（可能在其他裝置操作），畫面已清空。\n請重新建立或加入店家代碼。');
+      openFirstSetup();
+      return;
+    }
     const d=s.data().data;
     if(d&&d!==lastWritten){ // 其他裝置的更新
       lastWritten=d;
@@ -1999,6 +2015,17 @@ document.getElementById('btnConfirmDelCode').addEventListener('click',async()=>{
       if(unsubCloud){unsubCloud();unsubCloud=null}
       cloudStatus='雲端已連線（尚未選擇店家代碼）';
       setHint('請重新選擇店家代碼');
+      // 正在瀏覽的店家被刪除了，畫面上的班表已經是無效資料，立即清空並請使用者重新連線
+      state.store='';state.title='排班表';state.corner='';state.viewCode='';
+      state.staff=[];state.months={};state.calCache={};
+      document.getElementById('storeName').value='';
+      document.getElementById('sheetTitle').value='排班表';
+      renderAll();
+      document.getElementById('ovMgrPanel').classList.remove('show');
+      document.getElementById('ovMore').classList.remove('show');
+      alert('目前正在瀏覽的店家代碼「'+code+'」已被刪除，畫面已清空。\n請重新建立或加入店家代碼。');
+      openFirstSetup();
+      return;
     }
     renderMgrList();
   }catch(e){alert('刪除失敗，請確認網路連線與 Firestore 設定。')}
