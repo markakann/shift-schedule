@@ -799,6 +799,7 @@ async function connectStore(code,isNew,silent){
       document.getElementById('sheetTitle').value='排班表';
       lastWritten=payloadStr();
       await FB.setDoc(ref,{data:lastWritten,updatedAt:FB.serverTimestamp()});
+      await FB.setDoc(FB.doc(FB.db,'views',state.viewCode),{data:lastWritten,updatedAt:FB.serverTimestamp()}); // 檢視代碼跟店家代碼一起建立，不用等到下次存檔才補上
       renderAll();
     }else{
       // 找不到編輯代碼 → 試試是不是檢視代碼（唯讀鏡像）
