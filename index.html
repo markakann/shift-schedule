@@ -150,6 +150,7 @@ body.editing .day-cell{cursor:pointer}
 body.editing .day-cell:active{background-color:#fdf3d8}
 .t-s{position:absolute;top:1px;left:3px;font-weight:600}
 .day-cell.changed-mark{background-color:#e3edfa!important}
+.prev-value{position:absolute;bottom:1px;left:3px;font-size:7px;color:#8a8a8a;text-decoration:line-through;line-height:1;white-space:nowrap}
 .t-s.fs-warn,.t-e.fs-warn{color:#d6336c}
 .t-e{position:absolute;bottom:1px;right:3px;font-weight:600}
 .mark{
@@ -903,7 +904,7 @@ let state={
   y:2026, m:6
 };
 let editMode=false, saveTimer=null, calSource='內建資料';
-let changedCells=new Set(); // 本次排班（解鎖到鎖定之間）異動過的格子，鎖定後淡出提示用
+let changedCells=new Map(); // 本次排班（解鎖到鎖定之間）異動過的格子 → 改動前的原始內容；鎖定後淡出提示用
 let cur={sid:null,day:null,s:810,e:1320,leaveTag:null}; // 彈窗暫存；leaveTag用於「職災+時段」的待套用狀態
 let curNoteIdx=-1, curStaffId=null, curDayForOv=null;
 
@@ -1104,6 +1105,12 @@ function overtimeStats(sid){ // 本月加班時數統計：國定假日出勤／
 
 /* ────────── 工具 ────────── */
 function fmtDec(min){const h=min/60;return (h%1===0)?String(h):h.toFixed(1)}
+function entryShortLabel(e){ // 把任意班段/假別壓縮成一個簡短字串，供顯示「改動前」用
+  if(!e)return '';
+  if(e.t==='shift'||(e.t==='injury'&&e.s!=null))return fmtDec(e.s)+'-'+fmtDec(e.e);
+  const short={rest:'休',desig:'指',annual:'特',duty:'公',injury:'職災',typhoon:'颱',redline:'線'};
+  return short[e.t]||'';
+}
 function dailySplitHours(d){ // 當天早／晚班總工時（分鐘，含休息時間，不扣0.5小時），以16:00為界，全店已排班人員加總
   let morning=0,evening=0;
   const CUT=960; // 16:00
@@ -1224,8 +1231,8 @@ function renderSheet(){
         const wd=weekday(d);
         const startWarn=editMode&&(wd===5||wd===6)&&(e.s===720||e.s===810); // 五六常見誤植：忘記晚半小時開始(應12:30/14:00)
         const endWarn=editMode&&(
-          (wd>=0&&wd<=4&&e.e===1260) || // 日到四卻誤用五六的21:00下班
-          ((wd===5||wd===6)&&e.e===1230)  // 五六卻誤用平日的20:30下班
+          (wd>=0&&wd<=4&&(e.e===1260||e.e===1350)) || // 日到四卻誤用五六的21:00或22:30下班
+          ((wd===5||wd===6)&&(e.e===1230||e.e===1320))  // 五六卻誤用平日的20:30或22:00下班
         );
         inner='<span class="t-s'+(startWarn?' fs-warn':'')+'">'+fmtDec(e.s)+'</span><span class="t-e'+(endWarn?' fs-warn':'')+'">'+fmtDec(e.e)+'</span>';
       }else if(e.t==='rest'){cls+=' off';}
@@ -1242,7 +1249,13 @@ function renderSheet(){
       }
       else if(e.t==='typhoon'){cls+=' filled';inner='<span class="mark word">颱</span>';}
       else if(e.t==='redline'){cls+=' redline';}
-      if(changedCells.has(st.id+':'+d))cls+=' changed-mark';
+      const chKey2=st.id+':'+d;
+      if(changedCells.has(chKey2)){
+        cls+=' changed-mark';
+        const prev=changedCells.get(chKey2);
+        const prevLabel=entryShortLabel(prev);
+        if(prevLabel)inner+='<span class="prev-value">'+esc(prevLabel)+'</span>';
+      }
       h+='<td class="'+cls+'" data-sid="'+st.id+'" data-day="'+d+'">'+inner+'</td>';
     }
     h+='</tr>';
@@ -1344,8 +1357,10 @@ function setEntry(entry){
     const after=restTally(cur.sid).count+(already?0:1);
     if(after>quota()&&!confirm('本月月休天數為 '+quota()+' 天（行事曆紅字，不含國定假日），'+st.name+' 排入後將達 '+after+' 天。仍要排入嗎？'))return;
   }
+  const prevEntry=entryOf(cur.sid,cur.day); // 覆蓋前先記下目前的值
   if(entry)md.sched[cur.sid][cur.day]=entry;else delete md.sched[cur.sid][cur.day];
-  changedCells.add(cur.sid+':'+cur.day);
+  const chKey=cur.sid+':'+cur.day;
+  if(!changedCells.has(chKey))changedCells.set(chKey,prevEntry||null); // 只記第一次改動前的樣子，同一格改第二次不覆蓋
   scheduleSave();renderSheet();
   document.getElementById('ovCell').classList.remove('show');
 }
@@ -1378,7 +1393,11 @@ document.getElementById('btnEdit').addEventListener('click',()=>{
     changedCells.clear(); // 解鎖開始新的排班時段，清空上次的異動痕跡重新追蹤
   }else if(changedCells.size){
     setTimeout(()=>{
-      document.querySelectorAll('.day-cell.changed-mark').forEach(el=>el.classList.remove('changed-mark')); // 直接移除class讓CSS transition淡出，而非整表重繪瞬間消失
+      document.querySelectorAll('.day-cell.changed-mark').forEach(el=>{
+        el.classList.remove('changed-mark'); // 直接移除class讓CSS transition淡出，而非整表重繪瞬間消失
+        const pv=el.querySelector('.prev-value');
+        if(pv)pv.remove();
+      });
       changedCells.clear();
     },2000);
   }
