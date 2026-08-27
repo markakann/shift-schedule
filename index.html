@@ -1297,7 +1297,8 @@ function renderSheet(){
           (wd>=0&&wd<=4&&(e.e===1260||e.e===1350)) || // 日到四卻誤用五六的21:00或22:30下班
           ((wd===5||wd===6)&&(e.e===1230||e.e===1320))  // 五六卻誤用平日的20:30或22:00下班
         );
-        inner='<span class="t-s'+(startWarn?' fs-warn':'')+'">'+fmtDec(e.s)+'</span><span class="t-e'+(endWarn?' fs-warn':'')+'">'+fmtDec(e.e)+'</span>';
+        const anyWarn=startWarn||endWarn; // 只要一邊觸發，上下班時間統一一起變色提醒
+        inner='<span class="t-s'+(anyWarn?' fs-warn':'')+'">'+fmtDec(e.s)+'</span><span class="t-e'+(anyWarn?' fs-warn':'')+'">'+fmtDec(e.e)+'</span>';
       }else if(e.t==='rest'){cls+=' off';}
       else if(e.t==='desig'){cls+=' filled';inner='<span class="mark tri">△</span>';}
       else if(e.t==='annual'){cls+=' filled';inner='<span class="mark word">特</span>';}
