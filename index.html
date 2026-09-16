@@ -1008,9 +1008,14 @@ function isNational(d){
   if(monthData().dayOv[d]==='black')return false;
   return !!holidayName(d);
 }
-function quota(){ // 月休額度＝紅字天數，但不含國定假日
+function quota(){ // 月休額度＝紅字天數，扣掉「落在平日」的國定假日（國定假日另計，不佔月休；但若本來就在週六日，該天原本就是月休，不重複扣）
   let n=0;
-  for(let d=1;d<=daysInMonth();d++)if(isRed(d)&&!isNational(d))n++;
+  for(let d=1;d<=daysInMonth();d++){
+    if(!isRed(d))continue;
+    const w=weekday(d);
+    if(isNational(d)&&w!==0&&w!==6)continue; // 只有落在平日的國定假日才扣除
+    n++;
+  }
   return n;
 }
 function entryOf(sid,d){const s=monthData().sched[sid];return s?s[d]:undefined}
@@ -1075,10 +1080,11 @@ function streakViolationsMap(){ // 回傳 {日:[超標說明,...]}：正職連6�
   }
   return map;
 }
-function restTally(sid){ // 正職月休：排休＋指定休息優先計算；不足額時優先以颱風假補足（國定假日當天不計）
+function restTally(sid){ // 正職月休：排休＋指定休息優先計算；不足額時優先以颱風假補足（落在平日的國定假日不計，與quota基準一致）
   let base=0,typhoon=0;
   for(let d=1;d<=daysInMonth();d++){
-    if(isNational(d))continue;
+    const w=weekday(d);
+    if(isNational(d)&&w!==0&&w!==6)continue; // 平日的國定假日另計，不佔月休
     const e=entryOf(sid,d);
     if(e&&(e.t==='rest'||e.t==='desig'))base++;
     else if(e&&e.t==='typhoon')typhoon++;
