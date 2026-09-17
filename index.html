@@ -68,6 +68,30 @@ body{
 .btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
 .btn.editing{background:var(--red);border-color:var(--red);color:#fff}
 .save-hint{font-size:12px;color:#888;margin-left:auto}
+/* 後台登入中的橫幅與儲存提示 */
+#adminBanner{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  margin:0 8px 8px;padding:8px 12px;border-radius:6px;
+  background:#fff4d6;border:1px solid #e0b84c;font-size:13px;font-weight:700;color:#7a5c00;
+}
+#adminBanner .btn{padding:4px 10px;font-size:12px;font-weight:600}
+#adminBannerWho{font-weight:400;color:#9a7c20}
+#toast{
+  position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(12px);
+  background:#2b2b2b;color:#fff;padding:10px 20px;border-radius:24px;
+  font-size:14px;font-weight:600;z-index:200;
+  opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+/* 後台規則編輯卡片 */
+.rule-card{
+  border:1px solid #ddd;border-radius:6px;padding:10px;margin-top:8px;
+  display:flex;flex-direction:column;gap:6px;background:#fafafa;
+}
+.rule-card.off{opacity:.5;background:#f0f0f0}
+.rule-head{display:flex;align-items:center;gap:8px}
+.rule-card .txt{margin:0}
+@media print{#adminBanner,#toast{display:none!important}}
 /* ── 圖例（沿用於「如何使用」說明彈窗） ── */
 .legend{
   padding:2px 0 6px;font-size:13px;color:#666;
@@ -329,6 +353,14 @@ body.print-sizing .name-sub{margin-top:0}
   <span id="saveHint" class="save-hint"></span>
 </div>
 
+<div id="adminBanner" style="display:none">
+  <span>🔧 正在登入後台設定<span id="adminBannerWho"></span></span>
+  <button class="btn" id="btnBannerAdmin">後台設定</button>
+  <button class="btn" id="btnBannerLogout">登出</button>
+</div>
+
+<div id="toast"></div>
+
 <div class="sheet-wrap">
   <table id="sheet"></table>
 </div>
@@ -585,18 +617,6 @@ body.print-sizing .name-sub{margin-top:0}
   </div>
 </div>
 
-<!-- 管理密碼驗證 -->
-<div class="overlay" id="ovMgrPw">
-  <div class="modal">
-    <div class="m-title">管理店家代碼</div>
-    <input class="txt" id="mgrPw" type="password" placeholder="管理密碼" autocapitalize="off" autocorrect="off">
-    <div class="m-actions">
-      <button class="btn primary" id="btnMgrPwGo">確認</button>
-      <button class="btn" id="btnMgrPwCancel">取消</button>
-    </div>
-  </div>
-</div>
-
 <!-- 店家代碼管理面板 -->
 <div class="overlay" id="ovMgrPanel">
   <div class="modal">
@@ -663,17 +683,9 @@ body.print-sizing .name-sub{margin-top:0}
 
     <div class="hr"></div>
     <div class="sec-label">覆蓋檢查規則</div>
-    <div class="small-note">開店班上班時間（可多個，逗號分隔）</div>
-    <input class="txt" id="cfgOpenTimes" autocapitalize="off">
-    <div class="small-note">中段班上班時間</div>
-    <input class="txt" id="cfgMidTimes" autocapitalize="off">
-    <div class="small-note">收班：下班到幾點之後、至少幾人</div>
-    <div style="display:flex;gap:8px">
-      <input class="txt" id="cfgCloseEnd" style="flex:1" autocapitalize="off">
-      <input class="txt" id="cfgCloseMin" type="number" min="0" max="20" style="width:80px">
-    </div>
-    <div class="small-note">紅字日（週末／國定假日）至少幾人排班，填 0 表示不檢查</div>
-    <input class="txt" id="cfgRedMin" type="number" min="0" max="20">
+    <div class="small-note">關閉的規則不會檢查。時間可填多個，逗號分隔。</div>
+    <div id="cfgRuleList"></div>
+    <button class="btn" id="btnAddRule" style="width:100%;margin-top:8px">＋ 新增規則</button>
 
     <div class="hr"></div>
     <div class="sec-label">五六時段提醒</div>
@@ -686,8 +698,8 @@ body.print-sizing .name-sub{margin-top:0}
 
     <div class="m-actions" style="flex-direction:column">
       <button class="btn primary" id="btnAdminSave">儲存設定</button>
+      <button class="btn" id="btnAdminMgrCodes">管理店家代碼</button>
       <button class="btn" id="btnAdminReset">全部回復預設值</button>
-      <button class="btn" id="btnAdminLogout">登出後台</button>
       <button class="btn" id="btnCloseAdmin">關閉</button>
     </div>
   </div>
@@ -756,7 +768,7 @@ body.print-sizing .name-sub{margin-top:0}
     <div class="small-note">可用來記錄計時人員的特殊需求，例如「Amy 週三晚上不能班」。</div>
     <div class="hr"></div>
     <div class="sec-label">班次覆蓋檢查（驚嘆號）</div>
-    <div class="small-note">規則：每日至少1人 9:00 上班、1人 10:00～11:00 上班、2人下班到 22:00／22:30；週六日、國定假日與紅字日排班至少 5 人。紅色只在「排班」鎖定、且該日所有非支援人員都已排入內容後才會檢查。連續出勤（含跨月接續）：正職上限連 6 天、計時／支援上限連 5 天，超過以黃色標示，不受排班鎖定狀態影響。</div>
+    <div class="small-note">預設規則：每日至少1人 9:00 上班、1人 10:00～11:00 上班、2人下班到 22:00 之後；週六日、國定假日與紅字日排班至少 5 人。這些規則可在後台逐條開關或改成其他時間與人數。紅色只在「排班」鎖定、且該日所有非支援人員都已排入內容後才會檢查。連續出勤（含跨月接續）：正職上限連 6 天、計時／支援上限連 5 天，超過以黃色標示，不受排班鎖定狀態影響。</div>
     <div class="hr"></div>
     <div class="sec-label">早／晚工時列</div>
     <div class="small-note">表格最下方會列出每天早班／晚班的總工時，以 16:00 為分界，時數含休息時間。</div>
@@ -780,7 +792,7 @@ body.print-sizing .name-sub{margin-top:0}
     <div class="small-note">連線時自動抓取政府公告（TaiwanCalendar 開源資料），離線時使用內建資料；也可在排班模式點日期手動改紅黑字。</div>
     <div class="hr"></div>
     <div class="sec-label">後台設定</div>
-    <div class="small-note">「⋯」選單的「後台設定」需以管理者帳號登入，可調整預設班段、行事曆來源網址、覆蓋檢查規則與五六時段提醒的時間。每組店家代碼各有一份獨立設定，面板最上方可選擇要套用到哪個代碼，也能直接輸入其他代碼載入，不需先切換過去。</div>
+    <div class="small-note">「⋯」選單的「後台設定」需以管理者帳號登入，可調整預設班段、行事曆來源網址、覆蓋檢查規則（可逐條開關、新增自訂規則）、五六時段提醒的時間，也可在此管理店家代碼。登入後主畫面上方會顯示提示橫幅，按「登出」即可離開後台。每組店家代碼各有一份獨立設定，面板最上方可選擇要套用到哪個代碼，也能直接輸入其他代碼載入，不需先切換過去。</div>
     <div class="m-actions">
       <button class="btn" id="btnCloseHelp">關閉</button>
     </div>
@@ -794,22 +806,41 @@ const WD = ['日','一','二','三','四','五','六'];
 const PRESETS_COMMON = [[540,1050],[630,1140],[660,1170],[720,1230],[750,1260],[810,1320],[840,1350]];
 const PRESETS_PART   = [[540,960],[720,960],[960,1320],[1080,1320],[1110,1350]];
 /* 後台可調整的設定；預設值等同上面的原始設計，實際值存在 state.config 隨店家代碼同步 */
+/* 規則類型：start=在這些時間上班的人數／endAfter=下班到某時間之後的人數／cover=涵蓋某時刻在班的人數／redMin=紅字日總人數 */
+const DEFAULT_RULES = [
+  {id:'open',   on:true, name:'開店班',    kind:'start',    times:[540],         min:1},
+  {id:'mid',    on:true, name:'中段班',    kind:'start',    times:[600,630,660], min:1},
+  {id:'close',  on:true, name:'收班',      kind:'endAfter', times:[1320],        min:2},
+  {id:'redday', on:true, name:'紅字日人數', kind:'redMin',   times:[],            min:5}
+];
+const RULE_KINDS = {
+  start:   '在這些時間上班',
+  endAfter:'下班到這個時間之後',
+  cover:   '這個時刻在班中',
+  redMin:  '紅字日當天總人數'
+};
 const DEFAULT_CONFIG = {
   presetsCommon: PRESETS_COMMON.map(p=>p.slice()),
   presetsPart:   PRESETS_PART.map(p=>p.slice()),
   calUrl: 'https://cdn.jsdelivr.net/gh/ruyut/TaiwanCalendar/data/{year}.json',
-  coverage: {
-    openTimes:[540],            // 開店班的上班時間
-    midTimes:[600,630,660],     // 中段班的上班時間
-    closeEnd:1320, closeMin:2,  // 收班：下班到這個時間(含)之後至少幾人
-    redDayMinStaff:5            // 紅字日當天至少幾人排班
-  },
+  rules: DEFAULT_RULES.map(r=>Object.assign({},r,{times:r.times.slice()})),
   warn: {
     weekendStarts:[720,810],    // 五六誤用平日的上班時間
     weekdayEnds:[1260,1350],    // 平日誤用五六的下班時間
     weekendEnds:[1230,1320]     // 五六誤用平日的下班時間
   }
 };
+function migrateRules(c){ // 舊版設定(coverage物件)自動轉成新的規則清單，行為完全不變
+  if(Array.isArray(c.rules))return c.rules;
+  const cov=c.coverage;
+  if(!cov)return DEFAULT_CONFIG.rules;
+  const rules=[];
+  rules.push({id:'open',on:!!(cov.openTimes&&cov.openTimes.length),name:'開店班',kind:'start',times:cov.openTimes||[],min:1});
+  rules.push({id:'mid',on:!!(cov.midTimes&&cov.midTimes.length),name:'中段班',kind:'start',times:cov.midTimes||[],min:1});
+  rules.push({id:'close',on:(cov.closeMin||0)>0,name:'收班',kind:'endAfter',times:[cov.closeEnd||1320],min:cov.closeMin||2});
+  rules.push({id:'redday',on:(cov.redDayMinStaff||0)>0,name:'紅字日人數',kind:'redMin',times:[],min:cov.redDayMinStaff||5});
+  return rules;
+}
 function cfg(){ // 取得目前設定，缺漏的欄位自動以預設值補齊（相容舊資料）
   const c=state.config||{};
   const d=DEFAULT_CONFIG;
@@ -817,9 +848,22 @@ function cfg(){ // 取得目前設定，缺漏的欄位自動以預設值補齊�
     presetsCommon: c.presetsCommon||d.presetsCommon,
     presetsPart:   c.presetsPart||d.presetsPart,
     calUrl:        c.calUrl||d.calUrl,
-    coverage: Object.assign({},d.coverage,c.coverage||{}),
+    rules:         migrateRules(c),
     warn:     Object.assign({},d.warn,c.warn||{})
   };
+}
+function ruleLabel(r){ // 規則沒被滿足時顯示的說明文字
+  const t=fmtTimeList(r.times), n=r.min;
+  if(r.kind==='start')   return n>1 ? t+' 上班人員不足 '+n+' 人' : '缺 '+t+' 上班人員';
+  if(r.kind==='endAfter')return '下班到 '+(r.times[0]!=null?fmtHM(r.times[0]):'')+' 之後不足 '+n+' 人';
+  if(r.kind==='cover')   return n>1 ? t+' 在班人員不足 '+n+' 人' : '缺 '+t+' 在班人員';
+  return '';
+}
+function ruleTest(r,shifts){ // 判斷該日班表是否滿足這條規則
+  if(r.kind==='start')   return shifts.filter(e=>r.times.includes(e.s)).length>=r.min;
+  if(r.kind==='endAfter'){const t=r.times[0];return t==null||shifts.filter(e=>e.e>=t).length>=r.min}
+  if(r.kind==='cover')   {const t=r.times[0];return t==null||shifts.filter(e=>e.s<=t&&e.e>t).length>=r.min}
+  return true;
 }
 function parseTimeList(str){ // 解析「900,1030,11:00」這類輸入成分鐘陣列
   return String(str||'').split(/[,，、;；\s]+/).filter(Boolean).map(t=>{
@@ -927,7 +971,7 @@ async function initFirebase(){
       FB.auth=authMod.getAuth(app);
       FB.signIn=authMod.signInWithEmailAndPassword;
       FB.signOutFn=authMod.signOut;
-      authMod.onAuthStateChanged(FB.auth,u=>{adminUser=u||null;});
+      authMod.onAuthStateChanged(FB.auth,u=>{adminUser=u||null;updateAdminBanner();});
     }catch(e){}
     cloudStatus='雲端已連線';
     let saved=null;try{saved=localStorage.getItem('paiban-store-code')}catch(e){}
@@ -1156,16 +1200,6 @@ function quota(){ // 月休額度＝紅字天數，扣掉「落在平日」的�
 }
 function entryOf(sid,d){const s=monthData().sched[sid];return s?s[d]:undefined}
 /* 每日班次覆蓋規則：開店、午班、下午班、晚班收店人力 */
-function coverageRules(){ // 依後台設定動態產生覆蓋檢查規則
-  const c=cfg().coverage, rules=[];
-  if(c.openTimes&&c.openTimes.length)
-    rules.push({test:l=>l.some(e=>c.openTimes.includes(e.s)),need:'缺 '+fmtTimeList(c.openTimes)+' 上班人員'});
-  if(c.midTimes&&c.midTimes.length)
-    rules.push({test:l=>l.some(e=>c.midTimes.includes(e.s)),need:'缺 '+fmtTimeList(c.midTimes)+' 上班人員'});
-  if(c.closeMin>0)
-    rules.push({test:l=>l.filter(e=>e.e>=c.closeEnd).length>=c.closeMin,need:'下班到 '+fmtHM(c.closeEnd)+' 之後不足 '+c.closeMin+' 人'});
-  return rules;
-}
 function coverageIssues(d){ // 回傳該日缺少的覆蓋項目；排班模式中或該日尚未排完所有人（不含支援）時回傳null(不檢查)
   if(editMode)return null; // 排班鈕還開著（正在排班）先不檢查，鎖定後才檢查
   const roster=monthStaff();
@@ -1177,13 +1211,19 @@ function coverageIssues(d){ // 回傳該日缺少的覆蓋項目；排班模式�
     if(e&&e.t==='shift')shifts.push(e);
   }
   const miss=[];
-  for(const r of coverageRules())if(!r.test(shifts))miss.push(r.need);
-  const minRed=cfg().coverage.redDayMinStaff;
-  if(isRed(d)&&minRed>0&&shifts.length<minRed){ // 紅字日（週末／國定假日／手動標紅的特殊節日）人數檢查
-    const w=weekday(d);
-    const custom=monthData().dayNames[d];
-    const label=custom||(isNational(d)?'國定假日':(w===0||w===6)?'週末':'特殊節日');
-    miss.push(label+'排班僅 '+shifts.length+' 人');
+  for(const r of cfg().rules){
+    if(!r.on)continue;
+    if(r.kind==='redMin'){ // 紅字日（週末／國定假日／手動標紅的特殊節日）人數檢查
+      if(isRed(d)&&r.min>0&&shifts.length<r.min){
+        const w=weekday(d);
+        const custom=monthData().dayNames[d];
+        const label=custom||(isNational(d)?'國定假日':(w===0||w===6)?'週末':'特殊節日');
+        miss.push(label+'排班僅 '+shifts.length+' 人');
+      }
+      continue;
+    }
+    if(!r.times.length)continue;
+    if(!ruleTest(r,shifts))miss.push(ruleLabel(r));
   }
   return miss;
 }
@@ -2032,13 +2072,20 @@ document.getElementById('btnHubCreate').addEventListener('click',()=>{
   document.getElementById('ovCodeHub').classList.remove('show');
   openSetup();
 });
-const MGR_PASSWORD='markakann';
 document.getElementById('btnHubManage').addEventListener('click',()=>{
   if(!FB){alert('目前雲端無法載入（可能離線或在預覽環境），僅本機模式可用。');return}
   document.getElementById('ovCodeHub').classList.remove('show');
-  document.getElementById('mgrPw').value='';
-  document.getElementById('ovMgrPw').classList.add('show');
+  requireAdmin(openMgrPanel); // 管理代碼併入後台，需先以管理者帳號登入
 });
+function requireAdmin(after){ // 需要後台權限的操作：已登入直接執行，否則先跳登入
+  if(!FB||!FB.auth){alert('目前雲端無法載入（可能離線或在預覽環境），後台暫時無法使用。');return}
+  if(viewerMode){alert('檢視模式無法進入後台。');return}
+  if(adminUser){after();return}
+  adminAfterLogin=after;
+  document.getElementById('adminPw').value='';
+  document.getElementById('adminLoginMsg').style.display='none';
+  document.getElementById('ovAdminLogin').classList.add('show');
+}
 document.getElementById('btnOpenJoin').addEventListener('click',()=>{
   document.getElementById('ovMore').classList.remove('show');
   document.getElementById('joinCode').value='';
@@ -2046,14 +2093,10 @@ document.getElementById('btnOpenJoin').addEventListener('click',()=>{
 });
 document.getElementById('btnCloseJoin').addEventListener('click',()=>document.getElementById('ovJoinStore').classList.remove('show'));
 /* ────────── 後台（Firebase Auth 登入） ────────── */
+let adminAfterLogin=null; // 登入成功後要執行的動作
 document.getElementById('btnOpenAdmin').addEventListener('click',()=>{
   document.getElementById('ovMore').classList.remove('show');
-  if(!FB||!FB.auth){alert('目前雲端無法載入（可能離線或在預覽環境），後台暫時無法使用。');return}
-  if(viewerMode){alert('檢視模式無法進入後台。');return}
-  if(adminUser){openAdminPanel();return}
-  document.getElementById('adminPw').value='';
-  document.getElementById('adminLoginMsg').style.display='none';
-  document.getElementById('ovAdminLogin').classList.add('show');
+  requireAdmin(openAdminPanel);
 });
 document.getElementById('btnCloseAdminLogin').addEventListener('click',()=>document.getElementById('ovAdminLogin').classList.remove('show'));
 document.getElementById('btnAdminLogin').addEventListener('click',doAdminLogin);
@@ -2067,7 +2110,8 @@ async function doAdminLogin(){
     const cred=await FB.signIn(FB.auth,email,pw);
     adminUser=cred.user;
     document.getElementById('ovAdminLogin').classList.remove('show');
-    openAdminPanel();
+    updateAdminBanner();
+    const after=adminAfterLogin||openAdminPanel;adminAfterLogin=null;after();
   }catch(e){
     const code=(e&&e.code)||'';
     msg.textContent=(code.includes('invalid-credential')||code.includes('wrong-password')||code.includes('user-not-found'))
@@ -2076,17 +2120,85 @@ async function doAdminLogin(){
     msg.style.display='';
   }
 }
+function showToast(msg,ms){ // 畫面下方的短暫提示，預設2秒後消失
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t=setTimeout(()=>t.classList.remove('show'),ms||2000);
+}
+function updateAdminBanner(){ // 後台登入中時，主畫面顯示提示橫幅與登出按鈕
+  const el=document.getElementById('adminBanner');
+  if(adminUser&&!viewerMode){
+    document.getElementById('adminBannerWho').textContent=adminUser.email?'（'+adminUser.email+'）':'';
+    el.style.display='';
+  }else el.style.display='none';
+}
+document.getElementById('btnBannerAdmin').addEventListener('click',()=>openAdminPanel());
+document.getElementById('btnBannerLogout').addEventListener('click',()=>doAdminLogout());
+async function doAdminLogout(){
+  try{if(FB&&FB.signOutFn)await FB.signOutFn(FB.auth)}catch(e){}
+  adminUser=null;
+  document.getElementById('ovAdmin').classList.remove('show');
+  updateAdminBanner();
+  showToast('已登出後台');
+}
+let cfgRules=[]; // 後台面板編輯中的規則清單
+function renderRuleEditor(){
+  const box=document.getElementById('cfgRuleList');
+  if(!cfgRules.length){box.innerHTML='<div class="small-note">目前沒有任何規則。</div>';return}
+  box.innerHTML=cfgRules.map((r,i)=>{
+    const kindOpts=Object.keys(RULE_KINDS).map(k=>'<option value="'+k+'"'+(r.kind===k?' selected':'')+'>'+RULE_KINDS[k]+'</option>').join('');
+    const timeRow=r.kind==='redMin'?'':
+      '<input class="txt rule-times" data-i="'+i+'" value="'+esc(fmtTimeList(r.times))+'" placeholder="時間，例如 9:00, 10:30" autocapitalize="off" style="font-size:13px">';
+    return '<div class="rule-card'+(r.on?'':' off')+'">'+
+      '<div class="rule-head">'+
+        '<label class="mtoggle"><input type="checkbox" class="rule-on" data-i="'+i+'" '+(r.on?'checked':'')+'><span class="mtoggle-track"></span></label>'+
+        '<input class="txt rule-name" data-i="'+i+'" value="'+esc(r.name||'')+'" placeholder="規則名稱" style="flex:1;font-size:13px;font-weight:700">'+
+        '<button class="btn danger rule-del" data-i="'+i+'" style="padding:4px 8px;font-size:12px">刪除</button>'+
+      '</div>'+
+      '<select class="txt rule-kind" data-i="'+i+'" style="font-size:13px">'+kindOpts+'</select>'+
+      timeRow+
+      '<div style="display:flex;align-items:center;gap:8px">'+
+        '<span class="small-note" style="margin:0">至少</span>'+
+        '<input class="txt rule-min" data-i="'+i+'" type="number" min="1" max="20" value="'+(r.min||1)+'" style="width:72px">'+
+        '<span class="small-note" style="margin:0">人</span>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+document.getElementById('cfgRuleList').addEventListener('input',ev=>{
+  const el=ev.target,i=+el.dataset.i;
+  if(isNaN(i)||!cfgRules[i])return;
+  if(el.classList.contains('rule-name'))cfgRules[i].name=el.value;
+  else if(el.classList.contains('rule-times'))cfgRules[i].times=parseTimeList(el.value);
+  else if(el.classList.contains('rule-min'))cfgRules[i].min=Math.max(1,parseInt(el.value)||1);
+});
+document.getElementById('cfgRuleList').addEventListener('change',ev=>{
+  const el=ev.target,i=+el.dataset.i;
+  if(isNaN(i)||!cfgRules[i])return;
+  if(el.classList.contains('rule-on')){cfgRules[i].on=el.checked;renderRuleEditor()}
+  else if(el.classList.contains('rule-kind')){cfgRules[i].kind=el.value;renderRuleEditor()}
+});
+document.getElementById('cfgRuleList').addEventListener('click',ev=>{
+  const del=ev.target.closest('.rule-del');
+  if(!del)return;
+  const i=+del.dataset.i;
+  if(!cfgRules[i])return;
+  if(!confirm('刪除規則「'+(cfgRules[i].name||'未命名')+'」？'))return;
+  cfgRules.splice(i,1);renderRuleEditor();
+});
+document.getElementById('btnAddRule').addEventListener('click',()=>{
+  cfgRules.push({id:'r'+Date.now(),on:true,name:'新規則',kind:'start',times:[],min:1});
+  renderRuleEditor();
+});
 let cfgTargetCode=null;      // 後台目前正在編輯哪個店家代碼的設定
 let cfgTargetPayload=null;   // 非目前店家時，暫存該代碼的完整資料以便寫回
 function fillCfgFields(c){
   document.getElementById('cfgPresetsCommon').value=fmtPairList(c.presetsCommon);
   document.getElementById('cfgPresetsPart').value=fmtPairList(c.presetsPart);
   document.getElementById('cfgCalUrl').value=c.calUrl;
-  document.getElementById('cfgOpenTimes').value=fmtTimeList(c.coverage.openTimes);
-  document.getElementById('cfgMidTimes').value=fmtTimeList(c.coverage.midTimes);
-  document.getElementById('cfgCloseEnd').value=fmtHM(c.coverage.closeEnd);
-  document.getElementById('cfgCloseMin').value=c.coverage.closeMin;
-  document.getElementById('cfgRedMin').value=c.coverage.redDayMinStaff;
+  cfgRules=(c.rules||[]).map(r=>Object.assign({},r,{times:(r.times||[]).slice()}));
+  renderRuleEditor();
   document.getElementById('cfgWeekendStarts').value=fmtTimeList(c.warn.weekendStarts);
   document.getElementById('cfgWeekdayEnds').value=fmtTimeList(c.warn.weekdayEnds);
   document.getElementById('cfgWeekendEnds').value=fmtTimeList(c.warn.weekendEnds);
@@ -2097,7 +2209,7 @@ function mergeCfg(raw){ // 把任意設定物件補齊成完整設定（同 cfg(
     presetsCommon:c.presetsCommon||d.presetsCommon,
     presetsPart:c.presetsPart||d.presetsPart,
     calUrl:c.calUrl||d.calUrl,
-    coverage:Object.assign({},d.coverage,c.coverage||{}),
+    rules:migrateRules(c),
     warn:Object.assign({},d.warn,c.warn||{})
   };
 }
@@ -2146,29 +2258,22 @@ document.getElementById('btnCfgLoadOther').addEventListener('click',()=>{
   loadCfgTarget(code);
 });
 document.getElementById('btnCloseAdmin').addEventListener('click',()=>document.getElementById('ovAdmin').classList.remove('show'));
-document.getElementById('btnAdminLogout').addEventListener('click',async()=>{
-  try{await FB.signOutFn(FB.auth)}catch(e){}
-  adminUser=null;
+document.getElementById('btnAdminMgrCodes').addEventListener('click',()=>{
   document.getElementById('ovAdmin').classList.remove('show');
-  setHint('已登出後台');
+  openMgrPanel();
 });
 function collectCfgFromFields(){ // 從表單欄位讀出設定物件；格式有誤回傳 null
   const common=parsePairList(document.getElementById('cfgPresetsCommon').value);
   const part=parsePairList(document.getElementById('cfgPresetsPart').value);
   if(!common.length){alert('正職班段至少要有一組，格式如 9:00-17:30。');return null}
-  const closeEnd=parseTimeList(document.getElementById('cfgCloseEnd').value)[0];
-  if(closeEnd==null){alert('收班時間格式不正確，例如 22:00。');return null}
+  for(const r of cfgRules){
+    if(r.on&&r.kind!=='redMin'&&!r.times.length){alert('規則「'+(r.name||'未命名')+'」已啟用但沒有填時間。');return null}
+  }
   return {
     presetsCommon:common,
     presetsPart:part,
     calUrl:document.getElementById('cfgCalUrl').value.trim()||DEFAULT_CONFIG.calUrl,
-    coverage:{
-      openTimes:parseTimeList(document.getElementById('cfgOpenTimes').value),
-      midTimes:parseTimeList(document.getElementById('cfgMidTimes').value),
-      closeEnd:closeEnd,
-      closeMin:Math.max(0,parseInt(document.getElementById('cfgCloseMin').value)||0),
-      redDayMinStaff:Math.max(0,parseInt(document.getElementById('cfgRedMin').value)||0)
-    },
+    rules:cfgRules.map(r=>({id:r.id,on:!!r.on,name:r.name||'',kind:r.kind,times:(r.times||[]).slice(),min:Math.max(1,r.min||1)})),
     warn:{
       weekendStarts:parseTimeList(document.getElementById('cfgWeekendStarts').value),
       weekdayEnds:parseTimeList(document.getElementById('cfgWeekdayEnds').value),
@@ -2179,7 +2284,7 @@ function collectCfgFromFields(){ // 從表單欄位讀出設定物件；格式�
 async function saveCfgToTarget(newCfg){ // 寫入目前選定的代碼：自己的就走一般儲存，別的代碼直接寫回雲端
   if(!cfgTargetCode||cfgTargetCode===storeCode){
     state.config=newCfg;scheduleSave();renderAll();
-    setHint('後台設定已儲存 ✓');
+    showToast('已儲存設定 ✓');
     return true;
   }
   try{
@@ -2192,7 +2297,7 @@ async function saveCfgToTarget(newCfg){ // 寫入目前選定的代碼：自己�
     await FB.setDoc(FB.doc(FB.db,'stores',cfgTargetCode),{data:str,updatedAt:FB.serverTimestamp()});
     if(payload.viewCode)await FB.setDoc(FB.doc(FB.db,'views',payload.viewCode),{data:str,updatedAt:FB.serverTimestamp()});
     cfgTargetPayload=payload;
-    setHint('已儲存「'+cfgTargetCode+'」的設定 ✓');
+    showToast('已儲存「'+cfgTargetCode+'」的設定 ✓');
     return true;
   }catch(e){alert('儲存失敗，請確認網路連線。');return false}
 }
@@ -2206,20 +2311,11 @@ document.getElementById('btnAdminReset').addEventListener('click',async()=>{
   if(!cfgTargetCode||cfgTargetCode===storeCode){
     state.config={};scheduleSave();renderAll();
     fillCfgFields(cfg());
-    setHint('已回復預設值');
+    showToast('已回復預設值');
   }else{
     if(await saveCfgToTarget({}))fillCfgFields(mergeCfg({}));
   }
 });
-document.getElementById('mgrPw').addEventListener('keydown',ev=>{
-  if(ev.key==='Enter'){ev.preventDefault();document.getElementById('btnMgrPwGo').click();}
-});
-document.getElementById('btnMgrPwGo').addEventListener('click',()=>{
-  if(document.getElementById('mgrPw').value!==MGR_PASSWORD){alert('密碼不正確。');return}
-  document.getElementById('ovMgrPw').classList.remove('show');
-  openMgrPanel();
-});
-document.getElementById('btnMgrPwCancel').addEventListener('click',()=>document.getElementById('ovMgrPw').classList.remove('show'));
 function openMgrPanel(){
   document.getElementById('mgrNewCode').value='';
   renderMgrList();
