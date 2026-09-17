@@ -620,6 +620,70 @@ body.print-sizing .name-sub{margin-top:0}
   </div>
 </div>
 
+<!-- 後台登入 -->
+<div class="overlay" id="ovAdminLogin">
+  <div class="modal">
+    <div class="m-title">後台登入</div>
+    <div class="m-sub">使用管理者帳號登入後，可調整班段、行事曆來源與各項檢查規則。</div>
+    <input class="txt" id="adminEmail" type="email" placeholder="電子郵件" autocapitalize="off" autocorrect="off">
+    <input class="txt" id="adminPw" type="password" placeholder="密碼" autocapitalize="off" autocorrect="off">
+    <div class="small-note" id="adminLoginMsg" style="color:var(--red);display:none"></div>
+    <div class="m-actions">
+      <button class="btn primary" id="btnAdminLogin">登入</button>
+      <button class="btn" id="btnCloseAdminLogin">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- 後台設定 -->
+<div class="overlay" id="ovAdmin">
+  <div class="modal">
+    <div class="m-title">後台設定</div>
+    <div class="small-note" id="adminWho" style="margin-bottom:8px"></div>
+
+    <div class="sec-label">正職班段（每行一組，例如 9:00-17:30）</div>
+    <textarea class="txt" id="cfgPresetsCommon" style="height:120px;font-family:monospace"></textarea>
+
+    <div class="sec-label">計時／支援加開班段</div>
+    <textarea class="txt" id="cfgPresetsPart" style="height:100px;font-family:monospace"></textarea>
+
+    <div class="hr"></div>
+    <div class="sec-label">行事曆來源網址（{year} 會替換成年份）</div>
+    <input class="txt" id="cfgCalUrl" autocapitalize="off" autocorrect="off" style="font-size:12px">
+    <div class="small-note">留空或網址失效時，會改用內建資料；國定假日仍可在排班模式點日期手動調整。</div>
+
+    <div class="hr"></div>
+    <div class="sec-label">覆蓋檢查規則</div>
+    <div class="small-note">開店班上班時間（可多個，逗號分隔）</div>
+    <input class="txt" id="cfgOpenTimes" autocapitalize="off">
+    <div class="small-note">中段班上班時間</div>
+    <input class="txt" id="cfgMidTimes" autocapitalize="off">
+    <div class="small-note">收班：下班到幾點之後、至少幾人</div>
+    <div style="display:flex;gap:8px">
+      <input class="txt" id="cfgCloseEnd" style="flex:1" autocapitalize="off">
+      <input class="txt" id="cfgCloseMin" type="number" min="0" max="20" style="width:80px">
+    </div>
+    <div class="small-note">紅字日（週末／國定假日）至少幾人排班，填 0 表示不檢查</div>
+    <input class="txt" id="cfgRedMin" type="number" min="0" max="20">
+
+    <div class="hr"></div>
+    <div class="sec-label">五六時段提醒</div>
+    <div class="small-note">五六出現這些上班時間就提醒（可能忘記晚半小時）</div>
+    <input class="txt" id="cfgWeekendStarts" autocapitalize="off">
+    <div class="small-note">日到四出現這些下班時間就提醒（誤用五六的時間）</div>
+    <input class="txt" id="cfgWeekdayEnds" autocapitalize="off">
+    <div class="small-note">五六出現這些下班時間就提醒（誤用平日的時間）</div>
+    <input class="txt" id="cfgWeekendEnds" autocapitalize="off">
+
+    <div class="m-actions" style="flex-direction:column">
+      <button class="btn primary" id="btnAdminSave">儲存設定</button>
+      <button class="btn" id="btnAdminReset">全部回復預設值</button>
+      <button class="btn" id="btnAdminLogout">登出後台</button>
+      <button class="btn" id="btnCloseAdmin">關閉</button>
+    </div>
+  </div>
+</div>
+
 <!-- 刪除店家代碼確認 -->
 <div class="overlay" id="ovConfirmDelCode">
   <div class="modal">
@@ -645,6 +709,7 @@ body.print-sizing .name-sub{margin-top:0}
       <button class="btn" id="btnCopyMenu">複製代碼</button>
       <button class="btn" id="btnOpenHub">建立／管理店家代碼</button>
       <button class="btn" id="btnOpenJoin">加入現有代碼</button>
+      <button class="btn" id="btnOpenAdmin">後台設定</button>
       <button class="btn" id="btnPrint">匯出 PDF／列印</button>
       <button class="btn" id="btnColorPdf">JSON to PDF（可選月份範圍）</button>
       <button class="btn" id="btnExport">匯出備份（JSON）</button>
@@ -704,6 +769,9 @@ body.print-sizing .name-sub{margin-top:0}
     <div class="sec-label">行事曆</div>
     <div class="small-note" id="calStatus"></div>
     <div class="small-note">連線時自動抓取政府公告（TaiwanCalendar 開源資料），離線時使用內建資料；也可在排班模式點日期手動改紅黑字。</div>
+    <div class="hr"></div>
+    <div class="sec-label">後台設定</div>
+    <div class="small-note">「⋯」選單的「後台設定」需以管理者帳號登入，可調整預設班段、行事曆來源網址、覆蓋檢查規則與五六時段提醒的時間。設定跟著店家代碼走，同一組代碼的裝置共用。</div>
     <div class="m-actions">
       <button class="btn" id="btnCloseHelp">關閉</button>
     </div>
@@ -716,6 +784,55 @@ body.print-sizing .name-sub{margin-top:0}
 const WD = ['日','一','二','三','四','五','六'];
 const PRESETS_COMMON = [[540,1050],[630,1140],[660,1170],[720,1230],[750,1260],[810,1320],[840,1350]];
 const PRESETS_PART   = [[540,960],[720,960],[960,1320],[1080,1320],[1110,1350]];
+/* 後台可調整的設定；預設值等同上面的原始設計，實際值存在 state.config 隨店家代碼同步 */
+const DEFAULT_CONFIG = {
+  presetsCommon: PRESETS_COMMON.map(p=>p.slice()),
+  presetsPart:   PRESETS_PART.map(p=>p.slice()),
+  calUrl: 'https://cdn.jsdelivr.net/gh/ruyut/TaiwanCalendar/data/{year}.json',
+  coverage: {
+    openTimes:[540],            // 開店班的上班時間
+    midTimes:[600,630,660],     // 中段班的上班時間
+    closeEnd:1320, closeMin:2,  // 收班：下班到這個時間(含)之後至少幾人
+    redDayMinStaff:5            // 紅字日當天至少幾人排班
+  },
+  warn: {
+    weekendStarts:[720,810],    // 五六誤用平日的上班時間
+    weekdayEnds:[1260,1350],    // 平日誤用五六的下班時間
+    weekendEnds:[1230,1320]     // 五六誤用平日的下班時間
+  }
+};
+function cfg(){ // 取得目前設定，缺漏的欄位自動以預設值補齊（相容舊資料）
+  const c=state.config||{};
+  const d=DEFAULT_CONFIG;
+  return {
+    presetsCommon: c.presetsCommon||d.presetsCommon,
+    presetsPart:   c.presetsPart||d.presetsPart,
+    calUrl:        c.calUrl||d.calUrl,
+    coverage: Object.assign({},d.coverage,c.coverage||{}),
+    warn:     Object.assign({},d.warn,c.warn||{})
+  };
+}
+function parseTimeList(str){ // 解析「900,1030,11:00」這類輸入成分鐘陣列
+  return String(str||'').split(/[,，\s]+/).filter(Boolean).map(t=>{
+    t=t.trim();
+    let h,m;
+    if(t.includes(':')||t.includes('：')){const p=t.split(/[:：]/);h=+p[0];m=+(p[1]||0);}
+    else{const n=t.replace(/\D/g,'');if(!n)return null;h=Math.floor(+n/100);m=+n%100;}
+    if(isNaN(h)||isNaN(m)||h<0||h>24||m<0||m>59)return null;
+    return h*60+m;
+  }).filter(v=>v!==null);
+}
+function fmtTimeList(arr){return (arr||[]).map(fmtHM).join('、')}
+function parsePairList(str){ // 解析「9:00-17:30」每行一組的班段設定
+  return String(str||'').split(/\n+/).map(line=>{
+    const p=line.split(/[-–~～]/);
+    if(p.length<2)return null;
+    const s=parseTimeList(p[0])[0], e=parseTimeList(p[1])[0];
+    if(s==null||e==null||e<=s)return null;
+    return [s,e];
+  }).filter(Boolean);
+}
+function fmtPairList(arr){return (arr||[]).map(p=>fmtHM(p[0])+'-'+fmtHM(p[1])).join('\n')}
 const LEAVE_LABEL = {rest:'排休', desig:'指定休息', annual:'特休', duty:'公差', injury:'職業傷害', typhoon:'颱風假', redline:'紅線'};
 const GROUP_ORDER = {full:0, part:1, sup:2};
 const TYPE_LABEL  = {full:'正職', part:'計時', sup:'支援'};
@@ -769,8 +886,9 @@ const firebaseConfig={
   appId:"1:566165247359:web:eb0986693f8c5f0b6b764a"
 };
 let FB=null, storeCode=null, unsubCloud=null, lastWritten='', cloudStatus='雲端載入中…', viewerMode=false;
+let adminUser=null; // 目前登入後台的帳號（Firebase Auth）
 function payloadStr(){
-  return JSON.stringify({store:state.store,title:state.title,corner:state.corner,viewCode:state.viewCode||'',staff:state.staff,months:state.months,calCache:state.calCache});
+  return JSON.stringify({store:state.store,title:state.title,corner:state.corner,viewCode:state.viewCode||'',config:state.config||{},staff:state.staff,months:state.months,calCache:state.calCache});
 }
 function applyPayload(json){
   try{
@@ -778,6 +896,7 @@ function applyPayload(json){
     if(!d.staff||!d.months)return false;
     state.store=d.store||'';state.title=d.title||'排班表';state.corner=d.corner||'';
     state.viewCode=d.viewCode||state.viewCode||'';
+    state.config=d.config||{};
     state.staff=d.staff;state.months=d.months;state.calCache=d.calCache||{};
     sortStaff();
     document.getElementById('storeName').value=state.store;
@@ -789,11 +908,18 @@ async function initFirebase(){
   try{
     const appMod=await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js');
     const fsMod=await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js');
+    const authMod=await import('https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js');
     const app=appMod.initializeApp(firebaseConfig);
     let db;
     try{db=fsMod.initializeFirestore(app,{localCache:fsMod.persistentLocalCache()})}
     catch(e){db=fsMod.getFirestore(app)}
     FB={db,doc:fsMod.doc,getDoc:fsMod.getDoc,setDoc:fsMod.setDoc,deleteDoc:fsMod.deleteDoc,onSnapshot:fsMod.onSnapshot,serverTimestamp:fsMod.serverTimestamp};
+    try{ // 後台登入（Firebase Auth）：失敗不影響排班表本身的運作
+      FB.auth=authMod.getAuth(app);
+      FB.signIn=authMod.signInWithEmailAndPassword;
+      FB.signOutFn=authMod.signOut;
+      authMod.onAuthStateChanged(FB.auth,u=>{adminUser=u||null;});
+    }catch(e){}
     cloudStatus='雲端已連線';
     let saved=null;try{saved=localStorage.getItem('paiban-store-code')}catch(e){}
     if(saved)await connectStore(saved,false,true);
@@ -834,7 +960,7 @@ async function connectStore(code,isNew,silent){
     }else if(isNew){
       // 建立全新店家前，先清空目前畫面資料，避免把原本店家的人員／班表複製過去
       state.store='';state.title='排班表';state.corner='';state.viewCode='';
-      state.staff=[];state.months={};state.calCache={};
+      state.staff=[];state.months={};state.calCache={};state.config={};
       state.viewCode='view-'+genCodeSuffix();
       document.getElementById('storeName').value='';
       document.getElementById('sheetTitle').value='排班表';
@@ -866,7 +992,7 @@ async function connectStore(code,isNew,silent){
       try{localStorage.removeItem('paiban-store-code')}catch(e){}
       if(unsubCloud){unsubCloud();unsubCloud=null}
       state.store='';state.title='排班表';state.corner='';state.viewCode='';
-      state.staff=[];state.months={};state.calCache={};
+      state.staff=[];state.months={};state.calCache={};state.config={};
       document.getElementById('storeName').value='';
       document.getElementById('sheetTitle').value='排班表';
       renderAll();
@@ -957,6 +1083,7 @@ let state={
   staff:[],                 // {id,name,type:'full'|'part'}
   months:{},                // 'YYYY-M': {sched:{staffId:{day:entry}}, notes:[], dayOv:{day:'red'|'black'}}
   calCache:{},              // year: {'M-D':'名稱'}
+  config:{},                // 後台設定：班段、行事曆來源、覆蓋規則、提醒時間
   y:2026, m:6
 };
 let editMode=false, saveTimer=null, calSource='內建資料';
@@ -1020,11 +1147,16 @@ function quota(){ // 月休額度＝紅字天數，扣掉「落在平日」的�
 }
 function entryOf(sid,d){const s=monthData().sched[sid];return s?s[d]:undefined}
 /* 每日班次覆蓋規則：開店、午班、下午班、晚班收店人力 */
-const COVERAGE_RULES=[
-  {test:list=>list.some(e=>e.s===540),need:'缺 9:00 上班人員'},
-  {test:list=>list.some(e=>e.s===600||e.s===630||e.s===660),need:'缺 10:00～11:00 上班人員'},
-  {test:list=>list.filter(e=>e.e>=1320).length>=2,need:'下班到 22:00／22:30 不足 2 人'},
-];
+function coverageRules(){ // 依後台設定動態產生覆蓋檢查規則
+  const c=cfg().coverage, rules=[];
+  if(c.openTimes&&c.openTimes.length)
+    rules.push({test:l=>l.some(e=>c.openTimes.includes(e.s)),need:'缺 '+fmtTimeList(c.openTimes)+' 上班人員'});
+  if(c.midTimes&&c.midTimes.length)
+    rules.push({test:l=>l.some(e=>c.midTimes.includes(e.s)),need:'缺 '+fmtTimeList(c.midTimes)+' 上班人員'});
+  if(c.closeMin>0)
+    rules.push({test:l=>l.filter(e=>e.e>=c.closeEnd).length>=c.closeMin,need:'下班到 '+fmtHM(c.closeEnd)+' 之後不足 '+c.closeMin+' 人'});
+  return rules;
+}
 function coverageIssues(d){ // 回傳該日缺少的覆蓋項目；排班模式中或該日尚未排完所有人（不含支援）時回傳null(不檢查)
   if(editMode)return null; // 排班鈕還開著（正在排班）先不檢查，鎖定後才檢查
   const roster=monthStaff();
@@ -1036,8 +1168,9 @@ function coverageIssues(d){ // 回傳該日缺少的覆蓋項目；排班模式�
     if(e&&e.t==='shift')shifts.push(e);
   }
   const miss=[];
-  for(const r of COVERAGE_RULES)if(!r.test(shifts))miss.push(r.need);
-  if(isRed(d)&&shifts.length<=4){ // 紅字日（週末／國定假日／手動標紅的特殊節日）人數檢查
+  for(const r of coverageRules())if(!r.test(shifts))miss.push(r.need);
+  const minRed=cfg().coverage.redDayMinStaff;
+  if(isRed(d)&&minRed>0&&shifts.length<minRed){ // 紅字日（週末／國定假日／手動標紅的特殊節日）人數檢查
     const w=weekday(d);
     const custom=monthData().dayNames[d];
     const label=custom||(isNational(d)?'國定假日':(w===0||w===6)?'週末':'特殊節日');
@@ -1213,7 +1346,7 @@ function scheduleSave(){
 async function fetchCalendar(year){
   if(state.calCache[year])return;
   try{
-    const r=await fetch('https://cdn.jsdelivr.net/gh/ruyut/TaiwanCalendar/data/'+year+'.json');
+    const r=await fetch(cfg().calUrl.replace('{year}',year));
     if(!r.ok)throw 0;
     const arr=await r.json();
     const map={};
@@ -1298,10 +1431,11 @@ function renderSheet(){
       }else if(e.t==='shift'){
         cls+=' filled';
         const wd=weekday(d);
-        const startWarn=editMode&&(wd===5||wd===6)&&(e.s===720||e.s===810); // 五六常見誤植：忘記晚半小時開始(應12:30/14:00)
+        const wcfg=cfg().warn, isFriSat=(wd===5||wd===6);
+        const startWarn=editMode&&isFriSat&&(wcfg.weekendStarts||[]).includes(e.s); // 五六常見誤植：忘記晚半小時開始
         const endWarn=editMode&&(
-          (wd>=0&&wd<=4&&(e.e===1260||e.e===1350)) || // 日到四卻誤用五六的21:00或22:30下班
-          ((wd===5||wd===6)&&(e.e===1230||e.e===1320))  // 五六卻誤用平日的20:30或22:00下班
+          (!isFriSat&&(wcfg.weekdayEnds||[]).includes(e.e)) || // 日到四卻誤用五六的下班時間
+          (isFriSat&&(wcfg.weekendEnds||[]).includes(e.e))     // 五六卻誤用平日的下班時間
         );
         const anyWarn=startWarn||endWarn; // 只要一邊觸發，上下班時間統一一起變色提醒
         inner='<span class="t-s'+(anyWarn?' fs-warn':'')+'">'+fmtDec(e.s)+'</span><span class="t-e'+(anyWarn?' fs-warn':'')+'">'+fmtDec(e.e)+'</span>';
@@ -1371,9 +1505,9 @@ function openCell(sid,day){
   document.getElementById('cmSub').innerHTML=state.m+'/'+day+'（'+WD[weekday(day)]+'）'+
     (hn?' <span class="red">'+esc(hn)+'</span>':'')+
     (curText?'　目前：'+curText:'');
-  let chips=PRESETS_COMMON.map(p=>'<button class="chip" data-s="'+p[0]+'" data-e="'+p[1]+'">'+fmtHM(p[0])+'～'+fmtHM(p[1])+'</button>').join('');
+  let chips=cfg().presetsCommon.map(p=>'<button class="chip" data-s="'+p[0]+'" data-e="'+p[1]+'">'+fmtHM(p[0])+'～'+fmtHM(p[1])+'</button>').join('');
   if(st.type!=='full')
-    chips+=PRESETS_PART.map(p=>'<button class="chip part-extra" data-s="'+p[0]+'" data-e="'+p[1]+'">'+fmtHM(p[0])+'～'+fmtHM(p[1])+'</button>').join('');
+    chips+=cfg().presetsPart.map(p=>'<button class="chip part-extra" data-s="'+p[0]+'" data-e="'+p[1]+'">'+fmtHM(p[0])+'～'+fmtHM(p[1])+'</button>').join('');
   document.getElementById('cmPresets').innerHTML=chips;
   document.querySelectorAll('#ovCell .chip[data-leave]').forEach(c=>c.classList.remove('active'));
   document.getElementById('injuryHint').style.display='none';
@@ -1902,6 +2036,94 @@ document.getElementById('btnOpenJoin').addEventListener('click',()=>{
   document.getElementById('ovJoinStore').classList.add('show');
 });
 document.getElementById('btnCloseJoin').addEventListener('click',()=>document.getElementById('ovJoinStore').classList.remove('show'));
+/* ────────── 後台（Firebase Auth 登入） ────────── */
+document.getElementById('btnOpenAdmin').addEventListener('click',()=>{
+  document.getElementById('ovMore').classList.remove('show');
+  if(!FB||!FB.auth){alert('目前雲端無法載入（可能離線或在預覽環境），後台暫時無法使用。');return}
+  if(viewerMode){alert('檢視模式無法進入後台。');return}
+  if(adminUser){openAdminPanel();return}
+  document.getElementById('adminPw').value='';
+  document.getElementById('adminLoginMsg').style.display='none';
+  document.getElementById('ovAdminLogin').classList.add('show');
+});
+document.getElementById('btnCloseAdminLogin').addEventListener('click',()=>document.getElementById('ovAdminLogin').classList.remove('show'));
+document.getElementById('btnAdminLogin').addEventListener('click',doAdminLogin);
+document.getElementById('adminPw').addEventListener('keydown',ev=>{if(ev.key==='Enter'){ev.preventDefault();doAdminLogin()}});
+async function doAdminLogin(){
+  const email=document.getElementById('adminEmail').value.trim();
+  const pw=document.getElementById('adminPw').value;
+  const msg=document.getElementById('adminLoginMsg');
+  if(!email||!pw){msg.textContent='請輸入帳號與密碼。';msg.style.display='';return}
+  try{
+    const cred=await FB.signIn(FB.auth,email,pw);
+    adminUser=cred.user;
+    document.getElementById('ovAdminLogin').classList.remove('show');
+    openAdminPanel();
+  }catch(e){
+    const code=(e&&e.code)||'';
+    msg.textContent=(code.includes('invalid-credential')||code.includes('wrong-password')||code.includes('user-not-found'))
+      ? '帳號或密碼不正確。'
+      : (code.includes('too-many-requests') ? '嘗試次數過多，請稍後再試。' : '登入失敗，請確認網路連線。');
+    msg.style.display='';
+  }
+}
+function openAdminPanel(){
+  const c=cfg();
+  document.getElementById('adminWho').textContent='已登入：'+(adminUser?adminUser.email:'');
+  document.getElementById('cfgPresetsCommon').value=fmtPairList(c.presetsCommon);
+  document.getElementById('cfgPresetsPart').value=fmtPairList(c.presetsPart);
+  document.getElementById('cfgCalUrl').value=c.calUrl;
+  document.getElementById('cfgOpenTimes').value=fmtTimeList(c.coverage.openTimes);
+  document.getElementById('cfgMidTimes').value=fmtTimeList(c.coverage.midTimes);
+  document.getElementById('cfgCloseEnd').value=fmtHM(c.coverage.closeEnd);
+  document.getElementById('cfgCloseMin').value=c.coverage.closeMin;
+  document.getElementById('cfgRedMin').value=c.coverage.redDayMinStaff;
+  document.getElementById('cfgWeekendStarts').value=fmtTimeList(c.warn.weekendStarts);
+  document.getElementById('cfgWeekdayEnds').value=fmtTimeList(c.warn.weekdayEnds);
+  document.getElementById('cfgWeekendEnds').value=fmtTimeList(c.warn.weekendEnds);
+  document.getElementById('ovAdmin').classList.add('show');
+}
+document.getElementById('btnCloseAdmin').addEventListener('click',()=>document.getElementById('ovAdmin').classList.remove('show'));
+document.getElementById('btnAdminLogout').addEventListener('click',async()=>{
+  try{await FB.signOutFn(FB.auth)}catch(e){}
+  adminUser=null;
+  document.getElementById('ovAdmin').classList.remove('show');
+  setHint('已登出後台');
+});
+document.getElementById('btnAdminSave').addEventListener('click',()=>{
+  const common=parsePairList(document.getElementById('cfgPresetsCommon').value);
+  const part=parsePairList(document.getElementById('cfgPresetsPart').value);
+  if(!common.length){alert('正職班段至少要有一組，格式如 9:00-17:30。');return}
+  const closeEnd=parseTimeList(document.getElementById('cfgCloseEnd').value)[0];
+  if(closeEnd==null){alert('收班時間格式不正確，例如 22:00。');return}
+  state.config={
+    presetsCommon:common,
+    presetsPart:part,
+    calUrl:document.getElementById('cfgCalUrl').value.trim()||DEFAULT_CONFIG.calUrl,
+    coverage:{
+      openTimes:parseTimeList(document.getElementById('cfgOpenTimes').value),
+      midTimes:parseTimeList(document.getElementById('cfgMidTimes').value),
+      closeEnd:closeEnd,
+      closeMin:Math.max(0,parseInt(document.getElementById('cfgCloseMin').value)||0),
+      redDayMinStaff:Math.max(0,parseInt(document.getElementById('cfgRedMin').value)||0)
+    },
+    warn:{
+      weekendStarts:parseTimeList(document.getElementById('cfgWeekendStarts').value),
+      weekdayEnds:parseTimeList(document.getElementById('cfgWeekdayEnds').value),
+      weekendEnds:parseTimeList(document.getElementById('cfgWeekendEnds').value)
+    }
+  };
+  scheduleSave();renderAll();
+  document.getElementById('ovAdmin').classList.remove('show');
+  setHint('後台設定已儲存 ✓');
+});
+document.getElementById('btnAdminReset').addEventListener('click',()=>{
+  if(!confirm('把所有後台設定回復成預設值？'))return;
+  state.config={};
+  scheduleSave();renderAll();
+  openAdminPanel();
+  setHint('已回復預設值');
+});
 document.getElementById('mgrPw').addEventListener('keydown',ev=>{
   if(ev.key==='Enter'){ev.preventDefault();document.getElementById('btnMgrPwGo').click();}
 });
@@ -2024,7 +2246,7 @@ document.getElementById('btnConfirmDelCode').addEventListener('click',async()=>{
       setHint('請重新選擇店家代碼');
       // 正在瀏覽的店家被刪除了，畫面上的班表已經是無效資料，立即清空並請使用者重新連線
       state.store='';state.title='排班表';state.corner='';state.viewCode='';
-      state.staff=[];state.months={};state.calCache={};
+      state.staff=[];state.months={};state.calCache={};state.config={};
       document.getElementById('storeName').value='';
       document.getElementById('sheetTitle').value='排班表';
       renderAll();
