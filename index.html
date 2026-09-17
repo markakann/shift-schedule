@@ -92,6 +92,13 @@ body{
 .rule-card.off{opacity:.5;background:#f0f0f0}
 .rule-head{display:flex;align-items:center;gap:8px}
 .rule-card .txt{margin:0}
+.day-row{display:flex;gap:4px;flex-wrap:wrap}
+.day-chip{
+  flex:1;min-width:34px;text-align:center;padding:5px 0;font-size:13px;
+  border:1px solid #ccc;border-radius:4px;background:#fff;cursor:pointer;user-select:none;
+}
+.day-chip.on{background:var(--blue);color:#fff;border-color:var(--blue);font-weight:700}
+.day-chip input{display:none}
 @media print{#adminBanner,#toast{display:none!important}}
 /* ── 圖例（沿用於「如何使用」說明彈窗） ── */
 .legend{
@@ -670,30 +677,37 @@ body.print-sizing .name-sub{margin-top:0}
     <textarea class="txt" id="cfgPresetsPart" style="height:100px;font-family:monospace"></textarea>
 
     <div class="hr"></div>
-    <div class="sec-label">行事曆來源網址（{year} 會替換成年份）</div>
-    <input class="txt" id="cfgCalUrl" autocapitalize="off" autocorrect="off" style="font-size:12px">
-    <div class="small-note">留空或網址失效時，會改用內建資料；國定假日仍可在排班模式點日期手動調整。</div>
-
-    <div class="hr"></div>
     <div class="sec-label">覆蓋檢查規則</div>
     <div class="small-note">關閉的規則不會檢查。時間可填多個，逗號分隔。</div>
     <div id="cfgRuleList"></div>
     <button class="btn" id="btnAddRule" style="width:100%;margin-top:8px">＋ 新增規則</button>
 
     <div class="hr"></div>
-    <div class="sec-label">五六時段提醒</div>
-    <div class="small-note">五六出現這些上班時間就提醒（可能忘記晚半小時）</div>
-    <input class="txt" id="cfgWeekendStarts" autocapitalize="off">
-    <div class="small-note">日到四出現這些下班時間就提醒（誤用五六的時間）</div>
-    <input class="txt" id="cfgWeekdayEnds" autocapitalize="off">
-    <div class="small-note">五六出現這些下班時間就提醒（誤用平日的時間）</div>
-    <input class="txt" id="cfgWeekendEnds" autocapitalize="off">
+    <div class="sec-label">時段提醒</div>
+    <div class="small-note">排班時出現這些時間就用粉色標示，提醒可能排錯。只是提醒，不影響驚嘆號。</div>
+    <div id="cfgWarnList"></div>
+    <button class="btn" id="btnAddWarnRule" style="width:100%;margin-top:8px">＋ 新增提醒</button>
 
     <div class="m-actions" style="flex-direction:column">
       <button class="btn primary" id="btnAdminSave">儲存設定</button>
       <button class="btn" id="btnAdminMgrCodes">管理店家代碼</button>
+      <button class="btn" id="btnOpenCalUrl">行事曆來源網址</button>
       <button class="btn" id="btnAdminReset">全部回復預設值</button>
       <button class="btn" id="btnCloseAdmin">關閉</button>
+    </div>
+  </div>
+</div>
+
+<!-- 行事曆來源網址 -->
+<div class="overlay" id="ovCalUrl">
+  <div class="modal">
+    <div class="m-title">行事曆來源網址</div>
+    <div class="small-note">{year} 會自動替換成年份。網址失效時會改用內建資料；國定假日仍可在排班模式點日期手動調整。<br><b>非必要請勿更動。</b></div>
+    <input class="txt" id="cfgCalUrl" autocapitalize="off" autocorrect="off" style="font-size:12px">
+    <div class="m-actions">
+      <button class="btn primary" id="btnCalUrlOk">確定</button>
+      <button class="btn" id="btnCalUrlReset">回復預設</button>
+      <button class="btn" id="btnCloseCalUrl">取消</button>
     </div>
   </div>
 </div>
@@ -816,17 +830,29 @@ const RULE_KINDS = {
   cover:   '這個時刻在班中',
   redMin:  '紅字日當天總人數'
 };
+/* 時段提醒規則：days=適用星期(0日~6六)，field=看上班或下班，times=出現這些時間就提醒 */
+const DEFAULT_WARN_RULES = [
+  {id:'wkStart', on:true, name:'五六上班時間', days:[5,6],         field:'start', times:[720,810]},
+  {id:'wdEnd',   on:true, name:'平日下班時間', days:[0,1,2,3,4],   field:'end',   times:[1260,1350]},
+  {id:'wkEnd',   on:true, name:'五六下班時間', days:[5,6],         field:'end',   times:[1230,1320]}
+];
 const DEFAULT_CONFIG = {
   presetsCommon: PRESETS_COMMON.map(p=>p.slice()),
   presetsPart:   PRESETS_PART.map(p=>p.slice()),
   calUrl: 'https://cdn.jsdelivr.net/gh/ruyut/TaiwanCalendar/data/{year}.json',
   rules: DEFAULT_RULES.map(r=>Object.assign({},r,{times:r.times.slice()})),
-  warn: {
-    weekendStarts:[720,810],    // 五六誤用平日的上班時間
-    weekdayEnds:[1260,1350],    // 平日誤用五六的下班時間
-    weekendEnds:[1230,1320]     // 五六誤用平日的下班時間
-  }
+  warnRules: DEFAULT_WARN_RULES.map(r=>Object.assign({},r,{days:r.days.slice(),times:r.times.slice()}))
 };
+function migrateWarnRules(c){ // 舊版設定(warn物件)自動轉成新的提醒規則清單，行為完全不變
+  if(Array.isArray(c.warnRules))return c.warnRules;
+  const w=c.warn;
+  if(!w)return DEFAULT_CONFIG.warnRules;
+  return [
+    {id:'wkStart',on:!!(w.weekendStarts&&w.weekendStarts.length),name:'五六上班時間',days:[5,6],field:'start',times:w.weekendStarts||[]},
+    {id:'wdEnd',  on:!!(w.weekdayEnds&&w.weekdayEnds.length),  name:'平日下班時間',days:[0,1,2,3,4],field:'end',times:w.weekdayEnds||[]},
+    {id:'wkEnd',  on:!!(w.weekendEnds&&w.weekendEnds.length),  name:'五六下班時間',days:[5,6],field:'end',times:w.weekendEnds||[]}
+  ];
+}
 function migrateRules(c){ // 舊版設定(coverage物件)自動轉成新的規則清單，行為完全不變
   if(Array.isArray(c.rules))return c.rules;
   const cov=c.coverage;
@@ -846,7 +872,7 @@ function cfg(){ // 取得目前設定，缺漏的欄位自動以預設值補齊�
     presetsPart:   c.presetsPart||d.presetsPart,
     calUrl:        c.calUrl||d.calUrl,
     rules:         migrateRules(c),
-    warn:     Object.assign({},d.warn,c.warn||{})
+    warnRules:     migrateWarnRules(c)
   };
 }
 function ruleLabel(r){ // 規則沒被滿足時顯示的說明文字
@@ -1477,13 +1503,8 @@ function renderSheet(){
       }else if(e.t==='shift'){
         cls+=' filled';
         const wd=weekday(d);
-        const wcfg=cfg().warn, isFriSat=(wd===5||wd===6);
-        const startWarn=editMode&&isFriSat&&(wcfg.weekendStarts||[]).includes(e.s); // 五六常見誤植：忘記晚半小時開始
-        const endWarn=editMode&&(
-          (!isFriSat&&(wcfg.weekdayEnds||[]).includes(e.e)) || // 日到四卻誤用五六的下班時間
-          (isFriSat&&(wcfg.weekendEnds||[]).includes(e.e))     // 五六卻誤用平日的下班時間
-        );
-        const anyWarn=startWarn||endWarn; // 只要一邊觸發，上下班時間統一一起變色提醒
+        const anyWarn=editMode&&cfg().warnRules.some(r=> // 只要任一條提醒規則命中，上下班時間統一一起變色
+          r.on&&(r.days||[]).includes(wd)&&(r.times||[]).includes(r.field==='end'?e.e:e.s));
         inner='<span class="t-s'+(anyWarn?' fs-warn':'')+'">'+fmtDec(e.s)+'</span><span class="t-e'+(anyWarn?' fs-warn':'')+'">'+fmtDec(e.e)+'</span>';
       }else if(e.t==='rest'){cls+=' off';}
       else if(e.t==='desig'){cls+=' filled';inner='<span class="mark tri">△</span>';}
@@ -2183,17 +2204,85 @@ document.getElementById('btnAddRule').addEventListener('click',()=>{
   cfgRules.push({id:'r'+Date.now(),on:true,name:'新規則',kind:'start',times:[],min:1});
   renderRuleEditor();
 });
+let cfgWarnRules=[]; // 後台面板編輯中的時段提醒規則
+function renderWarnEditor(){
+  const box=document.getElementById('cfgWarnList');
+  if(!cfgWarnRules.length){box.innerHTML='<div class="small-note">目前沒有任何提醒。</div>';return}
+  box.innerHTML=cfgWarnRules.map((r,i)=>{
+    const days=WD.map((w,di)=>'<label class="day-chip'+((r.days||[]).includes(di)?' on':'')+'">'+
+      '<input type="checkbox" class="warn-day" data-i="'+i+'" data-d="'+di+'" '+((r.days||[]).includes(di)?'checked':'')+'>'+w+'</label>').join('');
+    return '<div class="rule-card'+(r.on?'':' off')+'">'+
+      '<div class="rule-head">'+
+        '<label class="mtoggle"><input type="checkbox" class="warn-on" data-i="'+i+'" '+(r.on?'checked':'')+'><span class="mtoggle-track"></span></label>'+
+        '<input class="txt warn-name" data-i="'+i+'" value="'+esc(r.name||'')+'" placeholder="提醒名稱" style="flex:1;font-size:13px;font-weight:700">'+
+        '<button class="btn danger warn-del" data-i="'+i+'" style="padding:4px 8px;font-size:12px">刪除</button>'+
+      '</div>'+
+      '<div class="day-row">'+days+'</div>'+
+      '<select class="txt warn-field" data-i="'+i+'" style="font-size:13px">'+
+        '<option value="start"'+(r.field==='start'?' selected':'')+'>上班時間是</option>'+
+        '<option value="end"'+(r.field==='end'?' selected':'')+'>下班時間是</option>'+
+      '</select>'+
+      '<input class="txt warn-times" data-i="'+i+'" value="'+esc(fmtTimeList(r.times))+'" placeholder="時間，例如 12:00, 13:30" autocapitalize="off" style="font-size:13px">'+
+    '</div>';
+  }).join('');
+}
+document.getElementById('cfgWarnList').addEventListener('input',ev=>{
+  const el=ev.target,i=+el.dataset.i;
+  if(isNaN(i)||!cfgWarnRules[i])return;
+  if(el.classList.contains('warn-name'))cfgWarnRules[i].name=el.value;
+  else if(el.classList.contains('warn-times'))cfgWarnRules[i].times=parseTimeList(el.value);
+});
+document.getElementById('cfgWarnList').addEventListener('change',ev=>{
+  const el=ev.target,i=+el.dataset.i;
+  if(isNaN(i)||!cfgWarnRules[i])return;
+  if(el.classList.contains('warn-on')){cfgWarnRules[i].on=el.checked;renderWarnEditor()}
+  else if(el.classList.contains('warn-field'))cfgWarnRules[i].field=el.value;
+  else if(el.classList.contains('warn-day')){
+    const d=+el.dataset.d,days=cfgWarnRules[i].days||[];
+    cfgWarnRules[i].days=el.checked?(days.includes(d)?days:days.concat(d)):days.filter(x=>x!==d);
+    renderWarnEditor();
+  }
+});
+document.getElementById('cfgWarnList').addEventListener('click',ev=>{
+  const del=ev.target.closest('.warn-del');
+  if(!del)return;
+  const i=+del.dataset.i;
+  if(!cfgWarnRules[i])return;
+  if(!confirm('刪除提醒「'+(cfgWarnRules[i].name||'未命名')+'」？'))return;
+  cfgWarnRules.splice(i,1);renderWarnEditor();
+});
+document.getElementById('btnAddWarnRule').addEventListener('click',()=>{
+  cfgWarnRules.push({id:'w'+Date.now(),on:true,name:'新提醒',days:[],field:'start',times:[]});
+  renderWarnEditor();
+});
+document.getElementById('btnOpenCalUrl').addEventListener('click',()=>{
+  document.getElementById('ovCalUrl').classList.add('show');
+});
+document.getElementById('btnCloseCalUrl').addEventListener('click',()=>{
+  document.getElementById('cfgCalUrl').value=cfgCalUrlValue; // 取消就還原，不留下誤改
+  document.getElementById('ovCalUrl').classList.remove('show');
+});
+document.getElementById('btnCalUrlOk').addEventListener('click',()=>{
+  cfgCalUrlValue=document.getElementById('cfgCalUrl').value.trim()||DEFAULT_CONFIG.calUrl;
+  document.getElementById('cfgCalUrl').value=cfgCalUrlValue;
+  document.getElementById('ovCalUrl').classList.remove('show');
+});
+document.getElementById('btnCalUrlReset').addEventListener('click',()=>{
+  cfgCalUrlValue=DEFAULT_CONFIG.calUrl;
+  document.getElementById('cfgCalUrl').value=cfgCalUrlValue;
+});
+let cfgCalUrlValue=DEFAULT_CONFIG.calUrl; // 面板暫存的行事曆網址（按儲存才真正寫入）
 let cfgTargetCode=null;      // 後台目前正在編輯哪個店家代碼的設定
 let cfgTargetPayload=null;   // 非目前店家時，暫存該代碼的完整資料以便寫回
 function fillCfgFields(c){
   document.getElementById('cfgPresetsCommon').value=fmtPairList(c.presetsCommon);
   document.getElementById('cfgPresetsPart').value=fmtPairList(c.presetsPart);
+  cfgCalUrlValue=c.calUrl;
   document.getElementById('cfgCalUrl').value=c.calUrl;
   cfgRules=(c.rules||[]).map(r=>Object.assign({},r,{times:(r.times||[]).slice()}));
   renderRuleEditor();
-  document.getElementById('cfgWeekendStarts').value=fmtTimeList(c.warn.weekendStarts);
-  document.getElementById('cfgWeekdayEnds').value=fmtTimeList(c.warn.weekdayEnds);
-  document.getElementById('cfgWeekendEnds').value=fmtTimeList(c.warn.weekendEnds);
+  cfgWarnRules=(c.warnRules||[]).map(r=>Object.assign({},r,{days:(r.days||[]).slice(),times:(r.times||[]).slice()}));
+  renderWarnEditor();
 }
 function mergeCfg(raw){ // 把任意設定物件補齊成完整設定（同 cfg() 的補齊邏輯，但對象可以是別的店家）
   const c=raw||{},d=DEFAULT_CONFIG;
@@ -2202,7 +2291,7 @@ function mergeCfg(raw){ // 把任意設定物件補齊成完整設定（同 cfg(
     presetsPart:c.presetsPart||d.presetsPart,
     calUrl:c.calUrl||d.calUrl,
     rules:migrateRules(c),
-    warn:Object.assign({},d.warn,c.warn||{})
+    warnRules:migrateWarnRules(c)
   };
 }
 function renderCfgTargetOptions(){
@@ -2261,16 +2350,17 @@ function collectCfgFromFields(){ // 從表單欄位讀出設定物件；格式�
   for(const r of cfgRules){
     if(r.on&&r.kind!=='redMin'&&!r.times.length){alert('規則「'+(r.name||'未命名')+'」已啟用但沒有填時間。');return null}
   }
+  for(const r of cfgWarnRules){
+    if(!r.on)continue;
+    if(!(r.days||[]).length){alert('提醒「'+(r.name||'未命名')+'」已啟用但沒有選星期。');return null}
+    if(!(r.times||[]).length){alert('提醒「'+(r.name||'未命名')+'」已啟用但沒有填時間。');return null}
+  }
   return {
     presetsCommon:common,
     presetsPart:part,
-    calUrl:document.getElementById('cfgCalUrl').value.trim()||DEFAULT_CONFIG.calUrl,
+    calUrl:cfgCalUrlValue||DEFAULT_CONFIG.calUrl,
     rules:cfgRules.map(r=>({id:r.id,on:!!r.on,name:r.name||'',kind:r.kind,times:(r.times||[]).slice(),min:Math.max(1,r.min||1)})),
-    warn:{
-      weekendStarts:parseTimeList(document.getElementById('cfgWeekendStarts').value),
-      weekdayEnds:parseTimeList(document.getElementById('cfgWeekdayEnds').value),
-      weekendEnds:parseTimeList(document.getElementById('cfgWeekendEnds').value)
-    }
+    warnRules:cfgWarnRules.map(r=>({id:r.id,on:!!r.on,name:r.name||'',days:(r.days||[]).slice(),field:r.field,times:(r.times||[]).slice()}))
   };
 }
 async function saveCfgToTarget(newCfg){ // 寫入目前選定的代碼：自己的就走一般儲存，別的代碼直接寫回雲端
