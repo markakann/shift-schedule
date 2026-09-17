@@ -641,6 +641,15 @@ body.print-sizing .name-sub{margin-top:0}
     <div class="m-title">後台設定</div>
     <div class="small-note" id="adminWho" style="margin-bottom:8px"></div>
 
+    <div class="sec-label">設定套用到哪個店家代碼</div>
+    <select class="txt" id="cfgTarget"></select>
+    <div style="display:flex;gap:8px;margin-top:6px">
+      <input class="txt" id="cfgTargetOther" placeholder="或直接輸入其他代碼" autocapitalize="off" autocorrect="off" style="flex:1">
+      <button class="btn" id="btnCfgLoadOther" style="padding:6px 10px">載入</button>
+    </div>
+    <div class="small-note" id="cfgTargetMsg" style="margin-top:4px"></div>
+
+    <div class="hr"></div>
     <div class="sec-label">正職班段（每行一組，例如 9:00-17:30）</div>
     <textarea class="txt" id="cfgPresetsCommon" style="height:120px;font-family:monospace"></textarea>
 
@@ -771,7 +780,7 @@ body.print-sizing .name-sub{margin-top:0}
     <div class="small-note">連線時自動抓取政府公告（TaiwanCalendar 開源資料），離線時使用內建資料；也可在排班模式點日期手動改紅黑字。</div>
     <div class="hr"></div>
     <div class="sec-label">後台設定</div>
-    <div class="small-note">「⋯」選單的「後台設定」需以管理者帳號登入，可調整預設班段、行事曆來源網址、覆蓋檢查規則與五六時段提醒的時間。設定跟著店家代碼走，同一組代碼的裝置共用。</div>
+    <div class="small-note">「⋯」選單的「後台設定」需以管理者帳號登入，可調整預設班段、行事曆來源網址、覆蓋檢查規則與五六時段提醒的時間。每組店家代碼各有一份獨立設定，面板最上方可選擇要套用到哪個代碼，也能直接輸入其他代碼載入，不需先切換過去。</div>
     <div class="m-actions">
       <button class="btn" id="btnCloseHelp">關閉</button>
     </div>
@@ -813,7 +822,7 @@ function cfg(){ // 取得目前設定，缺漏的欄位自動以預設值補齊�
   };
 }
 function parseTimeList(str){ // 解析「900,1030,11:00」這類輸入成分鐘陣列
-  return String(str||'').split(/[,，\s]+/).filter(Boolean).map(t=>{
+  return String(str||'').split(/[,，、;；\s]+/).filter(Boolean).map(t=>{
     t=t.trim();
     let h,m;
     if(t.includes(':')||t.includes('：')){const p=t.split(/[:：]/);h=+p[0];m=+(p[1]||0);}
@@ -2067,9 +2076,9 @@ async function doAdminLogin(){
     msg.style.display='';
   }
 }
-function openAdminPanel(){
-  const c=cfg();
-  document.getElementById('adminWho').textContent='已登入：'+(adminUser?adminUser.email:'');
+let cfgTargetCode=null;      // 後台目前正在編輯哪個店家代碼的設定
+let cfgTargetPayload=null;   // 非目前店家時，暫存該代碼的完整資料以便寫回
+function fillCfgFields(c){
   document.getElementById('cfgPresetsCommon').value=fmtPairList(c.presetsCommon);
   document.getElementById('cfgPresetsPart').value=fmtPairList(c.presetsPart);
   document.getElementById('cfgCalUrl').value=c.calUrl;
@@ -2081,8 +2090,61 @@ function openAdminPanel(){
   document.getElementById('cfgWeekendStarts').value=fmtTimeList(c.warn.weekendStarts);
   document.getElementById('cfgWeekdayEnds').value=fmtTimeList(c.warn.weekdayEnds);
   document.getElementById('cfgWeekendEnds').value=fmtTimeList(c.warn.weekendEnds);
+}
+function mergeCfg(raw){ // 把任意設定物件補齊成完整設定（同 cfg() 的補齊邏輯，但對象可以是別的店家）
+  const c=raw||{},d=DEFAULT_CONFIG;
+  return {
+    presetsCommon:c.presetsCommon||d.presetsCommon,
+    presetsPart:c.presetsPart||d.presetsPart,
+    calUrl:c.calUrl||d.calUrl,
+    coverage:Object.assign({},d.coverage,c.coverage||{}),
+    warn:Object.assign({},d.warn,c.warn||{})
+  };
+}
+function renderCfgTargetOptions(){
+  const sel=document.getElementById('cfgTarget');
+  const codes=[];
+  if(storeCode)codes.push(storeCode);
+  getCodeHistory().forEach(h=>{if(!codes.includes(h.code))codes.push(h.code)});
+  sel.innerHTML=codes.map(c=>'<option value="'+esc(c)+'"'+(c===cfgTargetCode?' selected':'')+'>'+esc(c)+(c===storeCode?'（目前使用中）':'')+'</option>').join('');
+}
+async function loadCfgTarget(code){
+  const msg=document.getElementById('cfgTargetMsg');
+  if(code===storeCode){ // 目前連線中的店家，直接用記憶體裡的設定
+    cfgTargetCode=code;cfgTargetPayload=null;
+    fillCfgFields(cfg());
+    msg.textContent='正在編輯目前使用中的代碼，儲存後立即套用。';
+    msg.style.color='#2a8a4a';
+    renderCfgTargetOptions();
+    return true;
+  }
+  msg.textContent='載入中…';msg.style.color='#888';
+  try{
+    const snap=await FB.getDoc(FB.doc(FB.db,'stores',code));
+    if(!snap.exists()||!snap.data().data){msg.textContent='查無此代碼的資料。';msg.style.color='var(--red)';return false}
+    const payload=JSON.parse(snap.data().data);
+    cfgTargetCode=code;cfgTargetPayload=payload;
+    fillCfgFields(mergeCfg(payload.config));
+    msg.textContent='正在編輯其他代碼「'+code+'」的設定，不影響目前畫面上的班表。';
+    msg.style.color='#8a6d00';
+    renderCfgTargetOptions();
+    return true;
+  }catch(e){msg.textContent='載入失敗，請確認網路連線。';msg.style.color='var(--red)';return false}
+}
+function openAdminPanel(){
+  document.getElementById('adminWho').textContent='已登入：'+(adminUser?adminUser.email:'');
+  cfgTargetCode=storeCode;cfgTargetPayload=null;
+  renderCfgTargetOptions();
+  document.getElementById('cfgTargetOther').value='';
+  loadCfgTarget(storeCode);
   document.getElementById('ovAdmin').classList.add('show');
 }
+document.getElementById('cfgTarget').addEventListener('change',ev=>loadCfgTarget(ev.target.value));
+document.getElementById('btnCfgLoadOther').addEventListener('click',()=>{
+  const code=document.getElementById('cfgTargetOther').value.trim().toLowerCase();
+  if(!code){alert('請輸入要載入的店家代碼。');return}
+  loadCfgTarget(code);
+});
 document.getElementById('btnCloseAdmin').addEventListener('click',()=>document.getElementById('ovAdmin').classList.remove('show'));
 document.getElementById('btnAdminLogout').addEventListener('click',async()=>{
   try{await FB.signOutFn(FB.auth)}catch(e){}
@@ -2090,13 +2152,13 @@ document.getElementById('btnAdminLogout').addEventListener('click',async()=>{
   document.getElementById('ovAdmin').classList.remove('show');
   setHint('已登出後台');
 });
-document.getElementById('btnAdminSave').addEventListener('click',()=>{
+function collectCfgFromFields(){ // 從表單欄位讀出設定物件；格式有誤回傳 null
   const common=parsePairList(document.getElementById('cfgPresetsCommon').value);
   const part=parsePairList(document.getElementById('cfgPresetsPart').value);
-  if(!common.length){alert('正職班段至少要有一組，格式如 9:00-17:30。');return}
+  if(!common.length){alert('正職班段至少要有一組，格式如 9:00-17:30。');return null}
   const closeEnd=parseTimeList(document.getElementById('cfgCloseEnd').value)[0];
-  if(closeEnd==null){alert('收班時間格式不正確，例如 22:00。');return}
-  state.config={
+  if(closeEnd==null){alert('收班時間格式不正確，例如 22:00。');return null}
+  return {
     presetsCommon:common,
     presetsPart:part,
     calUrl:document.getElementById('cfgCalUrl').value.trim()||DEFAULT_CONFIG.calUrl,
@@ -2113,16 +2175,41 @@ document.getElementById('btnAdminSave').addEventListener('click',()=>{
       weekendEnds:parseTimeList(document.getElementById('cfgWeekendEnds').value)
     }
   };
-  scheduleSave();renderAll();
-  document.getElementById('ovAdmin').classList.remove('show');
-  setHint('後台設定已儲存 ✓');
+}
+async function saveCfgToTarget(newCfg){ // 寫入目前選定的代碼：自己的就走一般儲存，別的代碼直接寫回雲端
+  if(!cfgTargetCode||cfgTargetCode===storeCode){
+    state.config=newCfg;scheduleSave();renderAll();
+    setHint('後台設定已儲存 ✓');
+    return true;
+  }
+  try{
+    // 重新讀一次確保不會覆蓋掉別人剛剛的排班異動，只替換 config 欄位
+    const snap=await FB.getDoc(FB.doc(FB.db,'stores',cfgTargetCode));
+    if(!snap.exists()||!snap.data().data){alert('查無此代碼的資料，可能已被刪除。');return false}
+    const payload=JSON.parse(snap.data().data);
+    payload.config=newCfg;
+    const str=JSON.stringify(payload);
+    await FB.setDoc(FB.doc(FB.db,'stores',cfgTargetCode),{data:str,updatedAt:FB.serverTimestamp()});
+    if(payload.viewCode)await FB.setDoc(FB.doc(FB.db,'views',payload.viewCode),{data:str,updatedAt:FB.serverTimestamp()});
+    cfgTargetPayload=payload;
+    setHint('已儲存「'+cfgTargetCode+'」的設定 ✓');
+    return true;
+  }catch(e){alert('儲存失敗，請確認網路連線。');return false}
+}
+document.getElementById('btnAdminSave').addEventListener('click',async()=>{
+  const newCfg=collectCfgFromFields();
+  if(!newCfg)return;
+  if(await saveCfgToTarget(newCfg))document.getElementById('ovAdmin').classList.remove('show');
 });
-document.getElementById('btnAdminReset').addEventListener('click',()=>{
-  if(!confirm('把所有後台設定回復成預設值？'))return;
-  state.config={};
-  scheduleSave();renderAll();
-  openAdminPanel();
-  setHint('已回復預設值');
+document.getElementById('btnAdminReset').addEventListener('click',async()=>{
+  if(!confirm('把「'+(cfgTargetCode||storeCode)+'」的後台設定回復成預設值？'))return;
+  if(!cfgTargetCode||cfgTargetCode===storeCode){
+    state.config={};scheduleSave();renderAll();
+    fillCfgFields(cfg());
+    setHint('已回復預設值');
+  }else{
+    if(await saveCfgToTarget({}))fillCfgFields(mergeCfg({}));
+  }
 });
 document.getElementById('mgrPw').addEventListener('keydown',ev=>{
   if(ev.key==='Enter'){ev.preventDefault();document.getElementById('btnMgrPwGo').click();}
