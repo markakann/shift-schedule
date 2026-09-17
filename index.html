@@ -68,6 +68,7 @@ body{
 .btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
 .btn.editing{background:var(--red);border-color:var(--red);color:#fff}
 .save-hint{font-size:12px;color:#888;margin-left:auto}
+.help-btn{width:34px;padding:6px 0;font-weight:700;font-size:16px;color:var(--blue);flex-shrink:0}
 /* 後台登入中的橫幅與儲存提示 */
 #adminBanner{
   display:flex;align-items:center;gap:8px;flex-wrap:wrap;
@@ -351,6 +352,7 @@ body.print-sizing .name-sub{margin-top:0}
   <button id="btnFilter" class="btn">📅 篩選日期</button>
   <button id="btnMore" class="btn">⋯</button>
   <span id="saveHint" class="save-hint"></span>
+  <button id="btnHelp" class="btn help-btn" title="如何使用">？</button>
 </div>
 
 <div id="adminBanner" style="display:none">
@@ -594,16 +596,7 @@ body.print-sizing .name-sub{margin-top:0}
 </div>
 
 <!-- 建立／管理店家代碼 選擇器 -->
-<div class="overlay" id="ovCodeHub">
-  <div class="modal">
-    <div class="m-title">建立／管理店家代碼</div>
-    <div class="m-actions" style="flex-direction:column">
-      <button class="btn primary" id="btnHubCreate">建立新店家</button>
-      <button class="btn" id="btnHubManage">管理店家代碼</button>
-      <button class="btn" id="btnCloseHub">取消</button>
-    </div>
-  </div>
-</div>
+
 
 <!-- 複製代碼 選擇器 -->
 <div class="overlay" id="ovCopyChoice">
@@ -725,18 +718,28 @@ body.print-sizing .name-sub{margin-top:0}
     <div class="m-title">更多</div>
     <div class="small-note" id="cloudInfo" style="margin:6px 0 12px;font-size:13px;color:#555"></div>
     <div class="m-actions" style="flex-direction:column">
-      <button class="btn" id="btnHelp">如何使用</button>
-      <button class="btn" id="btnHiddenStaff">已隱藏人員</button>
-      <button class="btn" id="btnCopyMenu">複製代碼</button>
-      <button class="btn" id="btnOpenHub">建立／管理店家代碼</button>
       <button class="btn" id="btnOpenJoin">加入現有代碼</button>
+      <button class="btn" id="btnCopyMenu">複製代碼</button>
+      <button class="btn" id="btnOpenHub">建立新代碼</button>
+      <button class="btn" id="btnExportMenu">匯出或備份</button>
+      <button class="btn" id="btnImport">載入備份</button>
       <button class="btn" id="btnOpenAdmin">後台設定</button>
-      <button class="btn" id="btnPrint">匯出 PDF／列印</button>
-      <button class="btn" id="btnColorPdf">JSON to PDF（可選月份範圍）</button>
-      <button class="btn" id="btnExport">匯出備份（JSON）</button>
-      <button class="btn" id="btnImport">匯入備份</button>
+      <button class="btn" id="btnHiddenStaff">已隱藏人員</button>
       <input type="file" id="fileImport" accept=".json" style="display:none">
       <button class="btn" id="btnCloseMore">關閉</button>
+    </div>
+  </div>
+</div>
+
+<!-- 匯出或備份 選擇器 -->
+<div class="overlay" id="ovExportChoice">
+  <div class="modal">
+    <div class="m-title">匯出或備份</div>
+    <div class="m-actions" style="flex-direction:column">
+      <button class="btn primary" id="btnPrint">匯出 PDF／列印</button>
+      <button class="btn" id="btnColorPdf">JSON to PDF（可選月份範圍）</button>
+      <button class="btn" id="btnExport">備份成 JSON 檔</button>
+      <button class="btn" id="btnCloseExportChoice">取消</button>
     </div>
   </div>
 </div>
@@ -750,49 +753,43 @@ body.print-sizing .name-sub{margin-top:0}
       <span>╱ 未排</span>
       <span>✕ 排休</span>
       <span><b>△</b> 指定休息</span>
-      <span><b>特</b>＝特休</span>
-      <span><b>公</b>＝公差</span>
-      <span><b style="color:#2a8a4a">職災</b>＝職業傷害</span>
-      <span><b>颱</b>＝颱風假（月休不足時優先抵用）</span>
-      <span><b>─</b> 紅線＝到職前／離職後不排班</span>
-      <span><b>國</b>＝國定假日未排班，不扣薪，不計入月休</span>
+      <span><b>特</b> 特休</span>
+      <span><b>公</b> 公差</span>
+      <span><b style="color:#2a8a4a">職災</b> 職業傷害</span>
+      <span><b>颱</b> 颱風假</span>
+      <span><b>─</b> 到職前／離職後</span>
+      <span><b>國</b> 國定假日未排班</span>
     </div>
+    <div class="hr"></div>
+    <div class="sec-label">驚嘆號提示</div>
+    <div class="small-note"><b style="color:var(--red)">紅色</b>：當天人力不符合設定的規則（例如缺開店班、收班人數不足）。排班鎖定後才檢查。<br>
+    <b style="color:#d99a00">黃色</b>：有人連續出勤超標（正職連 6 天、計時連 5 天，含跨月）。隨時檢查。<br>
+    點驚嘆號可看該日的詳細原因。</div>
     <div class="hr"></div>
     <div class="sec-label">排班</div>
-    <div class="small-note">按「🔒 排班」進入排班模式後才能點格子與日期列，再按一次鎖定防止誤觸。自訂時間只接受整點或半點（例如 900、1330、1500），下班需晚於上班，輸入完按 Enter 或點其他地方即會檢查。紅字日會計入正職「月休天數」總額。</div>
+    <div class="small-note">按「🔒 排班」解鎖才能編輯，再按一次鎖定。自訂時間只收整點或半點（例如 900、1330）。</div>
     <div class="hr"></div>
     <div class="sec-label">人員</div>
-    <div class="small-note">名單自動分組：正職在上、計時居中、支援在最下，群組間空一行。「離職」只影響本月起的名單，過去月份班表完整保留，姓名會加註「（離）」避免跟未來同名新人混淆；「刪除」會清掉所有月份的紀錄，僅在打錯人時使用。</div>
-    <div class="hr"></div>
-    <div class="sec-label">備註</div>
-    <div class="small-note">可用來記錄計時人員的特殊需求，例如「Amy 週三晚上不能班」。</div>
-    <div class="hr"></div>
-    <div class="sec-label">班次覆蓋檢查（驚嘆號）</div>
-    <div class="small-note">預設規則：每日至少1人 9:00 上班、1人 10:00～11:00 上班、2人下班到 22:00 之後；週六日、國定假日與紅字日排班至少 5 人。這些規則可在後台逐條開關或改成其他時間與人數。紅色只在「排班」鎖定、且該日所有非支援人員都已排入內容後才會檢查。連續出勤（含跨月接續）：正職上限連 6 天、計時／支援上限連 5 天，超過以黃色標示，不受排班鎖定狀態影響。</div>
+    <div class="small-note">「離職」保留歷史班表、姓名加註（離）；「刪除」清掉所有紀錄，只在打錯人時用。開關可決定某人這個月要不要排班。</div>
     <div class="hr"></div>
     <div class="sec-label">早／晚工時列</div>
-    <div class="small-note">表格最下方會列出每天早班／晚班的總工時，以 16:00 為分界，時數含休息時間。</div>
+    <div class="small-note">每天早晚班總工時，以 16:00 分界，含休息時間。</div>
     <div class="hr"></div>
-    <div class="sec-label">篩選顯示日期</div>
-    <div class="small-note">只是畫面顯示範圍，方便截圖；不影響實際排班資料，匯出／列印仍是完整整月。</div>
+    <div class="sec-label">篩選日期</div>
+    <div class="small-note">只改變畫面顯示範圍方便截圖，匯出與列印仍是完整整月。</div>
     <div class="hr"></div>
-    <div class="sec-label">列印／PDF</div>
-    <div class="small-note">
-      輸出為 A4 橫式整月表格。建議用電腦匯出／列印——手機的列印功能通常沒有縮放或紙張大小選項可調。若斜線沒有顯示，請在列印視窗「更多設定」勾選「背景圖形」；若要去除頁首的時間與網址，同樣在「更多設定」關閉「頁首及頁尾」（瀏覽器本身的列印設定，網頁無法直接關閉）。
-    </div>
-    <div class="hr"></div>
-    <div class="sec-label">JSON to PDF</div>
-    <div class="small-note">向量色塊＋文字圖層，橫式，一個月一頁，檔案小、文字清晰；可選連續的月份範圍，最多一次 36 個月。若選到還沒建立過資料的月份，會產生空白該月的頁面。</div>
+    <div class="sec-label">匯出／列印</div>
+    <div class="small-note">A4 橫式整月，建議用電腦操作。斜線沒印出來請在列印視窗「更多設定」勾「背景圖形」。</div>
     <div class="hr"></div>
     <div class="sec-label">雲端同步</div>
-    <div class="small-note">同一組店家代碼的裝置共用同一份班表，改動即時同步；離線時先存本機，連上後自動補傳。手機排班，平板打開就看得到。知道代碼的人就能查看與編輯這份班表，請只分享給需要的人；檢視代碼只能看不能改，適合分享給店員。</div>
+    <div class="small-note">同一組店家代碼共用一份班表、即時同步。檢視代碼只能看不能改，適合給店員。</div>
     <div class="hr"></div>
     <div class="sec-label">行事曆</div>
     <div class="small-note" id="calStatus"></div>
-    <div class="small-note">連線時自動抓取政府公告（TaiwanCalendar 開源資料），離線時使用內建資料；也可在排班模式點日期手動改紅黑字。</div>
+    <div class="small-note">自動抓政府公告，離線用內建資料；也可在排班模式點日期手動改紅黑字。</div>
     <div class="hr"></div>
     <div class="sec-label">後台設定</div>
-    <div class="small-note">「⋯」選單的「後台設定」需以管理者帳號登入，可調整預設班段、行事曆來源網址、覆蓋檢查規則（可逐條開關、新增自訂規則）、五六時段提醒的時間，也可在此管理店家代碼。登入後主畫面上方會顯示提示橫幅，按「登出」即可離開後台。每組店家代碼各有一份獨立設定，面板最上方可選擇要套用到哪個代碼，也能直接輸入其他代碼載入，不需先切換過去。</div>
+    <div class="small-note">需管理者帳號登入，可調班段、行事曆來源、檢查規則與提醒時間，也能管理店家代碼。每組代碼各有獨立設定。</div>
     <div class="m-actions">
       <button class="btn" id="btnCloseHelp">關閉</button>
     </div>
@@ -2031,11 +2028,11 @@ document.getElementById('btnMore').addEventListener('click',()=>{
   document.getElementById('cloudInfo').textContent=cloudStatus;
   document.getElementById('btnCopyMenu').style.display=(storeCode||viewerMode)?'':'none';
   document.getElementById('btnImport').style.display=viewerMode?'none':'';
+  document.getElementById('btnOpenAdmin').style.display=viewerMode?'none':'';
   document.getElementById('btnHiddenStaff').style.display=viewerMode?'none':'';
   document.getElementById('ovMore').classList.add('show');
 });
 document.getElementById('btnHelp').addEventListener('click',()=>{
-  document.getElementById('ovMore').classList.remove('show');
   document.getElementById('calStatus').textContent='行事曆來源：'+calSource;
   document.getElementById('ovHelp').classList.add('show');
 });
@@ -2063,19 +2060,14 @@ document.getElementById('btnCopyChoiceView').addEventListener('click',()=>{
 });
 document.getElementById('btnCloseCopyChoice').addEventListener('click',()=>document.getElementById('ovCopyChoice').classList.remove('show'));
 document.getElementById('btnCloseMore').addEventListener('click',()=>document.getElementById('ovMore').classList.remove('show'));
+document.getElementById('btnExportMenu').addEventListener('click',()=>{
+  document.getElementById('ovMore').classList.remove('show');
+  document.getElementById('ovExportChoice').classList.add('show');
+});
+document.getElementById('btnCloseExportChoice').addEventListener('click',()=>document.getElementById('ovExportChoice').classList.remove('show'));
 document.getElementById('btnOpenHub').addEventListener('click',()=>{
   document.getElementById('ovMore').classList.remove('show');
-  document.getElementById('ovCodeHub').classList.add('show');
-});
-document.getElementById('btnCloseHub').addEventListener('click',()=>document.getElementById('ovCodeHub').classList.remove('show'));
-document.getElementById('btnHubCreate').addEventListener('click',()=>{
-  document.getElementById('ovCodeHub').classList.remove('show');
   openSetup();
-});
-document.getElementById('btnHubManage').addEventListener('click',()=>{
-  if(!FB){alert('目前雲端無法載入（可能離線或在預覽環境），僅本機模式可用。');return}
-  document.getElementById('ovCodeHub').classList.remove('show');
-  requireAdmin(openMgrPanel); // 管理代碼併入後台，需先以管理者帳號登入
 });
 function requireAdmin(after){ // 需要後台權限的操作：已登入直接執行，否則先跳登入
   if(!FB||!FB.auth){alert('目前雲端無法載入（可能離線或在預覽環境），後台暫時無法使用。');return}
@@ -2548,7 +2540,7 @@ function computeAndApplyPrintSizing(){
   document.body.classList.remove('print-sizing');
 }
 document.getElementById('btnPrint').addEventListener('click',()=>{
-  document.getElementById('ovMore').classList.remove('show');
+  document.getElementById('ovExportChoice').classList.remove('show');
   const oldTitle=document.title;
   document.title=(state.store||'排班表')+' '+state.y+'年'+state.m+'月';
   computeAndApplyPrintSizing();
@@ -2706,7 +2698,7 @@ function openCoverageDay(d){ // 點擊表頭驚嘆號時顯示該日覆蓋不足
 }
 document.getElementById('btnCloseCoverage').addEventListener('click',()=>document.getElementById('ovCoverage').classList.remove('show'));
 document.getElementById('btnColorPdf').addEventListener('click',()=>{
-  document.getElementById('ovMore').classList.remove('show');
+  document.getElementById('ovExportChoice').classList.remove('show');
   const ySel=['cpFromY','cpToY'],mSel=['cpFromM','cpToM'];
   ySel.forEach(id=>{
     const el=document.getElementById(id);
@@ -2730,6 +2722,7 @@ document.getElementById('btnGenColorPdf').addEventListener('click',()=>{
   exportColorPdf(fromY,fromM,toY,toM);
 });
 document.getElementById('btnExport').addEventListener('click',()=>{
+  document.getElementById('ovExportChoice').classList.remove('show');
   const blob=new Blob([JSON.stringify(state,null,1)],{type:'application/json'});
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);a.download='排班表備份.json';a.click();
