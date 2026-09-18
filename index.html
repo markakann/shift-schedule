@@ -110,7 +110,7 @@ body{
 .sheet-wrap{
   margin:0 8px;background:var(--paper);
   border:2px solid var(--grid);border-radius:2px;
-  overflow:auto;max-height:72vh;
+  overflow:auto;max-height:var(--sheetMaxH,72vh); /* 高度由 fitSheetHeight() 依實際可用空間動態設定 */
   box-shadow:2px 3px 8px rgba(0,0,0,.15);
 }
 table{border-collapse:separate;border-spacing:0;table-layout:fixed}
@@ -1449,8 +1449,15 @@ function fitCells(){ // 依可用寬度撐滿整個月份；窄螢幕維持 46px
   document.documentElement.style.setProperty('--cellh',Math.min(Math.max(46,Math.round(w*.9)),72)+'px');
   document.documentElement.style.setProperty('--cellfs',(w>=72?14:w>=58?13:11)+'px');
 }
-window.addEventListener('resize',()=>{fitCells()});
-function renderAll(){ensureRoster();fitCells();renderSheet();renderNotes()}
+function fitSheetHeight(){ // 讓表格框吃滿螢幕剩餘高度，人多時才需要框內捲動（備註順勢排在下方，整頁往下捲即可看到）
+  const wrap=document.querySelector('.sheet-wrap');
+  if(!wrap)return;
+  const docTop=wrap.getBoundingClientRect().top+window.scrollY; // 表格框在頁面中的位置（不受目前捲動影響）
+  const avail=window.innerHeight-docTop-16;                      // 底部留一點邊距
+  document.documentElement.style.setProperty('--sheetMaxH',Math.max(320,Math.round(avail))+'px');
+}
+window.addEventListener('resize',()=>{fitCells();fitSheetHeight()});
+function renderAll(){ensureRoster();fitCells();renderSheet();renderNotes();fitSheetHeight()}
 function renderSheet(){
   const md=monthData(),N=daysInMonth();
   let h='<thead><tr><th class="corner" rowspan="2"><input id="cornerLabel" class="corner-input" value="'+esc(state.corner||'')+'" placeholder="標籤" aria-label="表格左上角標籤"></th>';
@@ -2145,6 +2152,7 @@ function updateAdminBanner(){ // 後台登入中時，主畫面顯示提示橫�
     document.getElementById('adminBannerWho').textContent=adminUser.email?'（'+adminUser.email+'）':'';
     el.style.display='';
   }else el.style.display='none';
+  fitSheetHeight(); // 橫幅出現/消失會改變表格框的起始位置，高度要跟著重算
 }
 document.getElementById('btnBannerAdmin').addEventListener('click',()=>openAdminPanel());
 document.getElementById('btnBannerLogout').addEventListener('click',()=>doAdminLogout());
