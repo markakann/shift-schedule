@@ -107,6 +107,7 @@ body{
 }
 .jump-chip.all{border-color:#d99a00;color:#8a6d00;background:#fffaf0;font-weight:700}
 .jump-row{margin-top:4px}
+.mark-btn{border-color:#d99a00;color:#8a6d00;background:#fffaf0;font-weight:700}
 .day-row{display:flex;gap:4px;flex-wrap:wrap}
 .day-chip{
   flex:1;min-width:34px;text-align:center;padding:5px 0;font-size:13px;
@@ -374,6 +375,7 @@ body.print-sizing .name-sub{margin-top:0}
   <button id="btnStaff" class="btn">＋ 人員</button>
   <button id="btnFilter" class="btn">📅 篩選日期</button>
   <button id="btnMore" class="btn">⋯</button>
+  <button id="btnClearMarks" class="btn mark-btn" style="display:none">✕ 清除標示</button>
   <span id="saveHint" class="save-hint"></span>
   <button id="btnHelp" class="btn help-btn" title="如何使用">？</button>
 </div>
@@ -1583,6 +1585,7 @@ function renderSheet(){
   }
   h+='</tbody>';
   document.getElementById('sheet').innerHTML=h;
+  if(markedKey){markedKey=null;updateMarkBtn()} // 重繪後標示已不存在，按鈕一併收起
 }
 function renderNotes(){
   const notes=monthData().notes,row=document.getElementById('notesRow');
@@ -1976,10 +1979,14 @@ function ensureDayVisible(d){ // 目標日被篩選藏起來時先解除篩選�
 }
 function cellOf(sid,d){return document.querySelector('td.day-cell[data-sid="'+sid+'"][data-day="'+d+'"]')}
 function clearMarks(){document.querySelectorAll('.day-cell.marked').forEach(el=>el.classList.remove('marked'))}
+function updateMarkBtn(){ // 有標示時才在工具列顯示「清除標示」，省得再進統計裡取消
+  const b=document.getElementById('btnClearMarks');
+  if(b)b.style.display=markedKey?'':'none';
+}
 function jumpToCell(sid,d){
   document.getElementById('ovOT').classList.remove('show');
   ensureDayVisible(d);
-  clearMarks();markedKey=null;
+  clearMarks();markedKey=null;updateMarkBtn();
   const cell=cellOf(sid,d);
   if(!cell){showToast('找不到該日的格子');return}
   cell.scrollIntoView({block:'center',inline:'center',behavior:'smooth'});
@@ -1993,15 +2000,19 @@ function markCells(sid,days){
   const key=sid+':'+days.join(',');
   const same=(markedKey===key);
   clearMarks();
-  if(same){markedKey=null;showToast('已取消標示');return} // 同一組再按一次＝取消標示；不同組則直接切換過去
+  if(same){markedKey=null;updateMarkBtn();showToast('已取消標示');return} // 同一組再按一次＝取消標示；不同組則直接切換過去
   markedKey=key;
   document.getElementById('ovOT').classList.remove('show');
   days.forEach(d=>ensureDayVisible(d));
   let first=null;
   days.forEach(d=>{const c=cellOf(sid,d);if(c){c.classList.add('marked');if(!first)first=c}});
   if(first)first.scrollIntoView({block:'center',inline:'center',behavior:'smooth'});
-  showToast('已標示 '+days.length+' 天，再按一次「全部標示」可取消',3000);
+  updateMarkBtn();
+  showToast('已標示 '+days.length+' 天，可按工具列的「清除標示」取消',3000);
 }
+document.getElementById('btnClearMarks').addEventListener('click',()=>{
+  clearMarks();markedKey=null;updateMarkBtn();showToast('已清除標示');
+});
 document.getElementById('otBody').addEventListener('click',ev=>{
   const one=ev.target.closest('[data-jump]');
   if(one){const[sid,d]=one.dataset.jump.split(':');jumpToCell(sid,+d);return}
@@ -2957,6 +2968,40 @@ document.querySelectorAll('.overlay').forEach(ov=>ov.addEventListener('click',ev
   renderAll();          // 先用本機資料顯示，雲端連上後自動覆蓋
   fetchCalendar(state.y);
   initFirebase();
+})();
+
+/* ────────── 手機返回鍵：關閉最上層彈窗，而不是離開頁面 ────────── */
+(function(){
+  const stack=[];        // 目前開著的彈窗，最後一個是最上層
+  let guard=false;       // 是否已為「有彈窗開著」放了一筆返回紀錄（同時最多一筆）
+  let suppress=0;        // 由自行關閉觸發的返回，不要再當成使用者按返回鍵
+  let pending=null;
+  function reconcile(){  // 合併同一輪的開關變化後才動歷史紀錄，彈窗互相切換時才不會亂
+    pending=null;
+    const open=stack.length>0;
+    if(open&&!guard){guard=true;history.pushState({paibanModal:1},'')}
+    else if(!open&&guard){guard=false;suppress++;history.back()}
+  }
+  function schedule(){if(!pending)pending=setTimeout(reconcile,0)}
+  const obs=new MutationObserver(muts=>{
+    for(const m of muts){
+      const el=m.target;
+      if(!el.classList||!el.classList.contains('overlay'))continue;
+      const isOpen=el.classList.contains('show'),i=stack.indexOf(el);
+      if(isOpen&&i<0)stack.push(el);
+      else if(!isOpen&&i>=0)stack.splice(i,1);
+      else continue;
+      schedule();
+    }
+  });
+  document.querySelectorAll('.overlay').forEach(el=>obs.observe(el,{attributes:true,attributeFilter:['class']}));
+  window.addEventListener('popstate',()=>{
+    if(suppress>0){suppress--;return}  // 這次返回是自行關閉造成的，已處理過
+    guard=false;                       // 剛剛那筆返回紀錄已被消耗
+    const el=stack.pop();              // 先出堆疊再關閉，觀察器就不會重複處理
+    if(el)el.classList.remove('show');
+    schedule();                        // 還有彈窗開著就補上新的返回紀錄
+  });
 })();
 </script>
 </body>
