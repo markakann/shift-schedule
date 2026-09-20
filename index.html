@@ -776,15 +776,20 @@ body.print-sizing .name-sub{margin-top:0}
     </div>
     <div class="hr"></div>
     <div class="sec-label">驚嘆號提示</div>
-    <div class="small-note"><b style="color:var(--red)">紅色</b>：當天人力不符合設定的規則（例如缺開店班、收班人數不足）。排班鎖定後才檢查。<br>
-    <b style="color:#d99a00">黃色</b>：有人連續出勤超標（正職連 6 天、計時連 5 天，含跨月）。隨時檢查。<br>
+    <div class="small-note"><b style="color:var(--red)">紅色</b>：當天人力不符合設定的規則（例如缺開店班、收班人數不足）。<span class="edit-only">排班鎖定後才檢查。</span><br>
+    <b style="color:#d99a00">黃色</b>：有人連續出勤超標（正職連 6 天、計時連 5 天，含跨月）。<br>
     點驚嘆號可看該日的詳細原因。</div>
+    <div class="edit-only">
+      <div class="hr"></div>
+      <div class="sec-label">排班</div>
+      <div class="small-note">按「🔒 排班」解鎖才能編輯，再按一次鎖定。自訂時間只收整點或半點（例如 900、1330）。</div>
+      <div class="hr"></div>
+      <div class="sec-label">人員</div>
+      <div class="small-note">「離職」保留歷史班表、姓名加註（離）；「刪除」清掉所有紀錄，只在打錯人時用。開關可決定某人這個月要不要排班。</div>
+    </div>
     <div class="hr"></div>
-    <div class="sec-label">排班</div>
-    <div class="small-note">按「🔒 排班」解鎖才能編輯，再按一次鎖定。自訂時間只收整點或半點（例如 900、1330）。</div>
-    <div class="hr"></div>
-    <div class="sec-label">人員</div>
-    <div class="small-note">「離職」保留歷史班表、姓名加註（離）；「刪除」清掉所有紀錄，只在打錯人時用。開關可決定某人這個月要不要排班。</div>
+    <div class="sec-label">加班時數</div>
+    <div class="small-note">點姓名右上角的「⋯」可看該員本月加班時數明細。</div>
     <div class="hr"></div>
     <div class="sec-label">早／晚工時列</div>
     <div class="small-note">每天早晚班總工時，以 16:00 分界，含休息時間。</div>
@@ -795,15 +800,24 @@ body.print-sizing .name-sub{margin-top:0}
     <div class="sec-label">匯出／列印</div>
     <div class="small-note">A4 橫式整月，建議用電腦操作。斜線沒印出來請在列印視窗「更多設定」勾「背景圖形」。</div>
     <div class="hr"></div>
-    <div class="sec-label">雲端同步</div>
-    <div class="small-note">同一組店家代碼共用一份班表、即時同步。檢視代碼只能看不能改，適合給店員。</div>
-    <div class="hr"></div>
-    <div class="sec-label">行事曆</div>
-    <div class="small-note" id="calStatus"></div>
-    <div class="small-note">自動抓政府公告，離線用內建資料；也可在排班模式點日期手動改紅黑字。</div>
-    <div class="hr"></div>
-    <div class="sec-label">後台設定</div>
-    <div class="small-note">需管理者帳號登入，可調班段、行事曆來源、檢查規則與提醒時間，也能管理店家代碼。每組代碼各有獨立設定。</div>
+    <div class="view-only">
+      <div class="sec-label">檢視模式</div>
+      <div class="small-note">你目前用檢視代碼開啟，只能查看與匯出，不能修改班表。管理者更新後畫面會自動同步。</div>
+      <div class="hr"></div>
+      <div class="sec-label">行事曆</div>
+      <div class="small-note" id="calStatusView"></div>
+    </div>
+    <div class="edit-only">
+      <div class="sec-label">雲端同步</div>
+      <div class="small-note">同一組店家代碼共用一份班表、即時同步。檢視代碼只能看不能改，適合給店員。</div>
+      <div class="hr"></div>
+      <div class="sec-label">行事曆</div>
+      <div class="small-note" id="calStatus"></div>
+      <div class="small-note">自動抓政府公告，離線用內建資料；也可在排班模式點日期手動改紅黑字。</div>
+      <div class="hr"></div>
+      <div class="sec-label">後台設定</div>
+      <div class="small-note">需管理者帳號登入，可調班段、行事曆來源、檢查規則與提醒時間，也能管理店家代碼。每組代碼各有獨立設定。</div>
+    </div>
     <div class="m-actions">
       <button class="btn" id="btnCloseHelp">關閉</button>
     </div>
@@ -2061,7 +2075,12 @@ document.getElementById('btnMore').addEventListener('click',()=>{
   document.getElementById('ovMore').classList.add('show');
 });
 document.getElementById('btnHelp').addEventListener('click',()=>{
-  document.getElementById('calStatus').textContent='行事曆來源：'+calSource;
+  const src='行事曆來源：'+calSource;
+  document.getElementById('calStatus').textContent=src;
+  document.getElementById('calStatusView').textContent=src;
+  // 檢視模式只列出唯讀身分用得到的功能，編輯功能的說明整段隱藏
+  document.querySelectorAll('#ovHelp .edit-only').forEach(el=>el.style.display=viewerMode?'none':'');
+  document.querySelectorAll('#ovHelp .view-only').forEach(el=>el.style.display=viewerMode?'':'none');
   document.getElementById('ovHelp').classList.add('show');
 });
 document.getElementById('btnCloseHelp').addEventListener('click',()=>document.getElementById('ovHelp').classList.remove('show'));
