@@ -4,7 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>排班表</title>
+<script>
+/* 在第一次繪製前就決定身分，唯讀使用者重新載入時才不會閃過一瞬間的編輯介面 */
+try{if(localStorage.getItem('paiban-mode')==='view')document.documentElement.classList.add('viewer-boot')}catch(e){}
+</script>
 <style>
+.viewer-boot #btnEdit,.viewer-boot #btnStaff,.viewer-boot #btnAddNote{display:none!important}
 :root{
   --paper:#fffdf7;
   --bg:#eceae3;
@@ -801,9 +806,6 @@ body.print-sizing .name-sub{margin-top:0}
     <div class="small-note">A4 橫式整月，建議用電腦操作。斜線沒印出來請在列印視窗「更多設定」勾「背景圖形」。</div>
     <div class="hr"></div>
     <div class="view-only">
-      <div class="sec-label">檢視模式</div>
-      <div class="small-note">你目前用檢視代碼開啟，只能查看與匯出，不能修改班表。管理者更新後畫面會自動同步。</div>
-      <div class="hr"></div>
       <div class="sec-label">行事曆</div>
       <div class="small-note" id="calStatusView"></div>
     </div>
@@ -1071,7 +1073,7 @@ async function connectStore(code,isNew,silent){
   }
   viewerMode=false;
   storeCode=code;
-  try{localStorage.setItem('paiban-store-code',code)}catch(e){}
+  try{localStorage.setItem('paiban-store-code',code);localStorage.setItem('paiban-mode','edit')}catch(e){}
   recordCodeHistory(code);
   if(unsubCloud)unsubCloud();
   unsubCloud=FB.onSnapshot(ref,s=>{
@@ -1079,7 +1081,7 @@ async function connectStore(code,isNew,silent){
       // 這個店家代碼在雲端被刪除了（可能在別的分頁/裝置操作），這個視窗也要立即反應，不能停留在已失效的舊畫面
       if(storeCode!==code)return; // 已經切換到別的店家了，跟這個舊監聽無關
       storeCode=null;
-      try{localStorage.removeItem('paiban-store-code')}catch(e){}
+      try{localStorage.removeItem('paiban-store-code');localStorage.removeItem('paiban-mode')}catch(e){}
       if(unsubCloud){unsubCloud();unsubCloud=null}
       state.store='';state.title='排班表';state.corner='';state.viewCode='';
       state.staff=[];state.months={};state.calCache={};state.config={};
@@ -1126,7 +1128,7 @@ async function connectViewer(code,silent){ // 以檢視代碼連線：唯讀，�
   }
   viewerMode=true;
   storeCode=code;
-  try{localStorage.setItem('paiban-store-code',code)}catch(e){}
+  try{localStorage.setItem('paiban-store-code',code);localStorage.setItem('paiban-mode','view')}catch(e){}
   if(unsubCloud)unsubCloud();
   unsubCloud=FB.onSnapshot(vref,s=>{
     if(!s.exists())return;
@@ -1145,6 +1147,7 @@ async function connectViewer(code,silent){ // 以檢視代碼連線：唯讀，�
 }
 function applyViewerUI(){ // 檢視模式下隱藏所有可編輯入口；回到編輯模式則還原
   const hide=viewerMode?'none':'';
+  document.documentElement.classList.toggle('viewer-boot',viewerMode); // 與首次繪製前的身分判定保持一致
   ['btnEdit','btnStaff','btnAddNote'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=hide});
   document.getElementById('storeName').readOnly=viewerMode;
   document.getElementById('sheetTitle').readOnly=viewerMode;
@@ -2532,7 +2535,7 @@ document.getElementById('btnConfirmDelCode').addEventListener('click',async()=>{
     removeCodeHistory(code);
     if(storeCode===code){
       storeCode=null;
-      try{localStorage.removeItem('paiban-store-code')}catch(e){}
+      try{localStorage.removeItem('paiban-store-code');localStorage.removeItem('paiban-mode')}catch(e){}
       if(unsubCloud){unsubCloud();unsubCloud=null}
       cloudStatus='雲端已連線（尚未選擇店家代碼）';
       setHint('請重新選擇店家代碼');
@@ -2889,6 +2892,9 @@ document.querySelectorAll('.overlay').forEach(ov=>ov.addEventListener('click',ev
   document.getElementById('sheetTitle').value=state.title||'排班表';
   selY.value=state.y;selM.value=state.m;
   if(HOLIDAYS_BUILTIN[state.y]&&!state.calCache[state.y])calSource='內建 '+state.y+' 年資料';
+  // 沿用上次的身分先套用畫面，避免唯讀使用者在雲端回應前看到一瞬間的編輯介面
+  try{if(localStorage.getItem('paiban-mode')==='view')viewerMode=true}catch(e){}
+  applyViewerUI();
   renderAll();          // 先用本機資料顯示，雲端連上後自動覆蓋
   fetchCalendar(state.y);
   initFirebase();
