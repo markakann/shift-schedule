@@ -97,6 +97,16 @@ body{
 .rule-card.off{opacity:.5;background:#f0f0f0}
 .rule-head{display:flex;align-items:center;gap:8px}
 .rule-card .txt{margin:0}
+/* 加班統計跳轉：單日閃爍與整批標示 */
+@keyframes cellFlash{0%,100%{box-shadow:inset 0 0 0 0 rgba(201,47,47,0)}50%{box-shadow:inset 0 0 0 3px var(--red)}}
+.day-cell.flash{animation:cellFlash .55s ease-in-out 3}
+.day-cell.marked{box-shadow:inset 0 0 0 2px #d99a00;background-color:#fff6db!important}
+.jump-chip{
+  display:inline-block;margin:3px 4px 0 0;padding:3px 9px;font-size:13px;
+  border:1px solid var(--red);border-radius:12px;color:var(--red);background:#fff8f8;cursor:pointer;
+}
+.jump-chip.all{border-color:#d99a00;color:#8a6d00;background:#fffaf0;font-weight:700}
+.jump-row{margin-top:4px}
 .day-row{display:flex;gap:4px;flex-wrap:wrap}
 .day-chip{
   flex:1;min-width:34px;text-align:center;padding:5px 0;font-size:13px;
@@ -316,6 +326,7 @@ textarea.txt{min-height:110px}
 body.print-sizing{--printScale:1;width:281mm}
 body.print-sizing .notes-sec{break-inside:avoid;page-break-inside:avoid}
 body.print-sizing .cov-warn,body.print-sizing .warn-row{display:none!important}
+body.print-sizing .day-cell.marked,body.print-sizing .day-cell.flash{box-shadow:none!important;background-color:transparent!important;animation:none!important}
 body.print-sizing .toolbar,body.print-sizing .legend,body.print-sizing .overlay,body.print-sizing .save-hint,body.print-sizing #btnAddNote{display:none!important}
 body.print-sizing .topbar{position:static;box-shadow:none;border-bottom:2px solid var(--grid);padding:4px 0 6px}
 body.print-sizing .store-name,body.print-sizing .ym-sel,body.print-sizing .sheet-title-input,body.print-sizing .corner-input{border:none;appearance:none;-webkit-appearance:none}
@@ -794,7 +805,7 @@ body.print-sizing .name-sub{margin-top:0}
     </div>
     <div class="hr"></div>
     <div class="sec-label">加班時數</div>
-    <div class="small-note">點姓名右上角的「⋯」可看該員本月加班時數明細。</div>
+    <div class="small-note">點姓名右上角的「⋯」可看該員本月加班時數明細。明細裡的日期可直接點，會跳到那一格並閃爍；按「全部標示」則一次框出該類的所有日子，再按一次取消。</div>
     <div class="hr"></div>
     <div class="sec-label">早／晚工時列</div>
     <div class="small-note">每天早晚班總工時，以 16:00 分界，含休息時間。</div>
@@ -1343,6 +1354,7 @@ function overtimeStats(sid){ // 本月加班時數統計：國定假日出勤／
   const isFull=st&&st.type==='full';
   const streakThreshold=isFull?7:6; // 正職：第7天起才是真正違法一例；計時：第6天起提前預警
   let holiday=0,streakHours=0;
+  let holidayDays=[],streakDays=[]; // 供加班統計跳轉標示用
   let run=0;
   let workDays=[]; // 非國定假日的出勤日 {d,hrs}，供正職判斷月休不足時使用
   for(let d=1;d<=N;d++){
@@ -1351,12 +1363,12 @@ function overtimeStats(sid){ // 本月加班時數統計：國定假日出勤／
     if(worked){
       const hrs=shiftHours(e);
       if(isNational(d)){
-        holiday+=hrs;
+        holiday+=hrs;holidayDays.push(d);
       }else{
         workDays.push({d,hrs});
       }
       run++;
-      if(run>=streakThreshold)streakHours+=hrs;
+      if(run>=streakThreshold){streakHours+=hrs;streakDays.push(d)}
     }else{
       run=0;
     }
@@ -1384,7 +1396,7 @@ function overtimeStats(sid){ // 本月加班時數統計：國定假日出勤／
       if(ot>2)tier2+=Math.min(ot-2,2);
     }
   }
-  return {holiday,streakHours,otHours,otDays,shortfall,tier1,tier2,isFull,streakThreshold};
+  return {holiday,streakHours,otHours,otDays,shortfall,tier1,tier2,isFull,streakThreshold,holidayDays,streakDays};
 }
 
 /* ────────── 工具 ────────── */
@@ -1913,6 +1925,13 @@ document.getElementById('hiddenListBody').addEventListener('click',ev=>{
     return;
   }
 });
+function jumpChips(sid,days){ // 把日期列成可點的標籤，點了就跳到那一格
+  if(!days||!days.length)return '';
+  return '<div class="jump-row">'+
+    days.map(d=>'<span class="jump-chip" data-jump="'+sid+':'+d+'">'+state.m+'/'+d+'</span>').join('')+
+    (days.length>1?'<span class="jump-chip all" data-jumpall="'+sid+':'+days.join(',')+'">全部標示</span>':'')+
+  '</div>';
+}
 function openOT(sid){
   const st=state.staff.find(s=>s.id===sid);if(!st)return;
   const t=overtimeStats(sid);
@@ -1923,7 +1942,7 @@ function openOT(sid){
      '<div style="font-size:13px;line-height:1.8">'+
        (t.shortfall>0
          ?'本月月休少休 <b style="color:var(--red)">'+t.shortfall+'</b> 天，已將時數最短的 '+t.shortfall+' 個出勤日整日列為加班：<br>'+
-          (t.otDays.length?state.m+'月 '+t.otDays.join('、')+' 日':'')
+          (t.otDays.length?jumpChips(sid,t.otDays):'')
          :'本月月休已休滿，不列加班')+
      '</div>'
     :'';
@@ -1931,6 +1950,7 @@ function openOT(sid){
     '<div class="hr"></div>'+
     '<div class="sec-label">國定假日出勤</div>'+
     '<div style="font-size:22px;font-weight:700;color:var(--red)">'+fmtH(t.holiday)+' 小時</div>'+
+    jumpChips(sid,t.holidayDays)+
     (t.isFull?
       '<div class="hr"></div>'+
       '<div class="sec-label">月休不足轉列加班（整日）</div>'+
@@ -1945,10 +1965,49 @@ function openOT(sid){
     '</div>'+
     '<div class="hr"></div>'+
     '<div class="sec-label">連續出勤第'+t.streakThreshold+'天起（含）時數</div>'+
-    '<div style="font-size:22px;font-weight:700;color:'+(t.streakHours>0?'var(--red)':'var(--ink)')+'">'+fmtH(t.streakHours)+' 小時</div>';
+    '<div style="font-size:22px;font-weight:700;color:'+(t.streakHours>0?'var(--red)':'var(--ink)')+'">'+fmtH(t.streakHours)+' 小時</div>'+
+    jumpChips(sid,t.streakDays);
   document.getElementById('ovOT').classList.add('show');
 }
 document.getElementById('btnCloseOT').addEventListener('click',()=>document.getElementById('ovOT').classList.remove('show'));
+/* 加班統計裡的日期標籤：跳到該格並標示 */
+function ensureDayVisible(d){ // 目標日被篩選藏起來時先解除篩選，否則捲不到
+  if(dayFilter&&(d<dayFilter.from||d>dayFilter.to)){clearDayFilter();showToast('已解除日期篩選以顯示該日')}
+}
+function cellOf(sid,d){return document.querySelector('td.day-cell[data-sid="'+sid+'"][data-day="'+d+'"]')}
+function clearMarks(){document.querySelectorAll('.day-cell.marked').forEach(el=>el.classList.remove('marked'))}
+function jumpToCell(sid,d){
+  document.getElementById('ovOT').classList.remove('show');
+  ensureDayVisible(d);
+  clearMarks();markedKey=null;
+  const cell=cellOf(sid,d);
+  if(!cell){showToast('找不到該日的格子');return}
+  cell.scrollIntoView({block:'center',inline:'center',behavior:'smooth'});
+  cell.classList.remove('flash');
+  void cell.offsetWidth;            // 重設動畫，連點同一天也會再閃一次
+  cell.classList.add('flash');
+  setTimeout(()=>cell.classList.remove('flash'),1900);
+}
+let markedKey=null; // 目前標示的是哪一組，供切換／取消判斷
+function markCells(sid,days){
+  const key=sid+':'+days.join(',');
+  const same=(markedKey===key);
+  clearMarks();
+  if(same){markedKey=null;showToast('已取消標示');return} // 同一組再按一次＝取消標示；不同組則直接切換過去
+  markedKey=key;
+  document.getElementById('ovOT').classList.remove('show');
+  days.forEach(d=>ensureDayVisible(d));
+  let first=null;
+  days.forEach(d=>{const c=cellOf(sid,d);if(c){c.classList.add('marked');if(!first)first=c}});
+  if(first)first.scrollIntoView({block:'center',inline:'center',behavior:'smooth'});
+  showToast('已標示 '+days.length+' 天，再按一次「全部標示」可取消',3000);
+}
+document.getElementById('otBody').addEventListener('click',ev=>{
+  const one=ev.target.closest('[data-jump]');
+  if(one){const[sid,d]=one.dataset.jump.split(':');jumpToCell(sid,+d);return}
+  const all=ev.target.closest('[data-jumpall]');
+  if(all){const[sid,list]=all.dataset.jumpall.split(':');markCells(sid,list.split(',').map(Number));}
+});
 /* 篩選顯示日期（僅畫面顯示，不影響資料與匯出） */
 let dayFilter=null; // {from,to} 或 null
 function applyDayFilterStyle(){
