@@ -716,13 +716,13 @@ body.print-sizing .name-sub{margin-top:0}
 
     <div class="hr"></div>
     <div class="sec-label">覆蓋檢查規則</div>
-    <div class="small-note">關閉的規則不會檢查。時間可填多個，逗號分隔。</div>
+    <div class="small-note">關閉的規則不會檢查。時間可填多個，逗號或頓號都可以（存檔後統一顯示成頓號）。</div>
     <div id="cfgRuleList"></div>
     <button class="btn" id="btnAddRule" style="width:100%;margin-top:8px">＋ 新增規則</button>
 
     <div class="hr"></div>
     <div class="sec-label">時段提醒</div>
-    <div class="small-note">排班時出現這些時間就用粉色標示，提醒可能排錯。只是提醒，不影響驚嘆號。</div>
+    <div class="small-note">排班時出現這些時間就用粉色標示，提醒可能排錯。只是提醒，不影響驚嘆號。時間可填多個，逗號或頓號都可以。</div>
     <div id="cfgWarnList"></div>
     <button class="btn" id="btnAddWarnRule" style="width:100%;margin-top:8px">＋ 新增提醒</button>
 
@@ -2368,7 +2368,7 @@ function renderRuleEditor(){
   box.innerHTML=cfgRules.map((r,i)=>{
     const kindOpts=Object.keys(RULE_KINDS).map(k=>'<option value="'+k+'"'+(r.kind===k?' selected':'')+'>'+RULE_KINDS[k]+'</option>').join('');
     const timeRow=r.kind==='redMin'?'':
-      '<input class="txt rule-times" data-i="'+i+'" value="'+esc(fmtTimeList(r.times))+'" placeholder="時間，例如 9:00, 10:30" autocapitalize="off" style="font-size:13px">';
+      '<input class="txt rule-times" data-i="'+i+'" value="'+esc(fmtTimeList(r.times))+'" placeholder="時間，例如 9:00、10:30" autocapitalize="off" style="font-size:13px">';
     return '<div class="rule-card'+(r.on?'':' off')+'">'+
       '<div class="rule-head">'+
         '<label class="mtoggle"><input type="checkbox" class="rule-on" data-i="'+i+'" '+(r.on?'checked':'')+'><span class="mtoggle-track"></span></label>'+
@@ -2428,7 +2428,7 @@ function renderWarnEditor(){
         '<option value="start"'+(r.field==='start'?' selected':'')+'>上班時間是</option>'+
         '<option value="end"'+(r.field==='end'?' selected':'')+'>下班時間是</option>'+
       '</select>'+
-      '<input class="txt warn-times" data-i="'+i+'" value="'+esc(fmtTimeList(r.times))+'" placeholder="時間，例如 12:00, 13:30" autocapitalize="off" style="font-size:13px">'+
+      '<input class="txt warn-times" data-i="'+i+'" value="'+esc(fmtTimeList(r.times))+'" placeholder="時間，例如 12:00、13:30" autocapitalize="off" style="font-size:13px">'+
     '</div>';
   }).join('');
 }
