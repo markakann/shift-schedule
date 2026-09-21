@@ -215,6 +215,7 @@ body.editing .day-cell:active{background-color:#fdf3d8}
 .mark.tri{font-size:20px;font-weight:400}
 .mark.word{font-size:17px}
 .mark.green{color:#2a8a4a}
+.mark.purple{color:#8a4fb0}
 .mark.injury-mark{font-size:11px}
 body.print-sizing .mark.injury-mark{font-size:calc(7.5px*var(--printScale))}
 .brk-tag{position:absolute;top:0;right:2px;font-size:8px;color:#1e4bb8;font-weight:700;line-height:1.1}
@@ -302,6 +303,7 @@ body.editing thead tr:nth-child(2) th:not(.corner){cursor:pointer}
 .chip.part-extra{border-style:dashed;color:#555}
 .chip.leave{color:var(--red);border-color:var(--red);background:#fff8f8}
 .chip.leave.green{color:#2a8a4a;border-color:#2a8a4a;background:#f3fbf5}
+.chip.leave.purple{color:#8a4fb0;border-color:#8a4fb0;background:#faf6fd}
 .chip.active{background:#2a8a4a;color:#fff;border-color:#2a8a4a}
 .brk-chip.on{background:var(--blue);color:#fff;border-color:var(--blue);font-weight:700}
 .chip.plain{color:var(--ink)}
@@ -444,6 +446,7 @@ body.print-sizing .name-sub{margin-top:0}
       <button class="chip plain" data-leave="rest">╲ 排休</button>
       <button class="chip leave" data-leave="annual">特休</button>
       <button class="chip leave" data-leave="duty">公差</button>
+      <button class="chip leave purple" data-leave="personal">事假</button>
       <button class="chip leave green" data-leave="injury">職災</button>
       <button class="chip leave" data-leave="typhoon">颱風假</button>
       <button class="chip leave" data-leave="redline">─ 紅線（到職／離職區間）</button>
@@ -804,6 +807,7 @@ body.print-sizing .name-sub{margin-top:0}
       <span><b>△</b> 指定休息</span>
       <span><b>特</b> 特休</span>
       <span><b>公</b> 公差</span>
+      <span><b style="color:#8a4fb0">事</b> 事假</span>
       <span><b style="color:#2a8a4a">職災</b> 職業傷害</span>
       <span><b>颱</b> 颱風假</span>
       <span><b>─</b> 到職前／離職後</span>
@@ -955,7 +959,7 @@ function parsePairList(str){ // 解析「9:00-17:30」每行一組的班段設�
   }).filter(Boolean);
 }
 function fmtPairList(arr){return (arr||[]).map(p=>fmtHM(p[0])+'-'+fmtHM(p[1])).join('\n')}
-const LEAVE_LABEL = {rest:'排休', desig:'指定休息', annual:'特休', duty:'公差', injury:'職業傷害', typhoon:'颱風假', redline:'紅線'};
+const LEAVE_LABEL = {rest:'排休', desig:'指定休息', annual:'特休', duty:'公差', personal:'事假', injury:'職業傷害', typhoon:'颱風假', redline:'紅線'};
 const GROUP_ORDER = {full:0, part:1, sup:2};
 const TYPE_LABEL  = {full:'正職', part:'計時', sup:'支援'};
 function nextLeaveName(baseName){ // 產生不重複的離職註記名稱：（離）、（離2）、（離3）...
@@ -1297,8 +1301,8 @@ function coverageIssues(d){ // 回傳該日缺少的覆蓋項目；排班模式�
   }
   return miss;
 }
-function countsTowardStreak(e){ // 連續出勤計算：上班、特休、公差、職業傷害都算「有出勤」，不會中斷連續天數；只有真正的休息日才會中斷
-  return !!(e&&(e.t==='shift'||e.t==='annual'||e.t==='duty'||e.t==='injury'));
+function countsTowardStreak(e){ // 連續出勤計算：上班、特休、公差、事假、職業傷害都算「有出勤」，不會中斷連續天數；只有真正的休息日才會中斷
+  return !!(e&&(e.t==='shift'||e.t==='annual'||e.t==='duty'||e.t==='personal'||e.t==='injury'));
 }
 function workedOnYM(y,m,sid,d){ // 讀取任意月份某日是否算連續出勤（供跨月連續計算，不經過monthData避免誤建月份資料）
   const mo=state.months[y+'-'+m];
@@ -1445,7 +1449,7 @@ function fmtDec(min){const h=min/60;return (h%1===0)?String(h):h.toFixed(1)}
 function entryShortLabel(e){ // 把任意班段/假別壓縮成一個簡短字串，供顯示「改動前」用
   if(!e)return '';
   if(e.t==='shift'||(e.t==='injury'&&e.s!=null))return fmtDec(e.s)+'-'+fmtDec(e.e);
-  const short={rest:'休',desig:'指',annual:'特',duty:'公',injury:'職災',typhoon:'颱',redline:'線'};
+  const short={rest:'休',desig:'指',annual:'特',duty:'公',personal:'事',injury:'職災',typhoon:'颱',redline:'線'};
   return short[e.t]||'';
 }
 function entriesEqual(a,b){ // 判斷兩個班段/假別內容是否完全相同(用於判斷是否真的有異動)
@@ -1589,6 +1593,7 @@ function renderSheet(){
       else if(e.t==='desig'){cls+=' filled';inner='<span class="mark tri">△</span>';}
       else if(e.t==='annual'){cls+=' filled';inner='<span class="mark word">特</span>';}
       else if(e.t==='duty'){cls+=' filled';inner='<span class="mark word">公</span>';}
+      else if(e.t==='personal'){cls+=' filled';inner='<span class="mark word purple">事</span>';}
       else if(e.t==='injury'){
         cls+=' filled';
         if(e.s!=null&&e.e!=null){
@@ -2909,6 +2914,7 @@ function drawColorPage(pdf,ctx,scale,y,m){
       else if(e.t==='desig'){fill=[205,222,245];label='休';}
       else if(e.t==='annual'){fill=[250,235,180];label='特';labelColor='#8a6d00';}
       else if(e.t==='duty'){fill=[224,210,240];label='公';labelColor='#5a3a8a';}
+      else if(e.t==='personal'){fill=[250,240,190];label='事';labelColor='#8a6d00';}
       else if(e.t==='injury'){fill=[196,230,222];label='職災';labelColor='#1f6b5c';}
       else if(e.t==='typhoon'){fill=[210,235,205];label='颱';labelColor='#2a6a2a';}
       if(fill){pdf.setFillColor(fill[0],fill[1],fill[2]);pdf.rect(x,rowY,dayColW,rowH,'F');}
@@ -2928,7 +2934,7 @@ function drawColorPage(pdf,ctx,scale,y,m){
   });
 
   const legendY=bodyTop+roster.length*rowH+4;
-  const items=[[[224,224,224],'排休'],[[205,222,245],'指定休息'],[[250,215,220],'國定假日'],[[250,235,180],'特休'],[[224,210,240],'公差'],[[196,230,222],'職業傷害'],[[210,235,205],'颱風假']];
+  const items=[[[224,224,224],'排休'],[[205,222,245],'指定休息'],[[250,215,220],'國定假日'],[[250,235,180],'特休'],[[224,210,240],'公差'],[[250,240,190],'事假'],[[196,230,222],'職業傷害'],[[210,235,205],'颱風假']];
   let lx=margin;
   items.forEach(([c,label])=>{
     pdf.setFillColor(c[0],c[1],c[2]);
