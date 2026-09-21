@@ -108,8 +108,8 @@ body{
 .jump-chip.all{border-color:#d99a00;color:#8a6d00;background:#fffaf0;font-weight:700}
 .jump-row{margin-top:4px}
 .mark-btn{border-color:#d99a00;color:#8a6d00;background:#fffaf0;font-weight:700}
-.ot-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}
-.ot-table th,.ot-table td{border:1px solid #ddd;padding:3px 5px;text-align:center;white-space:nowrap}
+.ot-table{width:max-content;min-width:100%;border-collapse:collapse;font-size:12px;margin-top:6px;table-layout:auto}
+.ot-table th,.ot-table td{border:1px solid #ddd;padding:3px 6px;text-align:center;white-space:nowrap}
 .ot-table th{background:#f2efe4;font-weight:700}
 .ot-table td.d{cursor:pointer;color:var(--blue);font-weight:700}
 .ot-table tr.nat td{background:#fdeef0}
@@ -2003,7 +2003,7 @@ function otDetailTable(sid,t){ // 逐日明細：拆開時長／扣休／實際�
     if(x.overStreak)tags.push('連'+x.run);
     return '<tr class="'+(x.nat?'nat':(x.otFull?'otfull':''))+'">'+
       '<td class="d" data-jump="'+sid+':'+x.d+'">'+x.d+'</td>'+
-      '<td>'+fmtHM(x.s)+'-'+fmtHM(x.e)+'</td>'+
+      '<td>'+fmtDec(x.s)+'-'+fmtDec(x.e)+'</td>'+
       '<td>'+fmtH(x.span)+'</td>'+
       '<td'+(x.brk?'':' class="zero"')+'>'+fmtH(x.brk)+'</td>'+
       '<td><b>'+fmtH(x.hrs)+'</b></td>'+
@@ -2013,7 +2013,7 @@ function otDetailTable(sid,t){ // 逐日明細：拆開時長／扣休／實際�
     '</tr>';
   }).join('');
   return '<div class="hr"></div>'+
-    '<div class="sec-label">逐日明細（對帳用）</div>'+
+    '<div class="sec-label">逐日明細</div>'+
     '<div class="small-note">時長＝班段長度，扣休＝扣掉的休息時間，實際＝計薪工時。點日期可跳到該格。</div>'+
     '<div style="overflow-x:auto"><table class="ot-table">'+
       '<tr><th>日</th><th>班段</th><th>時長</th><th>扣休</th><th>實際</th><th>9-10</th><th>11-12</th><th></th></tr>'+
@@ -2036,7 +2036,7 @@ function openOT(sid){
     :'';
   const monthlyBlock=t.isFull
     ?'<div class="hr"></div>'+
-     '<div class="sec-label">月總工時制（多數人資系統用這種）</div>'+
+     '<div class="sec-label">月總工時制</div>'+
      '<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end">'+
        '<div><div style="font-size:12px;color:#888">實際總工時</div><div style="font-size:20px;font-weight:700">'+fmtH(t.actualTotal)+'</div></div>'+
        '<div><div style="font-size:12px;color:#888">應上時數</div><div style="font-size:20px;font-weight:700">'+fmtH(t.reqH)+'</div></div>'+
