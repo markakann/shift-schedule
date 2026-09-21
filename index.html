@@ -2863,12 +2863,27 @@ function loadScriptOnce(src){
 function fmtHHMM(min){const h=Math.floor(min/60),mm=min%60;return String(h).padStart(2,'0')+':'+String(mm).padStart(2,'0')}
 function ctxText(ctx,scale,text,xmm,ymm,opts){
   opts=opts||{};
-  const px=(opts.size||6)*scale;
-  ctx.font=(opts.bold?'bold ':'')+px+'px "Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif';
+  let size=opts.size||6;
+  const fontOf=sz=>(opts.bold?'bold ':'')+(sz*scale)+'px "Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif';
+  ctx.font=fontOf(size);
+  if(opts.maxW){ // 超過欄寬就自動縮小，縮到下限還是太長就截字，總之不越界
+    const limit=opts.maxW*scale;
+    const floor=opts.minSize||3.2;
+    let guard=0;
+    while(ctx.measureText(text).width>limit&&size>floor&&guard++<40){size-=0.25;ctx.font=fontOf(size)}
+    if(ctx.measureText(text).width>limit){
+      while(text.length>1&&ctx.measureText(text+'…').width>limit)text=text.slice(0,-1);
+      text+='…';
+    }
+  }
   ctx.fillStyle=opts.color||'#222';
   ctx.textAlign=opts.align||'left';
   ctx.textBaseline='alphabetic';
   ctx.fillText(text,xmm*scale,ymm*scale);
+}
+function measureMM(ctx,scale,text,size,bold){ // 量文字實際寬度（換算回 mm），用來留位置
+  ctx.font=(bold?'bold ':'')+(size*scale)+'px "Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif';
+  return ctx.measureText(text).width/scale;
 }
 function drawColorPage(pdf,ctx,scale,y,m){
   const N=daysInMonth();
@@ -2903,7 +2918,18 @@ function drawColorPage(pdf,ctx,scale,y,m){
     const rowY=bodyTop+ri*rowH;
     pdf.setDrawColor(130,130,130);
     pdf.rect(margin,rowY,nameColW,rowH);
-    ctxText(ctx,scale,st.name,margin+2,rowY+rowH*0.6,{size:5.5,align:'left',bold:true,color:'#1e4bb8'});
+    const lm=st.name.match(/^(.*)（離(\d*)）$/); // 離職註記縮小放角落，不跟姓名擠成一團
+    const baseName=lm?lm[1]:st.name;
+    const nameSize=Math.min(5.5,rowH*0.8); // 人多列變矮時，姓名跟著縮，才不會上下兩列黏在一起
+    if(lm){
+      const tag='離'+(lm[2]||'');
+      const roomy=rowH>=6.5;                                  // 列夠高才放得下第二排，太擠就排在同一排右側
+      const tagW=measureMM(ctx,scale,tag,3);
+      ctxText(ctx,scale,baseName,margin+2,rowY+(roomy?rowH*0.52:rowH*0.62),{size:nameSize,align:'left',bold:true,color:'#1e4bb8',minSize:2.8,maxW:nameColW-3.5-(roomy?0:tagW+1)});
+      ctxText(ctx,scale,tag,margin+nameColW-1.5,rowY+(roomy?rowH-1:rowH*0.62),{size:3,align:'right',color:'#8a8a8a'});
+    }else{
+      ctxText(ctx,scale,baseName,margin+2,rowY+rowH*0.6,{size:nameSize,align:'left',bold:true,color:'#1e4bb8',minSize:2.8,maxW:nameColW-3.5});
+    }
     for(let d=1;d<=N;d++){
       const x=margin+nameColW+(d-1)*dayColW;
       const e=entryOf(st.id,d);
