@@ -185,7 +185,8 @@ th.corner{border-right-width:2px;min-width:92px;max-width:92px;width:92px}
 }
 .day-th{min-width:var(--cell);max-width:var(--cell);width:var(--cell)}
 tr.sum-row td.name-cell{background:#f2efe4;vertical-align:middle;height:34px}
-tr.sum-row .sum-label{font-weight:700;font-size:11px;line-height:1.3}
+tr.sum-row .sum-label{font-weight:700;font-size:11px;line-height:1.3;cursor:pointer}
+.mtot{display:block;font-size:12px;color:var(--blue);margin-bottom:1px}
 tr.sum-row .sum-cell{background:#f8f6ee;height:34px!important}
 tr.sum-row .sum-cell::before{content:none}
 tr.sum-row .t-s,tr.sum-row .t-e{font-weight:700;color:#6b5a1e;font-size:10px}
@@ -550,6 +551,18 @@ body.print-sizing .name-sub{margin-top:0}
     <div id="otBody"></div>
     <div class="m-actions">
       <button class="btn" id="btnCloseOT">關閉</button>
+    </div>
+  </div>
+</div>
+
+<!-- 本月總工時 -->
+<div class="overlay" id="ovTotal">
+  <div class="modal">
+    <div class="m-title">本月總工時</div>
+    <div class="m-sub" id="totSub"></div>
+    <div id="totBody" style="font-size:14px;max-height:50vh;overflow-y:auto"></div>
+    <div class="m-actions">
+      <button class="btn" id="btnCloseTotal">關閉</button>
     </div>
   </div>
 </div>
@@ -1375,6 +1388,12 @@ function partHours(sid){ // 計時／支援本月已排班總時數（已扣除�
   return h;
 }
 function fmtH(h){return (h%1===0)?String(h):h.toFixed(1)}
+function monthTotalHours(){ // 全店本月實際工時：每個人每一班扣掉休息後的時數，全部加總
+  const per=monthStaff().map(st=>({st,h:partHours(st.id)}));
+  const by={full:0,part:0,sup:0};
+  per.forEach(x=>{by[x.st.type]=(by[x.st.type]||0)+x.h});
+  return {total:per.reduce((a,x)=>a+x.h,0),by,per};
+}
 function overtimeStats(sid){ // 本月加班時數統計：國定假日出勤／月休不足時最短班別整日列為加班／連續出勤超標時數
   const st=state.staff.find(s=>s.id===sid);
   const N=daysInMonth();
@@ -1616,7 +1635,9 @@ function renderSheet(){
     h+='</tr>';
   }
   if(visible.length){
-    h+='<tr class="sum-row"><td class="name-cell sum-label">早／晚工時</td>';
+    const mt=monthTotalHours();
+    h+='<tr class="sum-row"><td class="name-cell sum-label" id="monthTotalCell" title="全店本月實際工時（每班已扣休息），點一下看細項">'+
+       '<span class="mtot">月總 '+fmtH(mt.total)+'h</span>早／晚工時</td>';
     for(let d=1;d<=N;d++){
       const sp=dailySplitHours(d);
       h+='<td class="day-cell sum-cell" data-day="'+d+'">'+
@@ -1750,6 +1771,7 @@ document.getElementById('sheet').addEventListener('click',ev=>{
   }
   const otBtn=ev.target.closest('.ot-btn');
   if(otBtn&&otBtn.dataset.ot){openOT(otBtn.dataset.ot);return}
+  if(ev.target.closest('#monthTotalCell')){openMonthTotal();return} // 唯讀也能看總工時
   if(!editMode)return;
   const td=ev.target.closest('td.day-cell');
   if(td&&td.dataset.sid){openCell(td.dataset.sid,parseInt(td.dataset.day));return}
@@ -3020,6 +3042,25 @@ function openCoverageDay(d){ // 點擊表頭驚嘆號時顯示該日覆蓋不足
   document.getElementById('ovCoverage').classList.add('show');
 }
 document.getElementById('btnCloseCoverage').addEventListener('click',()=>document.getElementById('ovCoverage').classList.remove('show'));
+function openMonthTotal(){ // 全店本月工時細項，按人員類型分組
+  const mt=monthTotalHours();
+  document.getElementById('totSub').textContent=state.y+'年'+state.m+'月　每班已扣掉休息時間';
+  let html='<div style="text-align:center;padding:6px 0 12px">'+
+    '<div style="font-size:12px;color:#888">全店實際總工時</div>'+
+    '<div style="font-size:26px;font-weight:700;color:var(--blue)">'+fmtH(mt.total)+' 小時</div></div>';
+  ['full','part','sup'].forEach(t=>{
+    const list=mt.per.filter(x=>x.st.type===t);
+    if(!list.length)return;
+    html+='<div style="margin-top:10px;font-weight:700;font-size:13px;color:#555;border-bottom:1px solid #e3ded0;padding-bottom:3px">'+
+          TYPE_LABEL[t]+'　<span style="float:right;color:var(--blue)">'+fmtH(mt.by[t])+'h</span></div>';
+    html+=list.map(x=>'<div style="display:flex;justify-content:space-between;padding:3px 2px;border-bottom:1px dotted #eee">'+
+      '<span>'+esc(x.st.name)+'</span><span style="font-weight:700">'+fmtH(x.h)+'h</span></div>').join('');
+  });
+  if(!mt.per.length)html+='<div style="color:#999;text-align:center">本月尚無人員</div>';
+  document.getElementById('totBody').innerHTML=html;
+  document.getElementById('ovTotal').classList.add('show');
+}
+document.getElementById('btnCloseTotal').addEventListener('click',()=>document.getElementById('ovTotal').classList.remove('show'));
 document.getElementById('btnColorPdf').addEventListener('click',()=>{
   document.getElementById('ovExportChoice').classList.remove('show');
   const ySel=['cpFromY','cpToY'],mSel=['cpFromM','cpToM'];
