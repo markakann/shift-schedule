@@ -298,6 +298,11 @@ body.editing thead tr:nth-child(2) th:not(.corner){cursor:pointer}
 .lv-wdrow .lv-bt{padding:5px 0;text-align:center;min-width:0}
 .lv-wdrow #btnLvApplyWd{padding:5px 14px}
 .lv-bt.on{background:#7d3f7d;border-color:#7d3f7d;color:#fff}
+/* 臨時劃假：標題與選中的筆刷都改橘色，一進來就知道現在劃的會列候補 */
+#lvModal.late-mode .m-title{color:#c26a00}
+#lvModal.late-mode .lv-bt.on{background:#c26a00;border-color:#c26a00}
+.lv-mnote{font-size:12px;font-weight:700;color:#8a6a3a;background:#f7f1e4;border-radius:5px;padding:5px 8px;margin-top:8px}
+.lv-nat{font-size:8px;font-weight:700;color:var(--red);margin-left:1px;vertical-align:top}
 .lv-range{display:flex;align-items:center;gap:6px;margin-bottom:6px}
 .lv-range .txt{flex:1;min-width:0}
 .lv-range span{color:#888;font-weight:700}
@@ -327,6 +332,12 @@ body.editing thead tr:nth-child(2) th:not(.corner){cursor:pointer}
 .lv-none{color:#999;font-size:13px;text-align:center;padding:14px 0}
 .lv-note-in{width:100%}
 .lv-note-line{font-size:12px;color:#6b5a2a;background:#fbf6e8;border-radius:4px;padding:3px 6px;margin-top:5px}
+/* 後台選單：一項一顆按鈕，右邊帶目前設定摘要 */
+.cfg-menu{display:flex;flex-direction:column;gap:8px}
+.cfg-item{display:flex;align-items:center;justify-content:space-between;gap:10px;text-align:left;width:100%}
+.cfg-item::after{content:'›';color:#aaa;font-size:20px;line-height:1;margin-left:2px}
+.cfg-item small{font-weight:600;font-size:11px;color:#999;margin-left:auto;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%}
+.cfg-item small.on{color:var(--blue)}
 .cfg-row{display:flex;align-items:center;gap:8px;font-size:14px;margin-top:8px}
 .cfg-row input[type=checkbox]{width:20px;height:20px;flex-shrink:0}
 .cfg-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
@@ -625,8 +636,8 @@ body.print-sizing .name-sub{margin-top:0}
 
 <!-- 劃假 -->
 <div class="overlay" id="ovLeave">
-  <div class="modal" style="max-width:460px">
-    <div class="m-title">劃假</div>
+  <div class="modal" style="max-width:460px" id="lvModal">
+    <div class="m-title" id="lvTitle">劃假</div>
     <div class="m-sub" id="lvSub"></div>
     <div class="lv-tabs">
       <button class="lv-tab" data-lvtab="mine">我要劃假</button>
@@ -791,7 +802,7 @@ body.print-sizing .name-sub{margin-top:0}
   </div>
 </div>
 
-<!-- 後台設定 -->
+<!-- 後台設定（選單） -->
 <div class="overlay" id="ovAdmin">
   <div class="modal">
     <div class="m-title">後台設定</div>
@@ -806,26 +817,65 @@ body.print-sizing .name-sub{margin-top:0}
     <div class="small-note" id="cfgTargetMsg" style="margin-top:4px"></div>
 
     <div class="hr"></div>
+    <div class="cfg-menu">
+      <button class="btn cfg-item" data-cfgpanel="ovCfgShifts"><span>班段</span><small id="sumShifts"></small></button>
+      <button class="btn cfg-item" data-cfgpanel="ovCfgRules"><span>覆蓋檢查規則</span><small id="sumRules"></small></button>
+      <button class="btn cfg-item" data-cfgpanel="ovCfgWarn"><span>時段提醒</span><small id="sumWarn"></small></button>
+      <button class="btn cfg-item" data-cfgpanel="ovCfgLeave"><span>劃假</span><small id="sumLeave"></small></button>
+      <button class="btn cfg-item" id="btnOpenCalUrl"><span>行事曆來源網址</span><small>非必要請勿更動</small></button>
+    </div>
+
+    <div class="m-actions" style="flex-direction:column">
+      <button class="btn primary" id="btnAdminSave">儲存設定</button>
+      <button class="btn" id="btnAdminMgrCodes">管理店家代碼</button>
+      <button class="btn" id="btnAdminReset">全部回復預設值</button>
+      <button class="btn" id="btnCloseAdmin">關閉</button>
+    </div>
+  </div>
+</div>
+
+<!-- 後台：班段 -->
+<div class="overlay" id="ovCfgShifts">
+  <div class="modal">
+    <div class="m-title">班段</div>
+    <div class="m-sub">點選班別時會出現的時段選單。</div>
     <div class="sec-label">正職班段（每行一組，例如 9:00-17:30）</div>
-    <textarea class="txt" id="cfgPresetsCommon" style="height:120px;font-family:monospace"></textarea>
-
+    <textarea class="txt" id="cfgPresetsCommon" style="height:150px;font-family:monospace"></textarea>
     <div class="sec-label">計時／支援加開班段</div>
-    <textarea class="txt" id="cfgPresetsPart" style="height:100px;font-family:monospace"></textarea>
+    <textarea class="txt" id="cfgPresetsPart" style="height:130px;font-family:monospace"></textarea>
+    <div class="m-actions"><button class="btn primary cfg-back">完成</button></div>
+  </div>
+</div>
 
-    <div class="hr"></div>
-    <div class="sec-label">覆蓋檢查規則</div>
+<!-- 後台：覆蓋檢查規則 -->
+<div class="overlay" id="ovCfgRules">
+  <div class="modal">
+    <div class="m-title">覆蓋檢查規則</div>
+    <div class="m-sub">不符合就在表頭出現紅色驚嘆號。</div>
     <div class="small-note">關閉的規則不會檢查。時間可填多個，逗號或頓號都可以（存檔後統一顯示成頓號）。</div>
     <div id="cfgRuleList"></div>
     <button class="btn" id="btnAddRule" style="width:100%;margin-top:8px">＋ 新增規則</button>
+    <div class="m-actions"><button class="btn primary cfg-back">完成</button></div>
+  </div>
+</div>
 
-    <div class="hr"></div>
-    <div class="sec-label">時段提醒</div>
-    <div class="small-note">排班時出現這些時間就用粉色標示，提醒可能排錯。只是提醒，不影響驚嘆號。時間可填多個，逗號或頓號都可以。</div>
+<!-- 後台：時段提醒 -->
+<div class="overlay" id="ovCfgWarn">
+  <div class="modal">
+    <div class="m-title">時段提醒</div>
+    <div class="m-sub">只是提醒，不影響驚嘆號。</div>
+    <div class="small-note">排班時出現這些時間就用粉色標示，提醒可能排錯。時間可填多個，逗號或頓號都可以。</div>
     <div id="cfgWarnList"></div>
     <button class="btn" id="btnAddWarnRule" style="width:100%;margin-top:8px">＋ 新增提醒</button>
+    <div class="m-actions"><button class="btn primary cfg-back">完成</button></div>
+  </div>
+</div>
 
-    <div class="hr"></div>
-    <div class="sec-label">劃假</div>
+<!-- 後台：劃假 -->
+<div class="overlay" id="ovCfgLeave">
+  <div class="modal">
+    <div class="m-title">劃假</div>
+    <div class="m-sub">開放夥伴自己劃不能上班的日子。</div>
     <div class="small-note">開放期間內夥伴可自由劃假；超過截止日後，依下方設定決定是否還能臨時劃假（會標成候補讓你知道）。</div>
     <label class="cfg-row"><input type="checkbox" id="cfgLeaveOn"><span>開放夥伴劃假</span></label>
     <div id="cfgLeaveBox" style="display:none">
@@ -837,14 +887,7 @@ body.print-sizing .name-sub{margin-top:0}
       <label class="cfg-row"><input type="checkbox" id="cfgLeaveLate"><span>截止後仍可臨時劃假（列為候補）</span></label>
       <div class="small-note" id="cfgLeaveHint" style="margin-top:4px"></div>
     </div>
-
-    <div class="m-actions" style="flex-direction:column">
-      <button class="btn primary" id="btnAdminSave">儲存設定</button>
-      <button class="btn" id="btnAdminMgrCodes">管理店家代碼</button>
-      <button class="btn" id="btnOpenCalUrl">行事曆來源網址</button>
-      <button class="btn" id="btnAdminReset">全部回復預設值</button>
-      <button class="btn" id="btnCloseAdmin">關閉</button>
-    </div>
+    <div class="m-actions"><button class="btn primary cfg-back">完成</button></div>
   </div>
 </div>
 
@@ -1881,6 +1924,19 @@ function summarizeLeave(ym,obj){
   });
   return out;
 }
+function withMonth(ym,fn){ // 暫時把 state 切到目標月份算東西，算完立刻還原
+  const {y,m}=parseYm(ym);
+  const oy=state.y,om=state.m;
+  state.y=y;state.m=m;
+  try{return fn()}finally{state.y=oy;state.m=om}
+}
+function monthInfo(ym){ // 劃假目標月的月休額度與國定假日
+  return withMonth(ym,()=>{
+    const nat=[];
+    for(let d=1;d<=daysInMonth();d++)if(isNational(d))nat.push(d);
+    return {m:state.m,quota:quota(),nat,natName:d=>holidayName(d)};
+  });
+}
 function compressDays(days){ // 3,4,5,18,20 → 3～5、18、20
   const parts=[];let i=0;
   while(i<days.length){
@@ -1896,7 +1952,7 @@ function compressDays(days){ // 3,4,5,18,20 → 3～5、18、20
 let lvTab='mine';            // mine=自己劃　all=全員總覽
 let lvWho=null;              // 目前選到的人員 id
 let lvDraft=null;            // 編輯中的劃假內容（按送出才寫雲端）
-let lvBrush={m:'all',t:1080,t2:1020};// 目前的筆刷：點日期要套用什麼（only 模式用 t～t2）
+let lvBrush={m:'all',t:540,t2:1320};// 目前的筆刷：點日期要套用什麼（only 模式用 t～t2）
 function lvCanEdit(){ // 現在能不能改；回傳 {ok, late, msg}
   if(!FB||!leaveDocCode())return {ok:false,msg:'劃假需要連上雲端（本機模式或尚未設定檢視代碼時無法使用）。'};
   const w=leaveWindow();
@@ -1909,7 +1965,7 @@ function lvCanEdit(){ // 現在能不能改；回傳 {ok, late, msg}
 function openLeave(){
   lvTab=viewerMode?'mine':'all'; // 檢視代碼只有「我要劃假」，看不到別人劃了什麼
   lvWho=null;lvDraft=null;
-  lvBrush={m:'all',t:1080,t2:1020};
+  lvBrush={m:'all',t:540,t2:1320};
   renderLeaveBody();
   document.getElementById('ovLeave').classList.add('show');
 }
@@ -1917,6 +1973,9 @@ function renderLeaveBody(){
   const w=leaveWindow(),ce=lvCanEdit();
   const ym=w.L&&w.L.ym?w.L.ym:ymOf(state.y,state.m);
   const p=parseYm(ym);
+  const lateMode=!!ce.late;
+  document.getElementById('lvModal').classList.toggle('late-mode',lateMode);
+  document.getElementById('lvTitle').textContent=lateMode?'臨時劃假':'劃假';
   document.getElementById('lvSub').innerHTML=
     (w.state==='off'?'尚未開放劃假（可在後台設定開放期間）'
      :'劃 '+p.m+' 月的假　·　'+esc(ce.msg));
@@ -1949,11 +2008,22 @@ function lvMineHtml(ym,ce){
   h+='<div class="sec-label">整批套用到星期（規律的班用這個最快）</div><div class="lv-wdrow" id="lvWdRow">'+
      [0,1,2,3,4,5,6].map(i=>'<button class="lv-bt" data-lvwd="'+i+'">'+WD[i]+'</button>').join('')+
      '<button class="lv-bt" id="btnLvApplyWd" style="border-color:var(--blue);color:var(--blue)">套用</button></div>';
+  h+=lvMonthNote(ym);
   h+=lvCalHtml(ym,lvDraft,false);
   h+='<div class="sec-label">補充說明（選填）</div>'+
      '<div class="small-note" style="margin-bottom:4px">日曆寫不下的事，例如「真的缺人可以支援」「可以上但要提早走」。</div>'+
      '<input class="txt lv-note-in" id="lvNote" placeholder="例如：缺人的話這天可以支援" value="'+esc((lvDraft&&lvDraft.note)||'')+'">';
   return h;
+}
+function lvMonthNote(ym){ // 行事曆上方提示：正職看月休額度，計時／支援只看國定假日
+  const st=state.staff.find(x=>x.id===lvWho);
+  if(!st)return '';
+  const info=monthInfo(ym);
+  let t=info.m+'月　';
+  if(st.type==='full')t+='月休 '+info.quota+' 天　國定假日 '+info.nat.length+' 天';
+  else t+='國定假日 '+info.nat.length+' 天';
+  if(info.nat.length)t+='（'+info.nat.map(d=>info.m+'/'+d).join('、')+'）';
+  return '<div class="lv-mnote">'+esc(t)+'</div>';
 }
 function lvBtn(m,label){
   return '<button class="lv-bt'+(lvBrush.m===m?' on':'')+'" data-lvbrush="'+m+'">'+label+'</button>';
@@ -1962,6 +2032,7 @@ function lvCalHtml(ym,obj,locked){ // 目標月份的日曆
   const {y,m}=parseYm(ym);
   const N=new Date(y,m,0).getDate();
   const first=new Date(y,m-1,1).getDay();
+  const natMap=withMonth(ym,()=>{const o={};for(let d=1;d<=N;d++)if(isNational(d))o[d]=holidayName(d);return o});
   let h='<div class="lv-cal">'+WD.map((w,i)=>'<div class="lv-wd'+(i===0||i===6?' red':'')+'">'+w+'</div>').join('');
   for(let i=0;i<first;i++)h+='<div class="lv-d pad"></div>';
   for(let d=1;d<=N;d++){
@@ -1969,13 +2040,16 @@ function lvCalHtml(ym,obj,locked){ // 目標月份的日曆
     let cls='lv-d';
     const wd=new Date(y,m-1,d).getDay();
     if(wd===0||wd===6)cls+=' red-day';
+    const natName=natMap[d];
+    if(natName)cls+=' red-day';
     if(x){
       // 檢視代碼照各自的模式配色；店家代碼把臨時劃假統一成橘色，一眼看出哪些是後來才加的
       cls+=(x.late&&!viewerMode)?' m-late':(x.m==='all'?' m-all':x.m==='only'?' m-only':' m-part');
     }
     if(x&&x.late)cls+=' late';
     if(locked)cls+=' locked';
-    h+='<div class="'+cls+'" data-lvday="'+d+'">'+d+
+    h+='<div class="'+cls+'" data-lvday="'+d+'" title="'+esc(natName||'')+'">'+d+
+       (natName?'<span class="lv-nat">國</span>':'')+
        (x?'<span class="lv-tag">'+(x.m==='all'?'整天':x.m==='only'?(fmtDec(x.t)+'~'+fmtDec(x.t2)):(fmtHM(x.t)+(x.m==='after'?'後':'前')))+'</span>':'')+
        '</div>';
   }
@@ -2948,6 +3022,8 @@ function fillCfgFields(c){
   cfgWarnRules=(c.warnRules||[]).map(r=>Object.assign({},r,{days:(r.days||[]).slice(),times:(r.times||[]).slice()}));
   renderWarnEditor();
   fillLeaveCfg(c.leave||DEFAULT_LEAVE);
+  renderCfgSummary();
+  markCfgSaved();
 }
 function leaveYmOptions(sel){ // 可選月份：從這個月起往後 12 個月
   const now=new Date();
@@ -3040,7 +3116,48 @@ document.getElementById('btnCfgLoadOther').addEventListener('click',()=>{
   if(!code){alert('請輸入要載入的店家代碼。');return}
   loadCfgTarget(code);
 });
-document.getElementById('btnCloseAdmin').addEventListener('click',()=>document.getElementById('ovAdmin').classList.remove('show'));
+/* 子面板：疊在選單上開，關掉就回到選單；每次回來重算摘要 */
+document.querySelectorAll('[data-cfgpanel]').forEach(b=>b.addEventListener('click',()=>{
+  document.getElementById(b.dataset.cfgpanel).classList.add('show');
+}));
+document.querySelectorAll('.cfg-back').forEach(b=>b.addEventListener('click',()=>{
+  b.closest('.overlay').classList.remove('show');
+  renderCfgSummary();
+}));
+document.querySelectorAll('#ovCfgShifts,#ovCfgRules,#ovCfgWarn,#ovCfgLeave').forEach(ov=>{
+  new MutationObserver(()=>{if(!ov.classList.contains('show'))renderCfgSummary()})
+    .observe(ov,{attributes:true,attributeFilter:['class']}); // 返回鍵關掉時摘要也要更新
+});
+function renderCfgSummary(){ // 選單上每一項右邊顯示目前設定，不用點進去才知道
+  const put=(id,txt,on)=>{const el=document.getElementById(id);if(!el)return;el.textContent=txt;el.classList.toggle('on',!!on)};
+  const common=parsePairList(document.getElementById('cfgPresetsCommon').value).length;
+  const part=parsePairList(document.getElementById('cfgPresetsPart').value).length;
+  put('sumShifts','正職 '+common+'．計時 '+part);
+  const rOn=cfgRules.filter(r=>r.on).length;
+  put('sumRules',rOn?('啟用 '+rOn+'／'+cfgRules.length):(cfgRules.length?'全部關閉':'未設定'),rOn);
+  const wOn=cfgWarnRules.filter(r=>r.on).length;
+  put('sumWarn',wOn?('啟用 '+wOn+'／'+cfgWarnRules.length):(cfgWarnRules.length?'全部關閉':'未設定'),wOn);
+  const L=leaveFromFields();
+  put('sumLeave',!L.on?'未開放':(L.ym?(parseYm(L.ym).m+'月　'+(fmtMd(L.from)||'?')+'–'+(fmtMd(L.to)||'?')):'開放中'),L.on);
+}
+document.getElementById('btnCloseAdmin').addEventListener('click',()=>{
+  if(cfgDirty()&&!confirm('有尚未儲存的變更，直接關閉會全部放棄。確定要關閉嗎？'))return;
+  document.getElementById('ovAdmin').classList.remove('show');
+});
+let cfgSavedSnapshot=''; // 載入當下的設定，用來判斷有沒有改過
+function cfgSnapshot(){
+  try{return JSON.stringify({
+    c:parsePairList(document.getElementById('cfgPresetsCommon').value),
+    p:parsePairList(document.getElementById('cfgPresetsPart').value),
+    u:cfgCalUrlValue,r:cfgRules,w:cfgWarnRules,l:leaveFromFields()})}catch(e){return ''}
+}
+function cfgDirty(){return cfgSavedSnapshot&&cfgSnapshot()!==cfgSavedSnapshot}
+function markCfgSaved(){cfgSavedSnapshot=cfgSnapshot();syncCfgSaveBtn()}
+function syncCfgSaveBtn(){
+  const b=document.getElementById('btnAdminSave');
+  if(b)b.textContent=cfgDirty()?'儲存設定 ●':'儲存設定';
+}
+setInterval(()=>{if(document.getElementById('ovAdmin').classList.contains('show'))syncCfgSaveBtn()},600);
 document.getElementById('btnAdminMgrCodes').addEventListener('click',()=>{
   document.getElementById('ovAdmin').classList.remove('show');
   openMgrPanel();
@@ -3104,7 +3221,10 @@ async function saveCfgToTarget(newCfg){ // 寫入目前選定的代碼：自己�
 document.getElementById('btnAdminSave').addEventListener('click',async()=>{
   const newCfg=collectCfgFromFields();
   if(!newCfg)return;
-  if(await saveCfgToTarget(newCfg))document.getElementById('ovAdmin').classList.remove('show');
+  if(await saveCfgToTarget(newCfg)){
+    markCfgSaved();
+    document.getElementById('ovAdmin').classList.remove('show');
+  }
 });
 document.getElementById('btnAdminReset').addEventListener('click',async()=>{
   if(!confirm('把「'+(cfgTargetCode||storeCode)+'」的後台設定回復成預設值？'))return;
