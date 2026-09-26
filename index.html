@@ -274,25 +274,30 @@ body.editing thead tr:nth-child(2) th:not(.corner){cursor:pointer}
   border-radius:6px;padding:7px 10px;font-size:13px;font-weight:600;
   margin:0 0 10px;border:1.5px solid #c9a3e0;background:#f6effb;color:#6b3a8a;
 }
-.lv-warn.late{border-color:#ff9933;background:#fff0dd;color:#8a4a00}
+.lv-warn.late{border-color:#e0a05a;background:#fff4e6;color:#a85c07}
 /* 班表上的劃假提示（排班用，檢視代碼看不到別人劃了哪天） */
 .viewer-boot .day-cell.lv-all,.viewer-boot .day-cell.lv-only,
 .viewer-boot .day-cell.lv-part,.viewer-boot .day-cell.lv-late{background-color:transparent!important}
 .viewer-boot .lv-cell-tag{display:none!important}
 .viewer-boot .day-cell.lv-clash{box-shadow:none!important}
-.day-cell.lv-all {background-color:#66ccff}
-.day-cell.lv-only{background-color:#99ff99}
-.day-cell.lv-part{background-color:#ffccff}
-.day-cell.lv-late{background-color:#ff9933}
+.day-cell.lv-all {background-color:#dceffa;--lvink:#245f80}
+.day-cell.lv-only{background-color:#dcf3da;--lvink:#2b6b30}
+.day-cell.lv-part{background-color:#f7e3f7;--lvink:#7d3f7d}
+.day-cell.lv-late{background-color:#ffe3c2;--lvink:#a85c07}
 .day-cell.lv-clash{box-shadow:inset 0 0 0 2px var(--red)}
-.lv-cell-tag{position:absolute;top:0;left:1px;font-size:8px;font-weight:700;color:#234;line-height:1.2;z-index:1}
+.lv-cell-tag{position:absolute;top:0;left:1px;font-size:8px;font-weight:700;color:var(--lvink,#555);line-height:1.2;z-index:1}
 .lv-cell-tag.bad{color:var(--red);font-size:12px;left:2px}
 .lv-tabs{display:flex;gap:6px;margin:8px 0 10px}
 .lv-tab{flex:1;border:1.5px solid var(--grid);background:var(--paper);border-radius:6px;padding:7px 0;font-size:14px;font-weight:600;cursor:pointer}
 .lv-tab.on{background:var(--blue);border-color:var(--blue);color:#fff}
 .lv-brush{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px}
+.lv-brush .lv-bt{flex:1 1 auto;min-width:0} /* 每一行都撐滿，左右跟星期列、日曆切齊 */
 .lv-bt{border:1.5px solid var(--grid);background:var(--paper);border-radius:6px;padding:5px 9px;font-size:13px;font-weight:600;cursor:pointer}
-.lv-bt.on{background:#8a4fb0;border-color:#8a4fb0;color:#fff}
+/* 星期列撐滿整行，左右跟上面的筆刷列切齊 */
+.lv-wdrow{display:grid;grid-template-columns:repeat(7,1fr) auto;gap:5px;margin-bottom:6px}
+.lv-wdrow .lv-bt{padding:5px 0;text-align:center;min-width:0}
+.lv-wdrow #btnLvApplyWd{padding:5px 14px}
+.lv-bt.on{background:#7d3f7d;border-color:#7d3f7d;color:#fff}
 .lv-range{display:flex;align-items:center;gap:6px;margin-bottom:6px}
 .lv-range .txt{flex:1;min-width:0}
 .lv-range span{color:#888;font-weight:700}
@@ -306,18 +311,19 @@ body.editing thead tr:nth-child(2) th:not(.corner){cursor:pointer}
 }
 .lv-d.pad{border:none;background:transparent;cursor:default}
 .lv-d.red-day{color:var(--red)}
-/* 劃假配色：整天=藍、只能上這段=綠、之前／之後=粉；店家代碼看臨時劃假一律橘 */
-.lv-d.m-all {background:#66ccff;border-color:#3399cc}
-.lv-d.m-only{background:#99ff99;border-color:#55cc55}
-.lv-d.m-part{background:#ffccff;border-color:#cc77cc}
-.lv-d.m-late{background:#ff9933;border-color:#cc6d10}
-.lv-d .lv-tag{font-size:9px;font-weight:700;color:#333;margin-top:auto}
-.lv-d.late::after{content:'臨';position:absolute;top:1px;right:2px;font-size:8px;color:#333;font-weight:700}
+/* 劃假配色：整天=藍、只能上這段=綠、之前／之後=粉；店家代碼看臨時劃假一律橘
+   底色壓到跟其他假別同一個亮度，靠同色系的深色字去分辨，才不會蓋掉紙本的味道 */
+.lv-d.m-all {background:#dceffa;border-color:#8fc0d8;--lvink:#245f80}
+.lv-d.m-only{background:#dcf3da;border-color:#8cc487;--lvink:#2b6b30}
+.lv-d.m-part{background:#f7e3f7;border-color:#c79bc7;--lvink:#7d3f7d}
+.lv-d.m-late{background:#ffe3c2;border-color:#e0a05a;--lvink:#a85c07}
+.lv-d .lv-tag{font-size:9px;font-weight:700;color:var(--lvink,#555);margin-top:auto}
+.lv-d.late::after{content:'臨';position:absolute;top:1px;right:2px;font-size:8px;color:var(--lvink,#555);font-weight:700}
 .lv-d.locked{opacity:.55;cursor:not-allowed}
 .lv-sum{border:1px solid #e3ded0;border-radius:6px;padding:8px 10px;margin-top:8px;background:#fcfaf3}
 .lv-sum .who{font-weight:700;color:var(--blue);font-size:14px}
 .lv-line{font-size:13px;margin-top:3px;display:flex;gap:6px;align-items:center}
-.lv-late-tag{font-size:10px;font-weight:700;color:#4a2800;background:#ff9933;border-radius:3px;padding:1px 4px;flex-shrink:0}
+.lv-late-tag{font-size:10px;font-weight:700;color:#a85c07;background:#ffe3c2;border:1px solid #e0a05a;border-radius:3px;padding:0 4px;flex-shrink:0}
 .lv-none{color:#999;font-size:13px;text-align:center;padding:14px 0}
 .lv-note-in{width:100%}
 .lv-note-line{font-size:12px;color:#6b5a2a;background:#fbf6e8;border-radius:4px;padding:3px 6px;margin-top:5px}
@@ -1940,7 +1946,7 @@ function lvMineHtml(ym,ce){
          '<input class="txt" type="time" id="lvBrushTime2" step="1800" value="'+fmtHHMM(lvBrush.t2)+'"></div>'
        : '')+
      '</div>';
-  h+='<div class="sec-label">整批套用到星期（規律的班用這個最快）</div><div class="lv-brush" id="lvWdRow">'+
+  h+='<div class="sec-label">整批套用到星期（規律的班用這個最快）</div><div class="lv-wdrow" id="lvWdRow">'+
      [0,1,2,3,4,5,6].map(i=>'<button class="lv-bt" data-lvwd="'+i+'">'+WD[i]+'</button>').join('')+
      '<button class="lv-bt" id="btnLvApplyWd" style="border-color:var(--blue);color:var(--blue)">套用</button></div>';
   h+=lvCalHtml(ym,lvDraft,false);
@@ -1985,7 +1991,7 @@ function lvAllHtml(ym){ // 全員總覽，臨時劃的另外標
   const p=parseYm(ym);
   let h='';
   const lateAll=rows.filter(x=>Object.keys(x.o.days).some(d=>x.o.days[d].late));
-  if(lateAll.length)h+='<div class="small-note" style="color:#b35c00;font-weight:700;margin-bottom:6px">⚑ 有 '+lateAll.length+
+  if(lateAll.length)h+='<div class="small-note" style="color:#a85c07;font-weight:700;margin-bottom:6px">⚑ 有 '+lateAll.length+
      ' 位夥伴在截止後才劃假，下方標「臨時」的日期請當候補處理。</div>';
   if(!rows.length)return h+'<div class="lv-none">'+p.m+' 月目前沒有人劃假。</div>';
   rows.forEach(({st,o})=>{
