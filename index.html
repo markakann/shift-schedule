@@ -303,6 +303,7 @@ body.editing thead tr:nth-child(2) th:not(.corner){cursor:pointer}
 #lvModal.late-mode .lv-bt.on{background:#c26a00;border-color:#c26a00}
 .lv-mnote{font-size:12px;font-weight:700;color:#8a6a3a;background:#f7f1e4;border-radius:5px;padding:5px 8px;margin-top:8px}
 .lv-nat{font-size:8px;font-weight:700;color:var(--red);margin-left:1px;vertical-align:top}
+.lv-mk{display:block;font-weight:700;color:var(--red);margin-top:2px}
 .lv-range{display:flex;align-items:center;gap:6px;margin-bottom:6px}
 .lv-range .txt{flex:1;min-width:0}
 .lv-range span{color:#888;font-weight:700}
@@ -967,6 +968,7 @@ body.print-sizing .name-sub{margin-top:0}
       <span><b>颱</b> 颱風假</span>
       <span><b>─</b> 到職前／離職後</span>
       <span><b>國</b> 國定假日未排班</span>
+      <span><b>補</b> 補假未排班</span>
     </div>
     <div class="hr"></div>
     <div class="sec-label">驚嘆號提示</div>
@@ -1428,6 +1430,20 @@ function isNational(d){
   if(monthData().dayOv[d]==='black')return false;
   return !!holidayName(d);
 }
+function isMakeup(d){ // 補假：假日調移過來的那天，本身不是國定假日（計薪與月休仍比照國定假日處理）
+  const n=isNational(d)?holidayName(d):null;
+  return !!n&&/補假/.test(n);
+}
+function realNationalDays(){ // 真正的國定假日（不含補假）
+  const a=[];
+  for(let d=1;d<=daysInMonth();d++)if(isNational(d)&&!isMakeup(d))a.push(d);
+  return a;
+}
+function makeupDays(){
+  const a=[];
+  for(let d=1;d<=daysInMonth();d++)if(isMakeup(d))a.push(d);
+  return a;
+}
 function quota(){ // 月休額度＝紅字天數，扣掉「落在平日」的國定假日（國定假日另計，不佔月休；但若本來就在週六日，該天原本就是月休，不重複扣）
   let n=0;
   for(let d=1;d<=daysInMonth();d++){
@@ -1752,7 +1768,7 @@ function renderSheet(){
       const e=entryOf(st.id,d);
       let cls='day-cell',inner='';
       if(!e){
-        if(st.type==='full'&&isNational(d))inner='<span class="nat-auto">國</span>';
+        if(st.type==='full'&&isNational(d))inner='<span class="nat-auto">'+(isMakeup(d)?'補':'國')+'</span>';
       }else if(e.t==='shift'){
         cls+=' filled';
         const wd=weekday(d);
@@ -1835,7 +1851,28 @@ function leaveDocCode(){ // 劃假掛在檢視代碼底下：檢視端就是自�
 }
 function ymOf(y,m){return y+'-'+String(m).padStart(2,'0')}
 function parseYm(ym){const p=String(ym||'').split('-');return {y:+p[0],m:+p[1]}}
-function todayStr(){const t=new Date();return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0')}
+/* 開放／截止一律以雲端時間判定，手機日期設錯也不會影響。
+   做法：寫一筆伺服器時間戳回自己的劃假文件，用監聽收到的值算出與本機的差，之後都用差值換算。 */
+let srvOffset=0;          // 伺服器時間 − 本機時間（毫秒）
+let srvState='none';       // none 尚未校時／wait 等待中／ok 已校時／fail 取不到
+let clockNonce=null, clockSentAt=0;
+function nowMs(){return Date.now()+srvOffset}
+function todayStr(){const t=new Date(nowMs());return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0')}
+async function syncServerClock(){ // 每次連線只校一次
+  if(srvState==='ok'||srvState==='wait')return;
+  const code=leaveDocCode();
+  if(!FB||!code){srvState='fail';return}
+  srvState='wait';
+  clockNonce='c'+Date.now()+Math.random().toString(36).slice(2,7);
+  clockSentAt=Date.now();
+  setTimeout(()=>{if(srvState==='wait'){srvState='fail';refreshLeaveIfOpen()}},3000); // 收不到就退回本機時間
+  try{
+    await FB.setDoc(FB.doc(FB.db,'leaves',code),{clock:FB.serverTimestamp(),clockNonce},{merge:true});
+  }catch(e){srvState='fail';refreshLeaveIfOpen()}
+}
+function refreshLeaveIfOpen(){
+  if(document.getElementById('ovLeave').classList.contains('show'))renderLeaveBody();
+}
 function fmtMd(ds){const p=String(ds||'').split('-');return p.length===3?(+p[1])+'/'+(+p[2]):''}
 function leaveWindow(){ // 現在能不能劃假：off未開啟／before還沒開放／open開放中／late只剩臨時劃假／closed已截止
   const L=cfg().leave;
@@ -1876,7 +1913,7 @@ async function saveLeave(ym,sid,obj){ // 只寫自己那一格，用 merge 避�
   const st=state.staff.find(x=>x.id===sid);
   try{
     await FB.setDoc(FB.doc(FB.db,'leaves',code),
-      {[ym]:{[sid]:{name:st?st.name:'',json:JSON.stringify(obj),at:Date.now()}}},{merge:true});
+      {[ym]:{[sid]:{name:st?st.name:'',json:JSON.stringify(obj),at:nowMs()}}},{merge:true});
     return true;
   }catch(e){return false}
 }
@@ -1887,11 +1924,20 @@ function watchLeave(){ // 監聽劃假文件，夥伴一送出店長那邊就會
   if(!FB||!code)return;
   unsubLeave=FB.onSnapshot(FB.doc(FB.db,'leaves',code),snap=>{
     const d=snap.exists()?(snap.data()||{}):{};
-    delete d.updatedAt;
+    const clk=d.clock,nonce=d.clockNonce;
+    delete d.updatedAt;delete d.clock;delete d.clockNonce;
+    // 只採信自己這次寫入、且已經由伺服器確認過的時間戳
+    const pending=snap.metadata&&snap.metadata.hasPendingWrites;
+    if(clk&&clk.toMillis&&nonce&&nonce===clockNonce&&!pending){
+      const half=(Date.now()-clockSentAt)/2;   // 扣掉來回網路時間的一半
+      srvOffset=clk.toMillis()+half-Date.now();
+      srvState='ok';
+    }
     leaveData=d;
-    if(document.getElementById('ovLeave').classList.contains('show'))renderLeaveBody();
+    refreshLeaveIfOpen();
     renderSheet();
-  },()=>{});
+  },()=>{if(srvState==='wait'){srvState='fail';refreshLeaveIfOpen()}});
+  if(cfg().leave.on)syncServerClock();
 }
 /* 把劃假的日子整理成人看得懂的句子：整月同一星期的會講「每週三」，其餘壓成 3～5、18、20 */
 function summarizeLeave(ym,obj){
@@ -1930,12 +1976,8 @@ function withMonth(ym,fn){ // 暫時把 state 切到目標月份算東西，算�
   state.y=y;state.m=m;
   try{return fn()}finally{state.y=oy;state.m=om}
 }
-function monthInfo(ym){ // 劃假目標月的月休額度與國定假日
-  return withMonth(ym,()=>{
-    const nat=[];
-    for(let d=1;d<=daysInMonth();d++)if(isNational(d))nat.push(d);
-    return {m:state.m,quota:quota(),nat,natName:d=>holidayName(d)};
-  });
+function monthInfo(ym){ // 劃假目標月的月休額度、國定假日（不含補假）與補假
+  return withMonth(ym,()=>({m:state.m,quota:quota(),nat:realNationalDays(),makeup:makeupDays()}));
 }
 function compressDays(days){ // 3,4,5,18,20 → 3～5、18、20
   const parts=[];let i=0;
@@ -1955,14 +1997,17 @@ let lvDraft=null;            // 編輯中的劃假內容（按送出才寫雲端
 let lvBrush={m:'all',t:540,t2:1320};// 目前的筆刷：點日期要套用什麼（only 模式用 t～t2）
 function lvCanEdit(){ // 現在能不能改；回傳 {ok, late, msg}
   if(!FB||!leaveDocCode())return {ok:false,msg:'劃假需要連上雲端（本機模式或尚未設定檢視代碼時無法使用）。'};
+  if(srvState==='wait')return {ok:false,wait:true,msg:'正在跟雲端對時間…'};
   const w=leaveWindow();
   if(w.state==='off')return {ok:false,msg:'目前沒有開放劃假。'};
   if(w.state==='before')return {ok:false,msg:'劃假將於 '+fmtMd(w.L.from)+' 開放。'};
   if(w.state==='closed')return {ok:false,msg:'劃假已於 '+fmtMd(w.L.to)+' 截止。'};
-  if(w.state==='late')return {ok:true,late:true,msg:'已過 '+fmtMd(w.L.to)+' 截止日，現在劃的假會標成「臨時」並列為候補。'};
-  return {ok:true,late:false,msg:'開放中，'+fmtMd(w.L.to)+' 截止。'};
+  const src=srvState==='ok'?'':'（目前用本機時間判斷）';
+  if(w.state==='late')return {ok:true,late:true,msg:'已過 '+fmtMd(w.L.to)+' 截止日，現在劃的假會標成「臨時」並列為候補。'+src};
+  return {ok:true,late:false,msg:'開放中，'+fmtMd(w.L.to)+' 截止（含當天）。'+src};
 }
 function openLeave(){
+  syncServerClock(); // 還沒校時就先發一次，校到會自動重繪
   lvTab=viewerMode?'mine':'all'; // 檢視代碼只有「我要劃假」，看不到別人劃了什麼
   lvWho=null;lvDraft=null;
   lvBrush={m:'all',t:540,t2:1320};
@@ -2023,7 +2068,9 @@ function lvMonthNote(ym){ // 行事曆上方提示：正職看月休額度，計
   if(st.type==='full')t+='月休 '+info.quota+' 天　國定假日 '+info.nat.length+' 天';
   else t+='國定假日 '+info.nat.length+' 天';
   if(info.nat.length)t+='（'+info.nat.map(d=>info.m+'/'+d).join('、')+'）';
-  return '<div class="lv-mnote">'+esc(t)+'</div>';
+  let h='<div class="lv-mnote">'+esc(t);
+  if(info.makeup.length)h+='<span class="lv-mk">補假 '+esc(info.makeup.map(d=>info.m+'/'+d).join('、'))+'</span>';
+  return h+'</div>';
 }
 function lvBtn(m,label){
   return '<button class="lv-bt'+(lvBrush.m===m?' on':'')+'" data-lvbrush="'+m+'">'+label+'</button>';
@@ -2032,7 +2079,7 @@ function lvCalHtml(ym,obj,locked){ // 目標月份的日曆
   const {y,m}=parseYm(ym);
   const N=new Date(y,m,0).getDate();
   const first=new Date(y,m-1,1).getDay();
-  const natMap=withMonth(ym,()=>{const o={};for(let d=1;d<=N;d++)if(isNational(d))o[d]=holidayName(d);return o});
+  const natMap=withMonth(ym,()=>{const o={};for(let d=1;d<=N;d++)if(isNational(d))o[d]={n:holidayName(d),mk:isMakeup(d)};return o});
   let h='<div class="lv-cal">'+WD.map((w,i)=>'<div class="lv-wd'+(i===0||i===6?' red':'')+'">'+w+'</div>').join('');
   for(let i=0;i<first;i++)h+='<div class="lv-d pad"></div>';
   for(let d=1;d<=N;d++){
@@ -2040,16 +2087,16 @@ function lvCalHtml(ym,obj,locked){ // 目標月份的日曆
     let cls='lv-d';
     const wd=new Date(y,m-1,d).getDay();
     if(wd===0||wd===6)cls+=' red-day';
-    const natName=natMap[d];
-    if(natName)cls+=' red-day';
+    const nat=natMap[d];
+    if(nat)cls+=' red-day';
     if(x){
       // 檢視代碼照各自的模式配色；店家代碼把臨時劃假統一成橘色，一眼看出哪些是後來才加的
       cls+=(x.late&&!viewerMode)?' m-late':(x.m==='all'?' m-all':x.m==='only'?' m-only':' m-part');
     }
     if(x&&x.late)cls+=' late';
     if(locked)cls+=' locked';
-    h+='<div class="'+cls+'" data-lvday="'+d+'" title="'+esc(natName||'')+'">'+d+
-       (natName?'<span class="lv-nat">國</span>':'')+
+    h+='<div class="'+cls+'" data-lvday="'+d+'" title="'+esc(nat?nat.n:'')+'">'+d+
+       (nat?'<span class="lv-nat'+(nat.mk?' mk':'')+'">'+(nat.mk?'補':'國')+'</span>':'')+
        (x?'<span class="lv-tag">'+(x.m==='all'?'整天':x.m==='only'?(fmtDec(x.t)+'~'+fmtDec(x.t2)):(fmtHM(x.t)+(x.m==='after'?'後':'前')))+'</span>':'')+
        '</div>';
   }
@@ -2535,7 +2582,7 @@ function otDetailTable(sid,t){ // 逐日明細：拆開時長／扣休／實際�
   if(!t.detail||!t.detail.length)return '';
   const rows=t.detail.map(x=>{
     const tags=[];
-    if(x.nat)tags.push('國定');
+    if(x.nat)tags.push(withMonth(ymOf(state.y,state.m),()=>isMakeup(x.d))?'補假':'國定');
     if(x.otFull)tags.push('整日');
     if(x.overStreak)tags.push('連'+x.run);
     return '<tr class="'+(x.nat?'nat':(x.otFull?'otfull':''))+'">'+
@@ -3572,7 +3619,7 @@ function drawColorPage(pdf,ctx,scale,y,m){
       const e=entryOf(st.id,d);
       let fill=null,label=null,labelColor='#333';
       if(!e){
-        if(isNational(d)){fill=[250,215,220];label='國';labelColor='#c92f2f';}
+        if(isNational(d)){fill=[250,215,220];label=isMakeup(d)?'補':'國';labelColor='#c92f2f';}
       }else if(e.t==='rest'){fill=[224,224,224];label='休';}
       else if(e.t==='desig'){fill=[205,222,245];label='休';}
       else if(e.t==='annual'){fill=[250,235,180];label='特';labelColor='#8a6d00';}
