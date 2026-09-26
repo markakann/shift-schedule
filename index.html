@@ -303,9 +303,9 @@ body.editing thead tr:nth-child(2) th:not(.corner){cursor:pointer}
 #lvModal.late-mode .lv-bt.on{background:#c26a00;border-color:#c26a00}
 .lv-mnote{font-size:12px;font-weight:700;color:#8a6a3a;background:#f7f1e4;border-radius:5px;padding:5px 8px;margin-top:8px}
 .lv-nat{font-size:8px;font-weight:700;color:var(--red);margin-left:1px;vertical-align:top}
-.lv-mk{display:block;font-weight:700;color:var(--red);margin-top:2px}
+.lv-mk{display:block;font-weight:700;margin-top:2px} /* 跟著資訊列的咖啡色，日曆與班表上的「補」才維持紅色 */
 .lv-range{display:flex;align-items:center;gap:6px;margin-bottom:6px}
-.lv-range .txt{flex:1;min-width:0}
+.lv-range .txt{flex:1;min-width:0;text-align:center}
 .lv-range span{color:#888;font-weight:700}
 .lv-cal{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-top:6px}
 .lv-wd{text-align:center;font-size:11px;color:#888;font-weight:700;padding:2px 0}
@@ -2043,11 +2043,11 @@ function lvMineHtml(ym,ce){
        lvBtn('all','整天不能上')+lvBtn('only','只能上這段')+lvBtn('after','某時之後')+lvBtn('before','某時之前')+lvBtn('clear','清除')+
      '</div>'+
      (lvBrush.m==='after'||lvBrush.m==='before'
-       ? '<input class="txt" type="time" id="lvBrushTime" step="1800" value="'+fmtHHMM(lvBrush.t)+'" style="margin-bottom:6px">'
+       ? '<select class="txt" id="lvBrushTime" style="margin-bottom:6px">'+timeOptions(lvBrush.t)+'</select>'
        : '')+
      (lvBrush.m==='only'
-       ? '<div class="lv-range"><input class="txt" type="time" id="lvBrushTime" step="1800" value="'+fmtHHMM(lvBrush.t)+'"><span>～</span>'+
-         '<input class="txt" type="time" id="lvBrushTime2" step="1800" value="'+fmtHHMM(lvBrush.t2)+'"></div>'
+       ? '<div class="lv-range"><select class="txt" id="lvBrushTime">'+timeOptions(lvBrush.t)+'</select><span>～</span>'+
+         '<select class="txt" id="lvBrushTime2">'+timeOptions(lvBrush.t2)+'</select></div>'
        : '')+
      '</div>';
   h+='<div class="sec-label">整批套用到星期（規律的班用這個最快）</div><div class="lv-wdrow" id="lvWdRow">'+
@@ -2071,6 +2071,11 @@ function lvMonthNote(ym){ // 行事曆上方提示：正職看月休額度，計
   let h='<div class="lv-mnote">'+esc(t);
   if(info.makeup.length)h+='<span class="lv-mk">補假 '+esc(info.makeup.map(d=>info.m+'/'+d).join('、'))+'</span>';
   return h+'</div>';
+}
+function timeOptions(sel){ // 自己做選單，不用 type="time"：平板上的原生選擇器沒有確定鈕，而且會跟著系統變成 12 小時制
+  let h='';
+  for(let v=0;v<=1440;v+=30)h+='<option value="'+v+'"'+(v===sel?' selected':'')+'>'+fmtHHMM(v)+'</option>';
+  return h;
 }
 function lvBtn(m,label){
   return '<button class="lv-bt'+(lvBrush.m===m?' on':'')+'" data-lvbrush="'+m+'">'+label+'</button>';
@@ -2137,8 +2142,7 @@ document.getElementById('lvBody').addEventListener('change',ev=>{
     lvDraft=o?JSON.parse(JSON.stringify(o)):{days:{},note:''};
     renderLeaveBody();
   }else if(ev.target.id==='lvBrushTime'||ev.target.id==='lvBrushTime2'){
-    const p=ev.target.value.split(':');
-    const v=(+p[0])*60+(+p[1]||0);
+    const v=parseInt(ev.target.value,10)||0;
     if(ev.target.id==='lvBrushTime')lvBrush.t=v;else lvBrush.t2=v;
   }else if(ev.target.id==='lvNote'&&lvDraft){
     lvDraft.note=ev.target.value;
