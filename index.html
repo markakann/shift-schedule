@@ -218,7 +218,10 @@ body.editing .day-cell:active{background-color:#fdf3d8}
 .mark.word{font-size:17px}
 .mark.green{color:#2a8a4a}
 .mark.purple{color:#8a4fb0}
-.mark.injury-mark{font-size:11px}
+.mark.injury-mark{ /* 只包住文字本身，才能跟上下班時間、驚嘆號共存 */
+  inset:auto;left:50%;top:50%;transform:translate(-50%,-50%);
+  display:block;font-size:10px;line-height:1;white-space:nowrap;
+}
 body.print-sizing .mark.injury-mark{font-size:calc(7.5px*var(--printScale))}
 .brk-tag{position:absolute;top:0;right:2px;font-size:8px;color:#1e4bb8;font-weight:700;line-height:1.1}
 body.print-sizing .brk-tag{font-size:calc(5.5px*var(--printScale))}
@@ -287,7 +290,8 @@ body.editing thead tr:nth-child(2) th:not(.corner){cursor:pointer}
 .day-cell.lv-late{background-color:#ffe3c2;--lvink:#a85c07}
 .day-cell.lv-clash{box-shadow:inset 0 0 0 2px var(--red)}
 .lv-cell-tag{position:absolute;top:0;left:1px;font-size:8px;font-weight:700;color:var(--lvink,#555);line-height:1.2;z-index:1}
-.lv-cell-tag.bad{color:var(--red);font-size:12px;left:2px}
+.lv-cell-tag.bad{color:var(--red);font-size:12px;top:auto;bottom:0;left:2px} /* 放左下：上班時間在左上、下班在右下、休息標記在右上，左下本來就空著，誰都不用讓 */
+.day-cell.lv-clash .prev-value{left:13px} /* 剛改過的舊值往右挪一點，避開驚嘆號 */
 .lv-tabs{display:flex;gap:6px;margin:8px 0 10px}
 .lv-tab{flex:1;border:1.5px solid var(--grid);background:var(--paper);border-radius:6px;padding:7px 0;font-size:14px;font-weight:600;cursor:pointer}
 .lv-tab.on{background:var(--blue);border-color:var(--blue);color:#fff}
@@ -1045,8 +1049,13 @@ body.print-sizing .name-sub{margin-top:0}
         <span><i class="lgc" style="background:#dcf3da"></i>只能上這段</span>
         <span><i class="lgc" style="background:#f7e3f7"></i>之前／之後</span>
         <span><i class="lgc" style="background:#ffe3c2"></i>臨時（候補）</span>
-        <span><b style="color:var(--red)">紅框</b> 排的班撞到劃假</span>
       </div>
+    </div>
+    <div class="sec-label" style="margin-top:8px">格子的框線</div>
+    <div class="legend">
+      <span><i class="lgc" style="border:2px dashed #0d94a6;background:#d9f2f7"></i>標示中</span>
+      <span><i class="lgc" style="border:2px solid #0d94a6"></i>跳轉時閃爍</span>
+      <span class="edit-only"><i class="lgc" style="border:2px solid var(--red)"></i>排的班撞到劃假</span>
     </div>
     <div class="hr"></div>
     <div class="sec-label">驚嘆號提示</div>
@@ -1080,7 +1089,7 @@ body.print-sizing .name-sub{margin-top:0}
       <li>點姓名右上角的「⋯」看該員本月明細。</li>
       <li>明細裡的日期可直接點，會跳到那一格並閃爍。</li>
       <li>按「全部標示」一次框出該類的所有日子，再按一次取消。</li>
-      <li>標示是<b style="color:#0a6f7d">青色虛線框</b>，跳轉時是<b style="color:#0a6f7d">青色實線框</b>閃三下；<b style="color:var(--red)">紅色實線框</b>只代表排到人家劃假的時段。</li>
+      <li>標示是青色<b>虛線</b>框、跳轉閃爍是青色<b>實線</b>框，<span class="edit-only">紅色實線框則是排到人家劃假的時段，</span>見上方「格子的框線」。</li>
     </ul>
 
     <div class="hr"></div>
@@ -1966,7 +1975,7 @@ function renderSheet(){
       else if(e.t==='injury'){
         cls+=' filled';
         if(e.s!=null&&e.e!=null){
-          inner='<span class="injury-tag">職災</span><span class="t-s">'+fmtDec(e.s)+'</span><span class="t-e">'+fmtDec(e.e)+'</span>';
+          inner='<span class="mark word green injury-mark">職災</span><span class="t-s">'+fmtDec(e.s)+'</span><span class="t-e">'+fmtDec(e.e)+'</span>';
         }else{
           inner='<span class="mark word green injury-mark">職災</span>';
         }
