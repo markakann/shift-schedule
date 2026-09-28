@@ -304,6 +304,7 @@ body.editing thead tr:nth-child(2) th:not(.corner){cursor:pointer}
 .lv-mnote{font-size:12px;font-weight:700;color:#8a6a3a;background:#f7f1e4;border-radius:5px;padding:5px 8px;margin-top:8px}
 .lv-nat{font-size:8px;font-weight:700;color:var(--red);margin-left:1px;vertical-align:top}
 .lv-mk{display:block;font-weight:700;margin-top:2px} /* 跟著資訊列的咖啡色，日曆與班表上的「補」才維持紅色 */
+.lv-hint{font-size:11px;color:#777;line-height:1.5;margin:-2px 0 6px}
 .lv-range{display:flex;align-items:center;gap:6px;margin-bottom:6px}
 .lv-range .txt{flex:1;min-width:0;text-align:center}
 .lv-range span{color:#888;font-weight:700}
@@ -991,7 +992,7 @@ body.print-sizing .name-sub{margin-top:0}
     <div class="small-note">每天早晚班總工時，以 16:00 分界，含休息時間。</div>
     <div class="hr"></div>
     <div class="sec-label">劃假</div>
-    <div class="small-note">開放期間內，選自己的名字後點日曆就能劃不能上班的日子。可以劃整天、某時之後／之前，或「只能上這段」（例如只能上 10:30～17:00）；規律的班用「整批套用到星期」最快。補充說明只有排班人員看得到。截止後若還開放，劃的假會標成<b style="color:#c26a10">臨時</b>並列為候補。<span class="view-only">你只看得到也只改得到自己的劃假，別人劃了什麼不會顯示。</span><span class="edit-only">排班時，有人劃假的空格會淡紫底標「假」，排到不能上的時段會出現紅框驚嘆號；「全員總覽」可一次看完所有人，也能代為修改。</span></div>
+    <div class="small-note">開放期間內，選自己的名字後點日曆就能劃不能上班的日子。筆刷一律用「能上班的時間」描述：<b>只能上到</b>＝可以上到指定時間為止、<b>幾點後才能上</b>＝指定時間之後才能排、<b>只能上這段</b>＝只有該時段可排（例如 10:30～17:00）。規律的班用「整批套用到星期」最快。補充說明只有排班人員看得到。截止後若還開放，劃的假會標成<b style="color:#c26a10">臨時</b>並列為候補。<span class="view-only">你只看得到也只改得到自己的劃假，別人劃了什麼不會顯示。</span><span class="edit-only">排班時，有人劃假的空格會淡紫底標「假」，排到不能上的時段會出現紅框驚嘆號；「全員總覽」可一次看完所有人，也能代為修改。</span></div>
     <div class="hr"></div>
     <div class="sec-label">篩選日期</div>
     <div class="small-note">只改變畫面顯示範圍方便截圖，匯出與列印仍是完整整月。</div>
@@ -1806,7 +1807,7 @@ function renderSheet(){
         else if(!e){
           cls+=' '+(lvx.late?'lv-late':(lvx.m==='all'?'lv-all':lvx.m==='only'?'lv-only':'lv-part'));
           inner+='<span class="lv-cell-tag" title="'+esc(leaveDayText(lvx))+'">'+
-            (lvx.m==='all'?'假':lvx.m==='only'?'限':fmtDec(lvx.t)+(lvx.m==='after'?'後':'前'))+'</span>';
+            (lvx.m==='all'?'假':lvx.m==='only'?'限':lvx.m==='after'?('~'+fmtDec(lvx.t)):(fmtDec(lvx.t)+'~'))+'</span>';
         }
       }
       h+='<td class="'+cls+'" data-sid="'+st.id+'" data-day="'+d+'">'+inner+'</td>';
@@ -1845,7 +1846,15 @@ function renderNotes(){
    結構：{ "2026-11": { 人員id: {name, json, at} } }，json 內是 {days:{日:{m,t,late}}, note} */
 let leaveData={};          // 目前這個代碼的全部劃假資料
 let unsubLeave=null;
-const LEAVE_MODE_LABEL={all:'整天不能上',after:'之後不能上',before:'之前不能上',only:'只能上這段'};
+/* 夥伴習慣講「我可以上到幾點」，所以一律用能上班的角度描述，不要寫成「幾點之後不能上」 */
+const LEAVE_MODE_LABEL={all:'整天不能上',after:'只能上到這個時間',before:'這個時間後才能上',only:'只能上這段'};
+const LEAVE_MODE_HINT={
+  all:   '這天完全不能排班。',
+  only:  '只有這個時段裡面可以排班，前後都不行。',
+  after: '可以上到這個時間為止，之後不能排。例如選 15:00，代表 15:00 前的班都行。',
+  before:'這個時間之後才能上，之前不能排。例如選 15:00，代表 15:00 起的班才行。',
+  clear: '點日期可以把已經劃的假取消掉。'
+};
 function leaveDocCode(){ // 劃假掛在檢視代碼底下：檢視端就是自己，編輯端用自己的檢視代碼
   return viewerMode?(storeCode||''):(state.viewCode||'');
 }
@@ -1895,7 +1904,7 @@ function leaveDayText(x){ // 單格劃假的短說明
   if(!x)return '';
   if(x.m==='all')return '整天不能上';
   if(x.m==='only')return '只能上 '+fmtHM(x.t)+'～'+fmtHM(x.t2);
-  return fmtHM(x.t)+(x.m==='after'?' 之後不能上':' 之前不能上');
+  return x.m==='after'?('只能上到 '+fmtHM(x.t)):(fmtHM(x.t)+' 之後才能上');
 }
 function leaveConflict(sid,d,e){ // 排這一班會不會撞到劃假；回傳說明字串或 null
   if(!e||(e.t!=='shift'&&e.t!=='injury'))return null;
@@ -1903,8 +1912,8 @@ function leaveConflict(sid,d,e){ // 排這一班會不會撞到劃假；回傳�
   if(!x)return null;
   if(x.m==='all')return '整天不能上';
   if(x.m==='only'&&(e.s<x.t||e.e>x.t2))return '只能上 '+fmtHM(x.t)+'～'+fmtHM(x.t2);
-  if(x.m==='after'&&e.e>x.t)return fmtHM(x.t)+' 之後不能上';
-  if(x.m==='before'&&e.s<x.t)return fmtHM(x.t)+' 之前不能上';
+  if(x.m==='after'&&e.e>x.t)return '只能上到 '+fmtHM(x.t);
+  if(x.m==='before'&&e.s<x.t)return fmtHM(x.t)+' 之後才能上';
   return null;
 }
 async function saveLeave(ym,sid,obj){ // 只寫自己那一格，用 merge 避免蓋掉別人同時送出的劃假
@@ -1955,9 +1964,9 @@ function summarizeLeave(ym,obj){
     let days=groups[key].sort((a,b)=>a-b);
     const [mode,tRaw]=key.split('@');
     let label;
-    if(mode==='all')label='整天';
+    if(mode==='all')label='整天不能上';
     else if(mode==='only'){const tt=tRaw.split('-');label='只能上 '+fmtHM(+tt[0])+'～'+fmtHM(+tt[1])}
-    else label=fmtHM(+tRaw)+(mode==='after'?' 之後':' 之前');
+    else label=mode==='after'?('只能上到 '+fmtHM(+tRaw)):(fmtHM(+tRaw)+' 之後才能上');
     const late=days.some(d=>obj.days[d].late);
     const weekly=[];
     for(let w=0;w<7;w++){
@@ -2040,8 +2049,9 @@ function lvMineHtml(ym,ce){
   if(!ce.ok)return h+'<div class="lv-none">'+esc(ce.msg)+'</div>'+lvOneHtml(ym,lvWho,true);
   h+='<div style="margin-top:10px"><div class="sec-label" style="margin-top:0">點日曆要填什麼</div>'+
      '<div class="lv-brush">'+
-       lvBtn('all','整天不能上')+lvBtn('only','只能上這段')+lvBtn('after','某時之後')+lvBtn('before','某時之前')+lvBtn('clear','清除')+
+       lvBtn('all','整天不能上')+lvBtn('only','只能上這段')+lvBtn('after','只能上到')+lvBtn('before','幾點後才能上')+lvBtn('clear','清除')+
      '</div>'+
+     '<div class="lv-hint">'+esc(LEAVE_MODE_HINT[lvBrush.m]||'')+'</div>'+
      (lvBrush.m==='after'||lvBrush.m==='before'
        ? '<select class="txt" id="lvBrushTime" style="margin-bottom:6px">'+timeOptions(lvBrush.t)+'</select>'
        : '')+
@@ -2102,7 +2112,7 @@ function lvCalHtml(ym,obj,locked){ // 目標月份的日曆
     if(locked)cls+=' locked';
     h+='<div class="'+cls+'" data-lvday="'+d+'" title="'+esc(nat?nat.n:'')+'">'+d+
        (nat?'<span class="lv-nat'+(nat.mk?' mk':'')+'">'+(nat.mk?'補':'國')+'</span>':'')+
-       (x?'<span class="lv-tag">'+(x.m==='all'?'整天':x.m==='only'?(fmtDec(x.t)+'~'+fmtDec(x.t2)):(fmtHM(x.t)+(x.m==='after'?'後':'前')))+'</span>':'')+
+       (x?'<span class="lv-tag">'+(x.m==='all'?'整天':x.m==='only'?(fmtDec(x.t)+'~'+fmtDec(x.t2)):(x.m==='after'?('~'+fmtHM(x.t)):(fmtHM(x.t)+'~')))+'</span>':'')+
        '</div>';
   }
   return h+'</div>';
