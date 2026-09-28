@@ -305,6 +305,32 @@ body.editing thead tr:nth-child(2) th:not(.corner){cursor:pointer}
 .lv-nat{font-size:8px;font-weight:700;color:var(--red);margin-left:1px;vertical-align:top}
 .lv-mk{display:block;font-weight:700;margin-top:2px} /* 跟著資訊列的咖啡色，日曆與班表上的「補」才維持紅色 */
 .lv-hint{font-size:11px;color:#777;line-height:1.5;margin:-2px 0 6px}
+/* 劃假異動通知 */
+.lv-badge{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-width:17px;height:17px;padding:0 4px;margin-left:5px;
+  background:var(--red);color:#fff;border-radius:9px;
+  font-size:11px;font-weight:700;line-height:1;vertical-align:middle;
+}
+.lv-chg-head{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.lv-chg-n{font-size:11px;font-weight:700;color:var(--red)}
+.lv-chg-n.read{color:#aaa;font-weight:600}
+.lv-chg-box{max-height:210px;overflow-y:auto;border:1px solid #e3ded0;border-radius:6px;background:#fcfaf3;padding:4px 6px;margin-bottom:10px}
+.lv-chg{padding:5px 2px;border-bottom:1px dotted #e0dccf}
+.lv-chg:last-child{border-bottom:none}
+.lv-chg.new{background:#fffdf2}
+.lv-chg-top{display:flex;align-items:center;gap:6px;font-size:13px}
+.lv-chg-top b{color:var(--blue)}
+.lv-chg-t{font-size:11px;color:#999}
+.lv-dot{width:7px;height:7px;border-radius:50%;background:var(--red);flex-shrink:0}
+.lv-chg-line{font-size:12px;line-height:1.7;margin-left:2px}
+.lv-op{display:inline-block;min-width:30px;text-align:center;font-size:10px;font-weight:700;border-radius:3px;padding:0 4px;margin-right:5px}
+.lv-op.add{background:#ede2f7;color:#6b3a8a}
+.lv-op.del{background:#dff0e2;color:#2a6a3a}
+.lv-op.mod{background:#e2ecf7;color:#2a5a8a}
+.lv-was{font-size:11px;color:#999}
+.lv-free{font-size:11px;color:#2a8a4a;font-weight:700;margin-left:5px}
+.lv-bad{font-size:11px;color:var(--red);font-weight:700;margin-left:5px}
 .lv-range{display:flex;align-items:center;gap:6px;margin-bottom:6px}
 .lv-range .txt{flex:1;min-width:0;text-align:center}
 .lv-range span{color:#888;font-weight:700}
@@ -1945,6 +1971,7 @@ function watchLeave(){ // 監聽劃假文件，夥伴一送出店長那邊就會
     leaveData=d;
     refreshLeaveIfOpen();
     renderSheet();
+    updateLeaveBadge();
   },()=>{if(srvState==='wait'){srvState='fail';refreshLeaveIfOpen()}});
   if(cfg().leave.on)syncServerClock();
 }
@@ -1999,10 +2026,131 @@ function compressDays(days){ // 3,4,5,18,20 → 3～5、18、20
 }
 
 
+
+/* ────────── 劃假異動紀錄 ────────── */
+/* 夥伴每次送出都比對前後差異存成一筆紀錄，取消劃假也留得下來；
+   排班人員看得到誰在什麼時候改了什麼、是不是臨時時段改的、有沒有撞到已排的班。 */
+function sameDayRule(x,y){ // late 旗標不算差異
+  if(!x||!y)return false;
+  return x.m===y.m&&(x.t||0)===(y.t||0)&&(x.t2||0)===(y.t2||0);
+}
+function diffDays(a,b){
+  a=a||{};b=b||{};
+  const add=[],del=[],chg=[];
+  const keys={};Object.keys(a).forEach(k=>keys[k]=1);Object.keys(b).forEach(k=>keys[k]=1);
+  Object.keys(keys).map(Number).sort((x,y)=>x-y).forEach(d=>{
+    const x=a[d],y=b[d];
+    if(!x&&y)add.push({d,to:y});
+    else if(x&&!y)del.push({d,from:x});
+    else if(x&&y&&!sameDayRule(x,y))chg.push({d,from:x,to:y});
+  });
+  return {add,del,chg};
+}
+function buildLeaveLog(before,draft,late){ // 回傳要存的 log 陣列（最多留 20 筆）
+  const old=(before&&before.log)||[];
+  const d=diffDays(before&&before.days,draft.days);
+  const noteChanged=((before&&before.note)||'')!==(draft.note||'');
+  if(!d.add.length&&!d.del.length&&!d.chg.length&&!noteChanged)return old;
+  return old.concat([{at:nowMs(),late:late?1:0,add:d.add,del:d.del,chg:d.chg,note:noteChanged?1:0}]).slice(-20);
+}
+function leaveChanges(ym){ // 全員的異動，新到舊
+  const out=[];
+  monthStaff().forEach(st=>{
+    const o=leaveOf(ym,st.id);
+    if(!o||!o.log)return;
+    o.log.forEach(e=>out.push(Object.assign({},e,{sid:st.id,name:st.name})));
+  });
+  return out.sort((a,b)=>(b.at||0)-(a.at||0));
+}
+function leaveSeenKey(){return 'paiban-leave-seen-'+(leaveDocCode()||'')}
+function leaveSeenAt(){try{return +localStorage.getItem(leaveSeenKey())||0}catch(e){return 0}}
+function markLeaveSeen(){try{localStorage.setItem(leaveSeenKey(),String(nowMs()))}catch(e){}updateLeaveBadge()}
+function leaveTargetYm(){const L=leaveWindow().L;return (L&&L.ym)||''}
+function unseenLeaveChanges(){
+  if(viewerMode)return [];
+  const ym=leaveTargetYm();
+  if(!ym)return [];
+  const seen=leaveSeenAt();
+  return leaveChanges(ym).filter(c=>(c.at||0)>seen);
+}
+let lastUnseenCount=null;
+function updateLeaveBadge(){ // 工具列的紅點：有幾筆還沒看過的劃假異動
+  const btn=document.getElementById('btnLeave');
+  if(!btn)return;
+  const n=unseenLeaveChanges().length;
+  let b=btn.querySelector('.lv-badge');
+  if(n>0){
+    if(!b){b=document.createElement('span');b.className='lv-badge';btn.appendChild(b)}
+    b.textContent=n>99?'99+':n;
+  }else if(b)b.remove();
+  if(lastUnseenCount!==null&&n>lastUnseenCount&&!document.getElementById('ovLeave').classList.contains('show')){
+    const latest=unseenLeaveChanges()[0];
+    if(latest)showToast(latest.name+' 剛剛調整了劃假，可到「劃假」查看',4000);
+  }
+  lastUnseenCount=n;
+}
+function dayClash(sid,ym,d,rule){ // 這筆異動會不會跟已排的班衝突
+  if(!rule)return false;
+  return withMonth(ym,()=>{
+    const e=entryOf(sid,d);
+    if(!e||(e.t!=='shift'&&e.t!=='injury'))return false;
+    if(rule.m==='all')return true;
+    if(rule.m==='only')return e.s<rule.t||e.e>rule.t2;
+    if(rule.m==='after')return e.e>rule.t;
+    if(rule.m==='before')return e.s<rule.t;
+    return false;
+  });
+}
+function hasShift(sid,ym,d){
+  return withMonth(ym,()=>{const e=entryOf(sid,d);return !!(e&&(e.t==='shift'||e.t==='injury'))});
+}
+function fmtLogTime(ms){
+  const t=new Date(ms||0);
+  return (t.getMonth()+1)+'/'+t.getDate()+' '+String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0');
+}
+function leaveChangeHtml(ym){ // 全員總覽最上面的「最近異動」
+  const list=leaveChanges(ym);
+  if(!list.length)return '';
+  const seen=leaveSeenAt();
+  const unseen=list.filter(c=>(c.at||0)>seen).length;
+  let h='<div class="lv-chg-head"><b>最近異動</b>'+
+    (unseen?'<span class="lv-chg-n">'+unseen+' 筆未讀</span>':'<span class="lv-chg-n read">已全部看過</span>')+
+    (unseen?'<button class="btn" id="btnLeaveSeen" style="padding:2px 9px;font-size:12px;margin-left:auto">標示已讀</button>':'')+
+    '</div><div class="lv-chg-box">';
+  list.slice(0,12).forEach(c=>{
+    const isNew=(c.at||0)>seen;
+    h+='<div class="lv-chg'+(isNew?' new':'')+(c.late?' late':'')+'">'+
+       '<div class="lv-chg-top">'+(isNew?'<span class="lv-dot"></span>':'')+
+       '<b>'+esc(c.name)+'</b><span class="lv-chg-t">'+fmtLogTime(c.at)+'</span>'+
+       (c.late?'<span class="lv-late-tag">臨時</span>':'')+'</div>';
+    c.del.forEach(x=>{
+      h+='<div class="lv-chg-line"><span class="lv-op del">取消</span>'+ym.slice(5)*1+'/'+x.d+
+         '　<span class="lv-was">原本：'+esc(leaveDayText(x.from))+'</span>'+
+         (hasShift(c.sid,ym,x.d)?'':'<span class="lv-free">這天現在可以排了</span>')+'</div>';
+    });
+    c.add.forEach(x=>{
+      const bad=dayClash(c.sid,ym,x.d,x.to);
+      h+='<div class="lv-chg-line"><span class="lv-op add">新增</span>'+ym.slice(5)*1+'/'+x.d+'　'+esc(leaveDayText(x.to))+
+         (bad?'<span class="lv-bad">⚠ 與已排的班衝突</span>':'')+'</div>';
+    });
+    c.chg.forEach(x=>{
+      const bad=dayClash(c.sid,ym,x.d,x.to);
+      h+='<div class="lv-chg-line"><span class="lv-op mod">修改</span>'+ym.slice(5)*1+'/'+x.d+'　'+esc(leaveDayText(x.to))+
+         '　<span class="lv-was">原本：'+esc(leaveDayText(x.from))+'</span>'+
+         (bad?'<span class="lv-bad">⚠ 與已排的班衝突</span>':'')+'</div>';
+    });
+    if(c.note&&!c.del.length&&!c.add.length&&!c.chg.length)
+      h+='<div class="lv-chg-line"><span class="lv-op mod">修改</span>補充說明</div>';
+    h+='</div>';
+  });
+  return h+'</div>';
+}
+
 /* ────────── 劃假：視窗 ────────── */
 let lvTab='mine';            // mine=自己劃　all=全員總覽
 let lvWho=null;              // 目前選到的人員 id
 let lvDraft=null;            // 編輯中的劃假內容（按送出才寫雲端）
+let lvOriginal=null;         // 選到這個人時的原始內容，送出時用來比對差異
 let lvBrush={m:'all',t:540,t2:1320};// 目前的筆刷：點日期要套用什麼（only 模式用 t～t2）
 function lvCanEdit(){ // 現在能不能改；回傳 {ok, late, msg}
   if(!FB||!leaveDocCode())return {ok:false,msg:'劃假需要連上雲端（本機模式或尚未設定檢視代碼時無法使用）。'};
@@ -2018,10 +2166,11 @@ function lvCanEdit(){ // 現在能不能改；回傳 {ok, late, msg}
 function openLeave(){
   syncServerClock(); // 還沒校時就先發一次，校到會自動重繪
   lvTab=viewerMode?'mine':'all'; // 檢視代碼只有「我要劃假」，看不到別人劃了什麼
-  lvWho=null;lvDraft=null;
+  lvWho=null;lvDraft=null;lvOriginal=null;
   lvBrush={m:'all',t:540,t2:1320};
   renderLeaveBody();
   document.getElementById('ovLeave').classList.add('show');
+  updateLeaveBadge();
 }
 function renderLeaveBody(){
   const w=leaveWindow(),ce=lvCanEdit();
@@ -2125,11 +2274,12 @@ function lvAllHtml(ym){ // 全員總覽，臨時劃的另外標
   const roster=monthStaff();
   const rows=roster.map(st=>({st,o:leaveOf(ym,st.id)})).filter(x=>x.o&&Object.keys(x.o.days).length);
   const p=parseYm(ym);
-  let h='';
+  let h=leaveChangeHtml(ym);
   const lateAll=rows.filter(x=>Object.keys(x.o.days).some(d=>x.o.days[d].late));
   if(lateAll.length)h+='<div class="small-note" style="color:#a85c07;font-weight:700;margin-bottom:6px">⚑ 有 '+lateAll.length+
      ' 位夥伴在截止後才劃假，下方標「臨時」的日期請當候補處理。</div>';
   if(!rows.length)return h+'<div class="lv-none">'+p.m+' 月目前沒有人劃假。</div>';
+  h+='<div class="sec-label">目前的劃假</div>';
   rows.forEach(({st,o})=>{
     const lines=summarizeLeave(ym,o);
     h+='<div class="lv-sum"><div class="who">'+esc(st.name)+'</div>'+
@@ -2149,7 +2299,8 @@ document.getElementById('lvBody').addEventListener('change',ev=>{
     lvWho=ev.target.value||null;
     const ym=(leaveWindow().L||{}).ym||ymOf(state.y,state.m);
     const o=lvWho?leaveOf(ym,lvWho):null;
-    lvDraft=o?JSON.parse(JSON.stringify(o)):{days:{},note:''};
+    lvOriginal=o?JSON.parse(JSON.stringify(o)):{days:{},note:'',log:[]};
+    lvDraft=JSON.parse(JSON.stringify(lvOriginal));
     renderLeaveBody();
   }else if(ev.target.id==='lvBrushTime'||ev.target.id==='lvBrushTime2'){
     const v=parseInt(ev.target.value,10)||0;
@@ -2167,11 +2318,13 @@ document.getElementById('lvBody').addEventListener('click',ev=>{
   const wd=ev.target.closest('[data-lvwd]');
   if(wd){wd.classList.toggle('on');return}
   if(ev.target.closest('#btnLvApplyWd')){applyBrushToWeekdays();return}
+  if(ev.target.closest('#btnLeaveSeen')){markLeaveSeen();renderLeaveBody();return}
   const ed=ev.target.closest('[data-lvedit]');
   if(ed){lvTab='mine';lvWho=ed.dataset.lvedit;
     const ym=(leaveWindow().L||{}).ym||ymOf(state.y,state.m);
     const o=leaveOf(ym,lvWho);
-    lvDraft=o?JSON.parse(JSON.stringify(o)):{days:{},note:''};
+    lvOriginal=o?JSON.parse(JSON.stringify(o)):{days:{},note:'',log:[]};
+    lvDraft=JSON.parse(JSON.stringify(lvOriginal));
     renderLeaveBody();return}
   const d=ev.target.closest('[data-lvday]');
   if(d&&!d.classList.contains('locked')&&lvDraft){
@@ -2215,6 +2368,7 @@ document.getElementById('btnLeaveSave').addEventListener('click',async()=>{
   const ce=lvCanEdit();
   if(!ce.ok){showToast(ce.msg);return}
   const ym=(leaveWindow().L||{}).ym||ymOf(state.y,state.m);
+  lvDraft.log=buildLeaveLog(lvOriginal,lvDraft,ce.late); // 留下這次改了什麼，取消劃假也記得住
   const ok=await saveLeave(ym,lvWho,lvDraft);
   if(ok){
     showToast(ce.late?'已送出臨時劃假，會列為候補讓排班人員知道':'已送出劃假 ✓',3000);
