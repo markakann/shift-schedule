@@ -98,16 +98,17 @@ body{
 .rule-head{display:flex;align-items:center;gap:8px}
 .rule-card .txt{margin:0}
 /* 加班統計跳轉：單日閃爍與整批標示 */
-@keyframes cellFlash{0%,100%{box-shadow:inset 0 0 0 0 rgba(201,47,47,0)}50%{box-shadow:inset 0 0 0 3px var(--red)}}
+/* 標示／閃爍是操作回饋，用青色系跟所有假別與劃假色分開；紅框只留給「排到人家不能上的班」 */
+@keyframes cellFlash{0%,100%{box-shadow:inset 0 0 0 0 rgba(13,148,166,0)}50%{box-shadow:inset 0 0 0 3px #0d94a6}}
 .day-cell.flash{animation:cellFlash .55s ease-in-out 3}
-.day-cell.marked{box-shadow:inset 0 0 0 2px #d99a00;background-color:#fff6db!important}
+.day-cell.marked{outline:2px dashed #0d94a6;outline-offset:-2px;background-color:#d9f2f7!important} /* 虛線＝暫時的標示，跟實線紅框的「衝突」分開 */
 .jump-chip{
   display:inline-block;margin:3px 4px 0 0;padding:3px 9px;font-size:13px;
   border:1px solid var(--red);border-radius:12px;color:var(--red);background:#fff8f8;cursor:pointer;
 }
-.jump-chip.all{border-color:#d99a00;color:#8a6d00;background:#fffaf0;font-weight:700}
+.jump-chip.all{border-color:#0d94a6;color:#0a6f7d;background:#eefafc;font-weight:700}
 .jump-row{margin-top:4px}
-.mark-btn{border-color:#d99a00;color:#8a6d00;background:#fffaf0;font-weight:700}
+.mark-btn{border-color:#0d94a6;color:#0a6f7d;background:#eefafc;font-weight:700}
 .ot-table{width:max-content;min-width:100%;border-collapse:collapse;font-size:12px;margin-top:6px;table-layout:auto}
 .ot-table th,.ot-table td{border:1px solid #ddd;padding:3px 6px;text-align:center;white-space:nowrap}
 .ot-table th{background:#f2efe4;font-weight:700}
@@ -305,6 +306,14 @@ body.editing thead tr:nth-child(2) th:not(.corner){cursor:pointer}
 .lv-nat{font-size:8px;font-weight:700;color:var(--red);margin-left:1px;vertical-align:top}
 .lv-mk{display:block;font-weight:700;margin-top:2px} /* 跟著資訊列的咖啡色，日曆與班表上的「補」才維持紅色 */
 .lgc{display:inline-block;width:13px;height:13px;border:1px solid #bbb;border-radius:3px;vertical-align:-2px;margin-right:3px}
+/* 說明視窗：條列與對照表，一行一件事 */
+#ovHelp .hul{margin:3px 0 0;padding-left:18px;font-size:12.5px;color:#666;line-height:1.8}
+#ovHelp .hul li{margin-bottom:1px}
+#ovHelp .hul b{color:var(--ink)}
+#ovHelp .hdl{display:grid;grid-template-columns:auto 1fr;gap:1px 10px;margin:3px 0 0;font-size:12.5px;color:#666;line-height:1.8}
+#ovHelp .hdl dt{font-weight:700;color:var(--ink);white-space:nowrap}
+#ovHelp .hdl dd{margin:0}
+#ovHelp .hsub{font-size:11.5px;font-weight:700;color:#8a7a4a;margin:8px 0 1px}
 .lv-hint{font-size:11px;color:#777;line-height:1.5;margin:-2px 0 6px}
 /* 劃假異動通知 */
 .lv-badge{
@@ -450,7 +459,7 @@ textarea.txt{min-height:110px}
 body.print-sizing{--printScale:1;width:281mm}
 body.print-sizing .notes-sec{break-inside:avoid;page-break-inside:avoid}
 body.print-sizing .cov-warn,body.print-sizing .warn-row{display:none!important}
-body.print-sizing .day-cell.marked,body.print-sizing .day-cell.flash{box-shadow:none!important;background-color:transparent!important;animation:none!important}
+body.print-sizing .day-cell.marked,body.print-sizing .day-cell.flash{box-shadow:none!important;outline:none!important;background-color:transparent!important;animation:none!important}
 body.print-sizing .toolbar,body.print-sizing .legend,body.print-sizing .overlay,body.print-sizing .save-hint,body.print-sizing #btnAddNote{display:none!important}
 body.print-sizing .lv-cell-tag{display:none!important}
 body.print-sizing .day-cell.lv-all,body.print-sizing .day-cell.lv-only,
@@ -1041,44 +1050,119 @@ body.print-sizing .name-sub{margin-top:0}
     </div>
     <div class="hr"></div>
     <div class="sec-label">驚嘆號提示</div>
-    <div class="small-note"><b style="color:var(--red)">紅色</b>：當天人力不符合設定的規則（例如缺開店班、收班人數不足）。<span class="edit-only">排班鎖定後才檢查。</span><br>
-    <b style="color:#d99a00">黃色</b>：有人連續出勤超標（正職連 6 天、計時連 5 天，含跨月）。<br>
-    點驚嘆號可看該日的詳細原因。</div>
+    <dl class="hdl">
+      <dt style="color:var(--red)">紅色</dt><dd>當天人力不符合設定的規則（缺開店班、收班人數不足等）。<span class="edit-only">排班鎖定後才檢查。</span></dd>
+      <dt style="color:#d99a00">黃色</dt><dd>有人連續出勤超標（正職連 6 天、計時連 5 天，含跨月）。</dd>
+    </dl>
+    <ul class="hul"><li>點驚嘆號可看該日的詳細原因。</li></ul>
+
     <div class="edit-only">
       <div class="hr"></div>
       <div class="sec-label">排班</div>
-      <div class="small-note">按「🔒 排班」解鎖才能編輯，再按一次鎖定。自訂時間只收整點或半點（例如 900、1330）。休息時間可逐班指定，選「自動」是超過4小時扣0.5小時；跟自動不同時格子右上角會標出來。</div>
+      <ul class="hul">
+        <li>按「🔒 排班」解鎖才能編輯，再按一次鎖定。</li>
+        <li>自訂時間只收整點或半點（例如 900、1330）。</li>
+        <li>休息時間可逐班指定。選「自動」是超過 4 小時扣 0.5 小時。</li>
+        <li>跟自動不同時，格子右上角會標出來。</li>
+      </ul>
       <div class="hr"></div>
       <div class="sec-label">人員</div>
-      <div class="small-note">「離職」保留歷史班表、姓名加註（離）；「刪除」清掉所有紀錄，只在打錯人時用。開關可決定某人這個月要不要排班。</div>
+      <ul class="hul">
+        <li><b>離職</b>　保留歷史班表，姓名加註（離）。</li>
+        <li><b>刪除</b>　清掉所有紀錄，只在打錯人時用。</li>
+        <li>開關可決定某人這個月要不要排班。</li>
+      </ul>
     </div>
+
     <div class="hr"></div>
     <div class="sec-label">加班時數</div>
-    <div class="small-note">點姓名右上角的「⋯」可看該員本月加班時數明細。明細裡的日期可直接點，會跳到那一格並閃爍；按「全部標示」則一次框出該類的所有日子，再按一次取消。</div>
+    <ul class="hul">
+      <li>點姓名右上角的「⋯」看該員本月明細。</li>
+      <li>明細裡的日期可直接點，會跳到那一格並閃爍。</li>
+      <li>按「全部標示」一次框出該類的所有日子，再按一次取消。</li>
+      <li>標示是<b style="color:#0a6f7d">青色虛線框</b>，跳轉時是<b style="color:#0a6f7d">青色實線框</b>閃三下；<b style="color:var(--red)">紅色實線框</b>只代表排到人家劃假的時段。</li>
+    </ul>
+
     <div class="hr"></div>
     <div class="sec-label">早／晚工時列　·　月總工時</div>
-    <div class="small-note">最底下那一列：每天早晚班總工時，以 16:00 分界，<b>含</b>休息時間。<br>
-    該列最左邊的<b style="color:var(--blue)">月總 ○h</b>是全店本月實際工時（每班已<b>扣</b>休息），點一下可看正職／計時／支援分組與每個人的時數。</div>
+    <ul class="hul">
+      <li>最底下那一列是每天早晚班總工時，以 16:00 分界，<b>含</b>休息時間。</li>
+      <li>該列最左邊的<b style="color:var(--blue)">月總 ○h</b>是全店本月實際工時，每班已<b>扣</b>休息。</li>
+      <li>點一下月總可看正職／計時／支援分組與每個人的時數。</li>
+    </ul>
+
     <div class="hr"></div>
     <div class="sec-label">劃假</div>
-    <div class="small-note">開放期間內，選自己的名字後點日曆就能劃不能上班的日子。筆刷一律用「能上班的時間」描述：<b>只能上到</b>＝可以上到指定時間為止、<b>幾點後才能上</b>＝指定時間之後才能排、<b>只能上這段</b>＝只有該時段可排（例如 10:30～17:00）。規律的班用「整批套用到星期」最快，選好星期按「套用」就整個月一次填好。<br>
-    日曆上方會顯示該月的月休額度（正職）與國定假日；<b style="color:var(--red)">國</b>是國定假日、<b style="color:var(--red)">補</b>是補假，補假不計入國定假日天數。<br>
-    開放與截止<b>都包含當天</b>，以雲端時間判定，改手機日期沒用。截止後若仍開放，劃的假會標成<b style="color:#c26a10">臨時</b>並列為候補。</div>
-    <div class="small-note view-only">補充說明只有排班人員看得到。你只看得到也只改得到自己的劃假，別人劃了什麼不會顯示。</div>
+    <ul class="hul">
+      <li>開放期間內，選自己的名字 → 點日曆 → 送出。</li>
+      <li>規律的班用「整批套用到星期」最快：選星期，按「套用」整個月一次填好。</li>
+    </ul>
+    <div class="hsub">筆刷一律用「能上班的時間」描述</div>
+    <dl class="hdl">
+      <dt>只能上到</dt><dd>可以上到指定時間為止，之後不能排。</dd>
+      <dt>幾點後才能上</dt><dd>指定時間之後才能排，之前不行。</dd>
+      <dt>只能上這段</dt><dd>只有該時段可排，例如 10:30～17:00。</dd>
+      <dt>整天不能上</dt><dd>這天完全不能排班。</dd>
+    </dl>
+    <div class="hsub">日曆上的標示</div>
+    <ul class="hul">
+      <li>上方顯示該月的月休額度（正職）與國定假日。</li>
+      <li><b style="color:var(--red)">國</b>＝國定假日，<b style="color:var(--red)">補</b>＝補假。補假不計入國定假日天數。</li>
+    </ul>
+    <div class="hsub">開放期間</div>
+    <ul class="hul">
+      <li>開放起日與截止日<b>都包含當天</b>。</li>
+      <li>以<b>雲端時間</b>判定，改手機日期沒用。</li>
+      <li>截止後若仍開放，劃的假會標成<b style="color:#c26a10">臨時</b>並列為候補。</li>
+    </ul>
+    <ul class="hul view-only">
+      <li>補充說明只有排班人員看得到。</li>
+      <li>你只看得到也只改得到自己的劃假，別人劃了什麼不會顯示。</li>
+    </ul>
     <div class="edit-only">
-      <div class="small-note">排班時，有人劃假的空格會依類型上底色並標記，排到人家不能上的時段會出現紅框驚嘆號。點格子排班時也會先提醒該日的劃假。</div>
-      <div class="sec-label" style="margin-top:8px">劃假 · 開放設定</div>
-      <div class="small-note">劃假視窗最下面的「⚙ 開放設定」<b>不用後台登入</b>，可設定開放劃哪個月、開放起日與截止日、截止後要不要允許臨時劃假。</div>
-      <div class="sec-label" style="margin-top:8px">劃假 · 異動通知</div>
-      <div class="small-note">夥伴每次送出都會留下紀錄，<b>取消劃假也記得住</b>。有沒看過的異動時，工具列的「劃假」會出現<b style="color:var(--red)">紅點</b>；進「全員總覽」最上方的<b>最近異動</b>可看誰在什麼時候改了什麼，點一列展開細項。<br>
-      收合時就看得出這筆有沒有<b style="color:var(--red)">⚠ 有衝突</b>（撞到已排的班）或<b style="color:#2a8a4a">有釋出</b>（取消劃假、那天可以排了）。排序可切「時間」或「姓名」——候補先到先受理的話用時間看。看完按「標示已讀」紅點就消失。</div>
+      <ul class="hul">
+        <li>有人劃假的空格會依類型上底色並標記。</li>
+        <li>排到人家不能上的時段會出現紅框驚嘆號。</li>
+        <li>點格子排班時也會先提醒該日的劃假。</li>
+      </ul>
+
+      <div class="hr"></div>
+      <div class="sec-label">劃假　·　開放設定</div>
+      <ul class="hul">
+        <li>在劃假視窗最下面的「⚙ 開放設定」，<b>不用後台登入</b>。</li>
+        <li>可設定：開放劃哪個月、開放起日、截止日。</li>
+        <li>也能決定截止後要不要允許臨時劃假。</li>
+      </ul>
+
+      <div class="hr"></div>
+      <div class="sec-label">劃假　·　異動通知</div>
+      <ul class="hul">
+        <li>夥伴每次送出都會留下紀錄，<b>取消劃假也記得住</b>。</li>
+        <li>有沒看過的異動時，工具列的「劃假」會出現<b style="color:var(--red)">紅點</b>。</li>
+        <li>進「全員總覽」最上方的<b>最近異動</b>，點一列展開細項。</li>
+      </ul>
+      <div class="hsub">收合時就看得出的重點</div>
+      <dl class="hdl">
+        <dt style="color:var(--red)">⚠ 有衝突</dt><dd>這筆撞到你已經排好的班。</dd>
+        <dt style="color:#2a8a4a">有釋出</dt><dd>取消了劃假，那天現在可以排了。</dd>
+      </dl>
+      <ul class="hul">
+        <li>排序可切「時間」或「姓名」。候補先到先受理的話用時間看。</li>
+        <li>看完按「標示已讀」，紅點就消失。</li>
+      </ul>
     </div>
+
     <div class="hr"></div>
     <div class="sec-label">篩選日期</div>
-    <div class="small-note">只改變畫面顯示範圍方便截圖，匯出與列印仍是完整整月。</div>
+    <ul class="hul"><li>只改變畫面顯示範圍方便截圖，匯出與列印仍是完整整月。</li></ul>
+
     <div class="hr"></div>
     <div class="sec-label">匯出／列印</div>
-    <div class="small-note">A4 橫式整月，建議用電腦操作。斜線沒印出來請在列印視窗「更多設定」勾「背景圖形」。</div>
+    <ul class="hul">
+      <li>A4 橫式整月，建議用電腦操作。</li>
+      <li>斜線沒印出來：列印視窗「更多設定」勾「背景圖形」。</li>
+    </ul>
+
     <div class="hr"></div>
     <div class="view-only">
       <div class="sec-label">行事曆</div>
@@ -1086,16 +1170,30 @@ body.print-sizing .name-sub{margin-top:0}
     </div>
     <div class="edit-only">
       <div class="sec-label">雲端同步</div>
-      <div class="small-note">同一組店家代碼共用一份班表、即時同步。檢視代碼只能看不能改，適合給店員。</div>
+      <ul class="hul">
+        <li>同一組店家代碼共用一份班表、即時同步。</li>
+        <li>檢視代碼只能看不能改，適合給店員。</li>
+      </ul>
+
       <div class="hr"></div>
       <div class="sec-label">行事曆</div>
       <div class="small-note" id="calStatus"></div>
-      <div class="small-note">自動抓政府公告，離線用內建資料；也可在排班模式點日期手動改紅黑字。</div>
+      <ul class="hul">
+        <li>自動抓政府公告，離線時用內建資料。</li>
+        <li>也可在排班模式點日期手動改紅黑字。</li>
+      </ul>
+
       <div class="hr"></div>
       <div class="sec-label">後台設定</div>
-      <div class="small-note">需管理者帳號登入。選單式，每項點進去各自設定，右邊顯示目前內容：班段、覆蓋檢查規則、時段提醒、劃假、行事曆來源。改完要按「儲存設定」（有改過會顯示 ●），沒存就關會先問你。每組店家代碼各有獨立設定，也能在這裡幫別的代碼設定。<br>
-      劃假的開放期間在劃假視窗裡就能改，不必進後台。</div>
+      <ul class="hul">
+        <li>需管理者帳號登入。</li>
+        <li>選單式，每項點進去各自設定，右邊顯示目前內容：班段、覆蓋檢查規則、時段提醒、劃假、行事曆來源。</li>
+        <li>改完要按「儲存設定」，有改過會顯示 ●，沒存就關會先問你。</li>
+        <li>每組店家代碼各有獨立設定，也能在這裡幫別的代碼設定。</li>
+        <li>劃假的開放期間在劃假視窗裡就能改，不必進後台。</li>
+      </ul>
     </div>
+
     <div class="m-actions">
       <button class="btn" id="btnCloseHelp">關閉</button>
     </div>
@@ -1626,6 +1724,7 @@ function autoBreak(span){ // 預設休息：班段超過4小時扣0.5小時，4�
   return span>4?0.5:0;
 }
 function shiftHours(e){ // 班段實際計薪時數＝班段長度扣掉休息；e.brk 有值時以該班自己設定的休息為準
+  if(!e||e.s==null||e.e==null)return 0; // 缺時間的資料不列入，避免整欄變成 NaN
   const span=(e.e-e.s)/60;
   const brk=(e.brk==null)?autoBreak(span):e.brk;
   return Math.max(0,span-brk);
@@ -1638,7 +1737,7 @@ function partHours(sid){ // 計時／支援本月已排班總時數（已扣除�
   }
   return h;
 }
-function fmtH(h){return (h%1===0)?String(h):h.toFixed(1)}
+function fmtH(h){h=(typeof h==='number'&&isFinite(h))?h:0;return (h%1===0)?String(h):h.toFixed(1)}
 function monthTotalHours(){ // 全店本月實際工時：每個人每一班扣掉休息後的時數，全部加總
   const per=monthStaff().map(st=>({st,h:partHours(st.id)}));
   const by={full:0,part:0,sup:0};
