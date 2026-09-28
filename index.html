@@ -674,7 +674,30 @@ body.print-sizing .name-sub{margin-top:0}
     <div id="lvBody" style="max-height:58vh;overflow-y:auto"></div>
     <div class="m-actions">
       <button class="btn primary" id="btnLeaveSave">送出</button>
+      <button class="btn" id="btnLeaveCfg" style="display:none">⚙ 開放設定</button>
       <button class="btn" id="btnCloseLeave">關閉</button>
+    </div>
+  </div>
+</div>
+
+<!-- 劃假開放設定（店家代碼就能改，不用後台登入） -->
+<div class="overlay" id="ovLeaveCfg">
+  <div class="modal">
+    <div class="m-title">劃假開放設定</div>
+    <div class="m-sub">決定夥伴可以劃哪個月、什麼時候能劃。</div>
+    <label class="cfg-row"><input type="checkbox" id="lcOn"><span>開放夥伴劃假</span></label>
+    <div id="lcBox" style="display:none">
+      <div class="cfg-grid">
+        <label>劃哪個月<select class="txt" id="lcYm"></select></label>
+        <label>開放起日<input class="txt" type="date" id="lcFrom"></label>
+        <label>截止日<input class="txt" type="date" id="lcTo"></label>
+      </div>
+      <label class="cfg-row"><input type="checkbox" id="lcLate"><span>截止後仍可臨時劃假（列為候補）</span></label>
+      <div class="small-note" id="lcHint" style="margin-top:4px"></div>
+    </div>
+    <div class="m-actions">
+      <button class="btn primary" id="btnLeaveCfgSave">儲存</button>
+      <button class="btn" id="btnCloseLeaveCfg">取消</button>
     </div>
   </div>
 </div>
@@ -2180,12 +2203,15 @@ function renderLeaveBody(){
   document.getElementById('lvModal').classList.toggle('late-mode',lateMode);
   document.getElementById('lvTitle').textContent=lateMode?'臨時劃假':'劃假';
   document.getElementById('lvSub').innerHTML=
-    (w.state==='off'?'尚未開放劃假（可在後台設定開放期間）'
+    (w.state==='off'?(viewerMode?'目前沒有開放劃假。':'尚未開放劃假　·　按下方「⚙ 開放設定」就能開始')
      :'劃 '+p.m+' 月的假　·　'+esc(ce.msg));
   if(viewerMode)lvTab='mine';
   document.querySelector('.lv-tabs').style.display=viewerMode?'none':'';
   document.querySelectorAll('.lv-tab').forEach(t=>t.classList.toggle('on',t.dataset.lvtab===lvTab));
   document.getElementById('btnLeaveSave').style.display=(lvTab==='mine'&&ce.ok&&lvWho)?'':'none';
+  const cfgBtn=document.getElementById('btnLeaveCfg');
+  cfgBtn.style.display=viewerMode?'none':'';
+  cfgBtn.classList.toggle('primary',w.state==='off'); // 還沒開放時把設定變成主要動作
   document.getElementById('lvBody').innerHTML=lvTab==='mine'?lvMineHtml(ym,ce):lvAllHtml(ym);
 }
 function lvMineHtml(ym,ce){
@@ -2290,8 +2316,56 @@ function lvAllHtml(ym){ // 全員總覽，臨時劃的另外標
   });
   return h;
 }
+/* 開放設定：店家代碼就能改，跟後台的那份是同一筆設定 */
+function openLeaveCfg(){
+  const L=cfg().leave;
+  document.getElementById('lcOn').checked=!!L.on;
+  document.getElementById('lcYm').innerHTML=leaveYmOptions(L.ym||leaveSuggestYm());
+  document.getElementById('lcFrom').value=L.from||'';
+  document.getElementById('lcTo').value=L.to||'';
+  document.getElementById('lcLate').checked=L.lateOn!==false;
+  syncLcBox();
+  document.getElementById('ovLeaveCfg').classList.add('show');
+}
+function leaveSuggestYm(){ // 沒設過時預設下個月
+  const t=new Date(nowMs());
+  let y=t.getFullYear(),m=t.getMonth()+2;
+  if(m>12){m=1;y++}
+  return ymOf(y,m);
+}
+function syncLcBox(){
+  const on=document.getElementById('lcOn').checked;
+  document.getElementById('lcBox').style.display=on?'':'none';
+  document.getElementById('lcHint').textContent=document.getElementById('lcLate').checked
+    ?'截止後夥伴還是進得去，但劃的假會標成「臨時／候補」，你一眼就知道是後來才加的。'
+    :'截止後完全鎖住，夥伴進去只能看，不能再改。';
+}
+['lcOn','lcLate'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('change',syncLcBox)});
+document.getElementById('btnCloseLeaveCfg').addEventListener('click',()=>document.getElementById('ovLeaveCfg').classList.remove('show'));
+document.getElementById('btnLeaveCfgSave').addEventListener('click',()=>{
+  const nl={
+    on:document.getElementById('lcOn').checked,
+    ym:document.getElementById('lcYm').value||'',
+    from:document.getElementById('lcFrom').value||'',
+    to:document.getElementById('lcTo').value||'',
+    lateOn:document.getElementById('lcLate').checked
+  };
+  if(nl.on){
+    if(!nl.ym){alert('請選擇要開放劃哪一個月。');return}
+    if(!nl.from||!nl.to){alert('請填開放起日與截止日。');return}
+    if(nl.from>nl.to){alert('開放起日不能晚於截止日。');return}
+  }
+  state.config=Object.assign({},state.config||{},{leave:nl});
+  scheduleSave();
+  document.getElementById('ovLeaveCfg').classList.remove('show');
+  if(nl.on&&srvState!=='ok')syncServerClock(); // 剛開啟時補一次校時
+  renderLeaveBody();
+  showToast(nl.on?'已開放劃假 ✓':'已關閉劃假');
+});
+
 /* 事件 */
 document.getElementById('btnLeave').addEventListener('click',openLeave);
+document.getElementById('btnLeaveCfg').addEventListener('click',openLeaveCfg);
 document.getElementById('btnCloseLeave').addEventListener('click',()=>document.getElementById('ovLeave').classList.remove('show'));
 document.querySelectorAll('.lv-tab').forEach(t=>t.addEventListener('click',()=>{lvTab=t.dataset.lvtab;renderLeaveBody()}));
 document.getElementById('lvBody').addEventListener('change',ev=>{
