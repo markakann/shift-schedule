@@ -4559,10 +4559,13 @@ function maybeAskReport(){ // 每個代碼、每個月只主動問一次
   document.getElementById('ovReportAsk').classList.add('show');
 }
 function markReportSeen(ym){try{localStorage.setItem(reportSeenKey(ym),'1')}catch(e){}}
+function bareName(st){ // 戰績上一律用乾淨姓名，不帶離職註記
+  return String((st&&st.name)||'').replace(/（離\d*）$/,'');
+}
 function nm(list,cap){ // 名單太長就收斂成「A、B、C 等 N 位」
   const n=list.length, k=cap||3;
-  if(n<=k)return list.map(x=>x.st.name).join('、');
-  return list.slice(0,k).map(x=>x.st.name).join('、')+' 等 '+n+' 位';
+  if(n<=k)return list.map(x=>bareName(x.st)).join('、');
+  return list.slice(0,k).map(x=>bareName(x.st)).join('、')+' 等 '+n+' 位';
 }
 function openReport(ym){
   const r=battleReport(ym);
@@ -4606,14 +4609,14 @@ function openReport(ym){
       '同一天排班人數最多的一天',r.busyDay.head+' 人');
     if(r.onTimeLeave.length)h+=card('📅','模範生名單',nm(r.onTimeLeave,5),
       '在開放期間內就劃完假，沒有一筆是臨時補的','');
-    if(r.earliest)h+=card('⚡','我講求效率',r.earliest.st.name,
+    if(r.earliest)h+=card('⚡','我講求效率',bareName(r.earliest.st),
       '開放後第一個送出劃假的人',fmtLogTime(r.earliest.firstAt));
-    if(r.duo)h+=card('🤝','這組合有點東西',r.duo.a.name+' ＋ '+r.duo.b.name,
+    if(r.duo)h+=card('🤝','這組合有點東西',bareName(r.duo.a)+' ＋ '+bareName(r.duo.b),
       '同一天班段有重疊、一起站台最多天的兩個人',r.duo.n+' 天同班');
     h+='<div class="rp-foot">感謝 '+p.m+' 月每一位夥伴的配合，辛苦了。<br>'+
        '祝大家早日靠達標獎金，存到人生的第一桶金。</div>';
     r.departed.forEach(x=>{
-      const who=x.st.name.replace(/（離\d*）$/,'');
+      const who=bareName(x.st);
       h+='<div class="rp-bye">'+
          '<div class="rp-bye-t">🌿　一路順風</div>'+
          '<div class="rp-bye-n">'+esc(who)+'</div>'+
