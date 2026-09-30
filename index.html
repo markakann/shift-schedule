@@ -19,7 +19,7 @@
 try{if(localStorage.getItem('paiban-mode')==='view')document.documentElement.classList.add('viewer-boot')}catch(e){}
 </script>
 <style>
-.viewer-boot #btnEdit,.viewer-boot #btnStaff,.viewer-boot #btnAddNote{display:none!important}
+.viewer-boot #btnEdit,.viewer-boot #btnStaff,.viewer-boot #btnAddNote,.viewer-boot #btnFilter{display:none!important}
 :root{
   --paper:#fffdf7;
   --bg:#eceae3;
@@ -81,6 +81,31 @@ body{
 }
 .btn:active{transform:translate(1px,1px);box-shadow:none}
 .btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+/* 戰績：一年只亮五天，做華麗一點 */
+.btn.gold{
+  position:relative;overflow:hidden;
+  background:linear-gradient(135deg,#fbeaa0 0%,#f0cf62 45%,#e2b23c 100%);
+  border-color:#c49a2e;color:#5a4410;text-shadow:0 1px 0 rgba(255,255,255,.5);
+  animation:goldPulse 2.4s ease-in-out infinite;
+}
+.btn.gold::after{ /* 斜向掃過的反光 */
+  content:'';position:absolute;top:-60%;left:-120%;width:45%;height:220%;
+  background:linear-gradient(100deg,transparent,rgba(255,255,255,.85),transparent);
+  transform:rotate(18deg);animation:goldShine 2.4s ease-in-out infinite;
+}
+@keyframes goldPulse{
+  0%,100%{box-shadow:1px 1px 0 rgba(0,0,0,.15),0 0 0 0 rgba(226,178,60,.55)}
+  50%    {box-shadow:1px 1px 0 rgba(0,0,0,.15),0 0 11px 3px rgba(226,178,60,.75)}
+}
+@keyframes goldShine{
+  0%,55%{left:-120%}
+  100%  {left:150%}
+}
+@media (prefers-reduced-motion:reduce){
+  .btn.gold{animation:none}
+  .btn.gold::after{display:none}
+}
+body.print-sizing .btn.gold{animation:none}
 .btn.editing{background:var(--red);border-color:var(--red);color:#fff}
 .save-hint{font-size:12px;color:#888;margin-left:auto;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .help-btn{width:34px;padding:6px 0;font-weight:700;font-size:16px;color:var(--blue);flex-shrink:0}
@@ -343,7 +368,15 @@ body.editing thead tr:nth-child(2) th:not(.corner){cursor:pointer}
 .rp-w{font-size:15px;font-weight:700;color:var(--blue);line-height:1.4}
 .rp-d{font-size:10.5px;color:#a8a294;line-height:1.5;margin-top:1px}
 .rp-v{font-size:13px;font-weight:700;color:#7a5c14;white-space:nowrap;flex-shrink:0;padding-top:2px}
-.rp-foot{text-align:center;font-size:12px;color:#9a8558;margin:12px 0 2px}
+.rp-foot{text-align:center;font-size:12.5px;color:#8a7348;line-height:1.9;margin:14px 0 2px}
+.rp-bye{
+  margin-top:10px;padding:12px 14px;text-align:center;
+  border:1px solid #cfe0cf;border-radius:10px;
+  background:linear-gradient(135deg,#f3f9f2,#eef6ee);
+}
+.rp-bye-t{font-size:13px;font-weight:700;color:#3f7a4a;letter-spacing:1px}
+.rp-bye-n{font-size:19px;font-weight:700;color:var(--blue);margin:3px 0 5px}
+.rp-bye-d{font-size:12px;color:#5f7a62;line-height:1.85}
 .lgc{display:inline-block;width:13px;height:13px;border:1px solid #bbb;border-radius:3px;vertical-align:-2px;margin-right:3px}
 /* 說明視窗：條列與對照表，一行一件事 */
 #ovHelp .hul{margin:3px 0 0;padding-left:18px;font-size:12.5px;color:#666;line-height:1.8}
@@ -549,6 +582,7 @@ body.print-sizing .name-sub{margin-top:0}
   <button id="btnEdit" class="btn">🔒 排班</button>
   <button id="btnStaff" class="btn">＋ 人員</button>
   <button id="btnLeave" class="btn">🏖 劃假</button>
+  <button id="btnReportTop" class="btn gold" style="display:none">🏆 戰績</button>
   <button id="btnFilter" class="btn">📅 篩選日期</button>
   <button id="btnMore" class="btn">⋯</button>
   <button id="btnHelp" class="btn help-btn" title="如何使用">？</button>
@@ -1155,7 +1189,8 @@ body.print-sizing .name-sub{margin-top:0}
       <div class="hr"></div>
       <div class="sec-label">人員</div>
       <ul class="hul">
-        <li><b>離職</b>　保留歷史班表，姓名加註（離）。</li>
+        <li><b>離職</b>　從操作當下所在的月份起生效。該月之前的班表完全不受影響，姓名也不會被更動。</li>
+        <li>離職後會移出該月名單，可在「⋯」選單的「已隱藏人員」查看離職月份、復原或完全刪除。</li>
         <li><b>刪除</b>　清除所有紀錄，僅適用於輸入錯誤的情況。</li>
         <li>開關用於決定該員本月是否列入排班。</li>
       </ul>
@@ -1243,7 +1278,8 @@ body.print-sizing .name-sub{margin-top:0}
     <div class="hr"></div>
     <div class="sec-label">戰績</div>
     <ul class="hul">
-      <li>月底最後 3 天與隔月前 5 天開啟時會詢問一次，也可隨時從「⋯」選單的「🏆 戰績」開啟。</li>
+      <li>當月倒數第二天起到下個月第三天（共五天），工具列會出現金色的「🏆 戰績」按鈕。</li>
+      <li>期間內首次開啟時也會詢問一次；其他時間可從「⋯」選單的「🏆 戰績」開啟。</li>
       <li>內容全部由既有的班表與劃假紀錄計算，不另外收集任何資料。</li>
       <li>每個稱號下方會用小字說明該項統計的內容。</li>
       <li>僅列出正面項目：工時、開店、打烊、連續出勤、早晚班比例、國定假日出勤、同班搭檔、準時劃假等。</li>
@@ -1403,6 +1439,13 @@ function fmtPairList(arr){return (arr||[]).map(p=>fmtHM(p[0])+'-'+fmtHM(p[1])).j
 const LEAVE_LABEL = {rest:'排休', desig:'指定休息', annual:'特休', duty:'公差', personal:'事假', injury:'職業傷害', typhoon:'颱風假', redline:'紅線'};
 const GROUP_ORDER = {full:0, part:1, sup:2};
 const TYPE_LABEL  = {full:'正職', part:'計時', sup:'支援'};
+function ymNum(k){const q=String(k||'').split('-');return (+q[0])*12+(+q[1])}
+function staffName(st,y,m){ // 離職註記只從生效月份起顯示，之前的班表姓名完全不動
+  if(!st)return '';
+  if(!st.leftYm)return st.name;                       // 舊資料是直接改姓名的，照原樣顯示
+  const cur=(y!=null?y:state.y)*12+(m!=null?m:state.m);
+  return cur>=ymNum(st.leftYm)?st.name+'（離）':st.name;
+}
 function nextLeaveName(baseName){ // 產生不重複的離職註記名稱：（離）、（離2）、（離3）...
   if(!state.staff.some(s=>s.name===baseName+'（離）'))return baseName+'（離）';
   let n=2;
@@ -1629,7 +1672,7 @@ async function connectViewer(code,silent){ // 以檢視代碼連線：唯讀，�
 function applyViewerUI(){ // 檢視模式下隱藏所有可編輯入口；回到編輯模式則還原
   const hide=viewerMode?'none':'';
   document.documentElement.classList.toggle('viewer-boot',viewerMode); // 與首次繪製前的身分判定保持一致
-  ['btnEdit','btnStaff','btnAddNote'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=hide});
+  ['btnEdit','btnStaff','btnAddNote','btnFilter'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=hide});
   document.getElementById('storeName').readOnly=viewerMode;
   document.getElementById('sheetTitle').readOnly=viewerMode;
   if(viewerMode&&editMode){editMode=false;document.body.classList.remove('editing')}
@@ -1999,7 +2042,7 @@ function fitSheetHeight(){ // 讓表格框吃滿螢幕剩餘高度，人多時�
   document.documentElement.style.setProperty('--sheetMaxH',Math.max(320,Math.round(avail))+'px');
 }
 window.addEventListener('resize',()=>{fitCells();fitSheetHeight()});
-function renderAll(){ensureRoster();fitCells();renderSheet();renderNotes();fitSheetHeight()}
+function renderAll(){ensureRoster();fitCells();renderSheet();renderNotes();fitSheetHeight();updateReportBtn()}
 function renderSheet(){
   const md=monthData(),N=daysInMonth();
   let h='<thead><tr><th class="corner" rowspan="2"><input id="cornerLabel" class="corner-input" value="'+esc(state.corner||'')+'" placeholder="標籤" aria-label="表格左上角標籤"></th>';
@@ -2039,7 +2082,7 @@ function renderSheet(){
     const hoursLine=st.type==='full'
       ?'<span class="hours-line">應上'+fmtH(reqHours(st.id))+'h</span>'
       :'<span class="hours-line">本月'+fmtH(partHours(st.id))+'h</span>';
-    h+='<tr><td class="name-cell" data-sid="'+st.id+'"><button class="ot-btn" data-ot="'+st.id+'">⋯</button><span class="name-txt">'+esc(st.name)+'</span>'+
+    h+='<tr><td class="name-cell" data-sid="'+st.id+'"><button class="ot-btn" data-ot="'+st.id+'">⋯</button><span class="name-txt">'+esc(staffName(st))+'</span>'+
        '<span class="name-sub"><span class="badge '+st.type+'">'+TYPE_LABEL[st.type][0]+'</span>'+
        (st.type==='full'?'<span class="rest-count'+(tally.count>q?' over':'')+'">休 '+tally.count+'/'+q+
          (tally.typhoonUsed?'<span class="typhoon-note">（含颱'+tally.typhoonUsed+'）</span>':'')+'</span>':'')+
@@ -3058,7 +3101,7 @@ function renderStaffList(){
     prevType=st.type;
     const inMonth=roster.includes(st.id);
     html+='<div class="staff-row" data-sid="'+st.id+'">'+
-      '<span class="name-txt">'+esc(st.name)+'</span>'+
+      '<span class="name-txt">'+esc(staffName(st))+'</span>'+
       '<span class="badge '+st.type+'">'+TYPE_LABEL[st.type][0]+'</span>'+
       '<label class="mtoggle" title="是否列入本月班表" onclick="event.stopPropagation()">'+
         '<input type="checkbox" data-inmonth="'+st.id+'" '+(inMonth?'checked':'')+'><span class="mtoggle-track"></span>'+
@@ -3099,7 +3142,7 @@ function renderHiddenList(){
   if(!hidden.length){box.innerHTML='<div class="small-note">目前沒有已隱藏（離職）的人員。</div>';return}
   box.innerHTML=hidden.map(st=>
     '<div class="hidden-row" data-sid="'+st.id+'">'+
-    '<span class="name-txt">'+esc(st.name)+'</span>'+
+    '<span class="name-txt">'+esc(st.name)+(st.leftYm?'<small style="color:#999;font-weight:400"> · '+esc(st.leftYm.replace("-","/"))+' 起</small>':'')+'</span>'+
     '<span class="badge '+st.type+'">'+TYPE_LABEL[st.type][0]+'</span>'+
     '<button class="btn" data-restore="'+st.id+'">回歸</button>'+
     '<button class="btn danger" data-purge="'+st.id+'">刪除</button>'+
@@ -3110,9 +3153,10 @@ document.getElementById('hiddenListBody').addEventListener('click',ev=>{
   if(restore){
     const st=state.staff.find(s=>s.id===restore.dataset.restore);
     if(!st)return;
-    if(!confirm('讓 '+st.name+' 回歸人員清單？\n姓名會恢復原本的樣子（移除「（離）」註記），並加回本月名單。'))return;
+    if(!confirm('讓 '+st.name+' 回歸人員清單？\n離職註記會取消，並加回本月名單。'))return;
     st.hidden=false;
-    st.name=st.name.replace(/（離\d*）$/,'');
+    delete st.leftYm;
+    st.name=st.name.replace(/（離\d*）$/,''); // 舊資料是直接寫進姓名的，一併清掉
     const md=monthData();
     if(!md.roster.includes(st.id))md.roster.push(st.id);
     scheduleSave();renderSheet();renderHiddenList();
@@ -3324,10 +3368,13 @@ document.getElementById('btnSaveStaff').addEventListener('click',()=>{
 });
 document.getElementById('btnRemoveMonth').addEventListener('click',()=>{
   const st=state.staff.find(s=>s.id===curStaffId);
-  if(!confirm('將 '+st.name+' 設為離職？\n過去月份的班表完整保留；姓名會加註「（離）」避免跟未來同名新人混淆。之後可在「⋯」選單的「已隱藏人員」查看、復原或完全刪除。'))return;
+  if(!confirm('將 '+st.name+' 從 '+state.y+' 年 '+state.m+' 月起設為離職？\n\n'+
+      '· '+state.m+' 月之前的班表完全不受影響，姓名不會被改動\n'+
+      '· 從 '+state.m+' 月起，姓名才會加註「（離）」\n'+
+      '· 同時移出本月名單，之後可在「⋯」選單的「已隱藏人員」復原'))return;
   const md=monthData();
   md.roster=md.roster.filter(id=>id!==curStaffId);
-  if(!/（離\d*）$/.test(st.name))st.name=nextLeaveName(st.name);
+  st.leftYm=ym();   // 只記「從哪個月起離職」，姓名保持原樣，過去月份才不會被追溯標記
   st.hidden=true;
   scheduleSave();renderSheet();
   document.getElementById('ovStaff').classList.remove('show');
@@ -4159,8 +4206,9 @@ function drawColorPage(pdf,ctx,scale,y,m){
     const rowY=bodyTop+ri*rowH;
     pdf.setDrawColor(130,130,130);
     pdf.rect(margin,rowY,nameColW,rowH);
-    const lm=st.name.match(/^(.*)（離(\d*)）$/); // 離職註記縮小放角落，不跟姓名擠成一團
-    const baseName=lm?lm[1]:st.name;
+    const shown=staffName(st,y,m);
+    const lm=shown.match(/^(.*)（離(\d*)）$/); // 離職註記縮小放角落，不跟姓名擠成一團
+    const baseName=lm?lm[1]:shown;
     const nameSize=Math.min(5.5,rowH*0.8); // 人多列變矮時，姓名跟著縮，才不會上下兩列黏在一起
     if(lm){
       const tag='離'+(lm[2]||'');
@@ -4391,6 +4439,14 @@ function topBy(arr,fn,min){ // 取最高的人，同分並列；都沒達標就�
   });
   return out.length?{val:best,list:out}:null;
 }
+function monthsOnRoster(sid){ // 這個人總共出現在幾個月的班表名單上
+  let n=0;
+  Object.keys(state.months).forEach(k=>{
+    const md=state.months[k];
+    if(md&&Array.isArray(md.roster)&&md.roster.indexOf(sid)>=0)n++;
+  });
+  return n;
+}
 function bestDuo(roster,N){ // 同一天都在店裡最多次的兩個人
   let best=null;
   for(let i=0;i<roster.length;i++)for(let j=i+1;j<roster.length;j++){
@@ -4440,6 +4496,15 @@ function battleReport(ym){
       roster.forEach(st=>{const e=entryOf(st.id,d);if(e&&(e.t==='shift'||e.t==='injury'))head++});
       dayStat.push({d,total:(sp.morning+sp.evening)/60,head});
     }
+    // 下個月的班表已經建立、但名單裡沒有這個人 → 視為離開（本月要有實際出勤才算，避免誤判）
+    function departedList(per){
+      let ny=state.y,nmo=state.m+1;
+      if(nmo>12){nmo=1;ny++}
+      const next=state.months[ny+'-'+nmo];
+      if(!next||!Array.isArray(next.roster))return [];
+      return per.filter(x=>x.days>0&&next.roster.indexOf(x.st.id)<0)
+                .map(x=>({st:x.st,months:monthsOnRoster(x.st.id)}));
+    }
     const worked=dayStat.filter(x=>x.head>0);
     const totalH=per.reduce((a,x)=>a+x.hrs,0);
     const totalShifts=per.reduce((a,x)=>a+x.days,0);
@@ -4459,17 +4524,27 @@ function battleReport(ym){
       busyDay: worked.length?worked.reduce((a,b)=>b.head>a.head?b:a):null,
       onTimeLeave: per.filter(x=>x.onTime),
       earliest: per.filter(x=>x.firstAt).sort((a,b)=>a.firstAt-b.firstAt)[0]||null,
-      duo: bestDuo(roster,N)
+      duo: bestDuo(roster,N),
+      departed: departedList(per)
     };
   });
 }
-function reportTargetYm(){ // 月底最後 3 天看當月，隔月前 5 天看上個月，其餘時間不自動跳
+function reportTargetYm(){ // 當月倒數第二天起到下個月第三天，共五天
   const t=new Date(nowMs());
   const y=t.getFullYear(), m=t.getMonth()+1, d=t.getDate();
   const last=new Date(y,m,0).getDate();
-  if(d>=last-2)return ymOf(y,m);
-  if(d<=5){let py=y,pm=m-1;if(pm===0){pm=12;py--}return ymOf(py,pm)}
+  if(d>=last-1)return ymOf(y,m);
+  if(d<=3){let py=y,pm=m-1;if(pm===0){pm=12;py--}return ymOf(py,pm)}
   return null;
+}
+function updateReportBtn(){ // 只在那五天、而且該月真的有排班紀錄時才亮出來
+  const b=document.getElementById('btnReportTop');
+  if(!b)return;
+  const t=reportTargetYm();
+  let show=false;
+  if(t&&storeCode){try{show=battleReport(t).hasData}catch(e){show=false}}
+  b.style.display=show?'':'none';
+  if(show){b.textContent='🏆 '+parseYm(t).m+'月戰績';b.dataset.ym=t}
 }
 function reportSeenKey(ym){return 'paiban-report-'+(storeCode||'')+'-'+ym}
 function maybeAskReport(){ // 每個代碼、每個月只主動問一次
@@ -4535,7 +4610,17 @@ function openReport(ym){
       '開放後第一個送出劃假的人',fmtLogTime(r.earliest.firstAt));
     if(r.duo)h+=card('🤝','這組合有點東西',r.duo.a.name+' ＋ '+r.duo.b.name,
       '同一天班段有重疊、一起站台最多天的兩個人',r.duo.n+' 天同班');
-    h+='<div class="rp-foot">辛苦了，下個月也請多指教。</div>';
+    h+='<div class="rp-foot">感謝 '+p.m+' 月每一位夥伴的配合，辛苦了。<br>'+
+       '祝大家早日靠達標獎金，存到人生的第一桶金。</div>';
+    r.departed.forEach(x=>{
+      const who=x.st.name.replace(/（離\d*）$/,'');
+      h+='<div class="rp-bye">'+
+         '<div class="rp-bye-t">🌿　一路順風</div>'+
+         '<div class="rp-bye-n">'+esc(who)+'</div>'+
+         '<div class="rp-bye-d">感謝這 '+x.months+' 個月來的並肩作戰。<br>'+
+         '無論因為什麼原因離開，都謝謝你曾經來過，也祝你往後一切順利。</div>'+
+       '</div>';
+    });
     body.innerHTML=h;
   }
   markReportSeen(ym);
@@ -4552,6 +4637,9 @@ document.getElementById('btnReportNo').addEventListener('click',()=>{
   document.getElementById('ovReportAsk').classList.remove('show');
 });
 document.getElementById('btnCloseReport').addEventListener('click',()=>document.getElementById('ovReport').classList.remove('show'));
+document.getElementById('btnReportTop').addEventListener('click',()=>{
+  openReport(document.getElementById('btnReportTop').dataset.ym||reportTargetYm()||ymOf(state.y,state.m));
+});
 document.getElementById('btnMenuReport').addEventListener('click',()=>{
   document.getElementById('ovMore').classList.remove('show');
   openReport(reportTargetYm()||ymOf(state.y,state.m));
