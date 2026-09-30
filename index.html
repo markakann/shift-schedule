@@ -1007,7 +1007,6 @@ body.print-sizing .name-sub{margin-top:0}
       <select class="txt" id="smJoinM"></select>
       <span>月</span>
     </div>
-    <div class="lv-hint" style="margin:5px 0 0">只用來計算年資（戰績的道別卡）。班表是 2026 年 7 月才開始用的，填了才算得出真正的年資；留空也不影響任何功能。</div>
     <div id="smArchivedWrap" style="display:none">
       <div class="hr"></div>
       <div class="sec-label">或從過往人員加入本月（保留其歷史班表）</div>
@@ -1423,7 +1422,6 @@ body.print-sizing .name-sub{margin-top:0}
     <div class="m-title">更多</div>
     <div class="small-note" id="cloudInfo" style="margin:6px 0 12px;font-size:13px;color:#555"></div>
     <div class="m-actions" style="flex-direction:column">
-      <button class="btn" id="btnMenuReport">🏆 戰績</button>
       <button class="btn" id="btnOpenJoin">加入現有代碼</button>
       <button class="btn" id="btnCopyMenu">複製代碼</button>
       <button class="btn" id="btnOpenHub">建立新代碼</button>
@@ -1640,11 +1638,9 @@ body.print-sizing .name-sub{margin-top:0}
     <div class="sec-label">戰績</div>
     <ul class="hul">
       <li>當月倒數第二天起到下個月第三天（共五天），工具列會出現金色的「🏆 戰績」按鈕。</li>
-      <li>期間內首次開啟時也會詢問一次；其他時間可從「⋯」選單的「🏆 戰績」開啟。</li>
+      <li>期間內首次開啟班表時也會詢問一次。</li>
       <li>內容全部由既有的班表與劃假紀錄計算，不另外收集任何資料。</li>
       <li>每個稱號下方會用小字說明該項統計的內容。</li>
-      <li>僅列出正面項目：工時、開店、打烊、連續出勤、早晚班比例、國定假日出勤、同班搭檔、準時劃假等。</li>
-      <li>沒有排名倒數或遲交次數之類的項目。</li>
       <li>若下月班表已建立且名單中沒有某位夥伴，最後會附上該員的道別卡。</li>
     </ul>
 
@@ -3457,7 +3453,7 @@ function openStaff(id){
   document.getElementById('smTitle').textContent=st?'編輯人員':'新增人員';
   document.getElementById('smName').value=st?st.name:'';
   document.querySelectorAll('input[name=smType]').forEach(r=>r.checked=(r.value===(st?st.type:'full')));
-  fillJoinSelects(st&&st.joinYm?st.joinYm:'');
+  fillJoinSelects(st?(st.joinYm||''):ym()); // 新增時預設當月，編輯時照原值（未填就留空）
   const show=st?'':'none';
   document.getElementById('btnDelStaff').style.display=show;
   document.getElementById('btnRemoveMonth').style.display=show;
@@ -5128,10 +5124,6 @@ document.getElementById('btnReportNo').addEventListener('click',()=>{
 document.getElementById('btnCloseReport').addEventListener('click',()=>document.getElementById('ovReport').classList.remove('show'));
 document.getElementById('btnReportTop').addEventListener('click',()=>{
   openReport(document.getElementById('btnReportTop').dataset.ym||reportTargetYm()||ymOf(state.y,state.m));
-});
-document.getElementById('btnMenuReport').addEventListener('click',()=>{
-  document.getElementById('ovMore').classList.remove('show');
-  openReport(reportTargetYm()||ymOf(state.y,state.m));
 });
 
 /* ────────── 手機返回鍵：關閉最上層彈窗，而不是離開頁面 ────────── */
