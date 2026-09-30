@@ -17,6 +17,81 @@
 <script>
 /* 在第一次繪製前就決定身分，唯讀使用者重新載入時才不會閃過一瞬間的編輯介面 */
 try{if(localStorage.getItem('paiban-mode')==='view')document.documentElement.classList.add('viewer-boot')}catch(e){}
+/* 外觀設定：也要在第一次繪製前套好，深色模式才不會先閃一下白底。
+   只存在這台裝置的 localStorage，不會上傳、不會影響其他人看到的樣子。 */
+var UI=(function(){
+  var KEY='paiban-ui-v1';
+  var DEF={fs:'m',rh:'m',gl:'m',accent:'blue',theme:'auto'};
+  var FS={s:0.88,m:1,l:1.18};        // 字級倍率
+  var RH={s:0.8,m:1,l:1.24};         // 格子高度倍率
+  var GL={s:'#a6a6a6',m:'#4a4a4a',l:'#1f1f1f'};   // 淺色模式格線
+  var GLD={s:'#3c4046',m:'#4a4e56',l:'#7d828c'};  // 深色模式格線
+  var ACC=[ // 重點色：淺色與深色各一個值，深色底才讀得清楚
+    {k:'blue',n:'靛藍',l:'#1e4bb8',d:'#7fa9f0'},
+    {k:'navy',n:'深海藍',l:'#17557a',d:'#6fc0e0'},
+    {k:'plum',n:'墨紫',l:'#5b3fa0',d:'#b79bea'},
+    {k:'moss',n:'墨綠',l:'#1f6b52',d:'#6fc9a6'},
+    {k:'ink',n:'炭灰',l:'#3f3f3f',d:'#cfcdc6'}
+  ];
+  var cur=null,forceLight=false;
+  function valid(k,v){
+    if(k==='accent'){for(var i=0;i<ACC.length;i++)if(ACC[i].k===v)return true;return false}
+    if(k==='theme')return v==='auto'||v==='light'||v==='dark';
+    if(DEF[k]==null)return false;
+    return v==='s'||v==='m'||v==='l';
+  }
+  function read(){
+    if(cur)return cur;
+    var o={};
+    try{o=JSON.parse(localStorage.getItem(KEY)||'{}')||{}}catch(e){o={}}
+    cur={};
+    for(var k in DEF)cur[k]=valid(k,o[k])?o[k]:DEF[k];
+    return cur;
+  }
+  function isDark(){
+    if(forceLight)return false;
+    var t=read().theme;
+    if(t==='dark')return true;
+    if(t==='light')return false;
+    try{return !!(window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches)}catch(e){return false}
+  }
+  function acc(){var k=read().accent;for(var i=0;i<ACC.length;i++)if(ACC[i].k===k)return ACC[i];return ACC[0]}
+  function apply(){
+    var s=read(),root=document.documentElement,dark=isDark(),a=acc();
+    root.classList.add('no-anim'); // 換色時關掉格子的漸變，才不會停在半途的顏色
+    clearTimeout(apply._t);apply._t=setTimeout(function(){root.classList.remove('no-anim')},60);
+    root.classList.toggle('dark',dark);
+    root.classList.toggle('rh-s',s.rh==='s');
+    root.classList.toggle('rh-l',s.rh==='l');
+    root.style.setProperty('--uiFS',String(FS[s.fs]));
+    root.style.setProperty('--gridline',(dark?GLD:GL)[s.gl]);
+    root.style.setProperty('--blue',dark?a.d:a.l);
+    root.style.setProperty('--accent',dark?a.d:a.l);
+    var mt=document.querySelector('meta[name="theme-color"]');
+    if(mt)mt.setAttribute('content',dark?'#171a1f':'#eceae3');
+    if(typeof window.fitCells==='function'){window.fitCells();if(window.fitSheetHeight)window.fitSheetHeight()}
+    if(typeof window.renderLookPreview==='function')window.renderLookPreview();
+  }
+  function set(k,v){
+    if(!valid(k,v))return;
+    read()[k]=v;
+    try{localStorage.setItem(KEY,JSON.stringify(cur))}catch(e){}
+    apply();
+  }
+  function reset(){cur=null;try{localStorage.removeItem(KEY)}catch(e){}read();apply()}
+  try{ // 「跟隨系統」要能即時跟著系統切換
+    var mq=window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)');
+    var onch=function(){if(read().theme==='auto')apply()};
+    if(mq&&mq.addEventListener)mq.addEventListener('change',onch);
+    else if(mq&&mq.addListener)mq.addListener(onch);
+  }catch(e){}
+  return {get:read,set:set,reset:reset,apply:apply,isDark:isDark,accents:ACC,acc:acc,
+    fs:function(){return FS[read().fs]},
+    row:function(){return RH[read().rh]},
+    suspend:function(){forceLight=true;apply()},   // 列印／匯出一律用淺色
+    resume:function(){forceLight=false;apply()}};
+})();
+UI.apply();
 </script>
 <style>
 .viewer-boot #btnEdit,.viewer-boot #btnStaff,.viewer-boot #btnAddNote,.viewer-boot #btnFilter{display:none!important}
@@ -25,6 +100,7 @@ try{if(localStorage.getItem('paiban-mode')==='view')document.documentElement.cla
   --bg:#eceae3;
   --ink:#2b2b2b;
   --grid:#4a4a4a;
+  --gridline:#4a4a4a; /* 表格內部格線，由外觀設定的「格線深淺」調整 */
   --pencil:#9a9a9a;
   --blue:#1e4bb8;
   --red:#c92f2f;
@@ -32,6 +108,17 @@ try{if(localStorage.getItem('paiban-mode')==='view')document.documentElement.cla
   --cell:46px;   /* 依螢幕寬度由 JS 動態調整 */
   --cellh:46px;
   --cellfs:11px;
+  /* 外觀設定用的倍率：字級與格子高度 */
+  --uiFS:1;
+  /* 次級面與線條：抽成變數，深色模式才能整批換掉 */
+  --paper2:#f2efe4;
+  --paper3:#fcfaf3;
+  --line:#e3ded0;
+  --line2:#eeeeee;
+  --field:#ffffff;
+  --fade:#999999;
+  --fade2:#666666;
+  --onBlue:#ffffff; /* 疊在重點色上的文字：淺色模式白字、深色模式深字 */
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0}
@@ -39,7 +126,7 @@ body{
   background:var(--bg);
   color:var(--ink);
   font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
-  font-size:15px;
+  font-size:calc(15px*var(--uiFS));
   padding-bottom:40px;
 }
 /* ── 頂部：仿紙本標題列 ── */
@@ -80,7 +167,7 @@ body{
   cursor:pointer;box-shadow:1px 1px 0 rgba(0,0,0,.15);
 }
 .btn:active{transform:translate(1px,1px);box-shadow:none}
-.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+.btn.primary{background:var(--blue);border-color:var(--blue);color:var(--onBlue)}
 /* 戰績：一年只亮五天，做華麗一點 */
 .btn.gold{
   position:relative;overflow:hidden;
@@ -109,6 +196,13 @@ body.print-sizing .btn.gold{animation:none}
 .btn.editing{background:var(--red);border-color:var(--red);color:#fff}
 .save-hint{font-size:12px;color:#888;margin-left:auto;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .help-btn{width:34px;padding:6px 0;font-weight:700;font-size:16px;color:var(--blue);flex-shrink:0}
+/* 窄螢幕：工具列收緊一點，多一顆按鈕也還擠得下一行 */
+@media (max-width:480px){
+  .toolbar{gap:4px;padding:8px 8px}
+  .toolbar .btn{padding:7px 7px;font-size:13.5px}
+  .toolbar .help-btn{width:30px;padding:6px 0;font-size:15px}
+  .wide-only{display:none}
+}
 /* 後台登入中的橫幅與儲存提示 */
 #adminBanner{
   display:flex;align-items:center;gap:8px;flex-wrap:wrap;
@@ -156,7 +250,7 @@ body.print-sizing .btn.gold{animation:none}
   flex:1;min-width:34px;text-align:center;padding:5px 0;font-size:13px;
   border:1px solid #ccc;border-radius:4px;background:#fff;cursor:pointer;user-select:none;
 }
-.day-chip.on{background:var(--blue);color:#fff;border-color:var(--blue);font-weight:700}
+.day-chip.on{background:var(--blue);color:var(--onBlue);border-color:var(--blue);font-weight:700}
 .day-chip input{display:none}
 @media print{#adminBanner,#toast{display:none!important}}
 /* ── 圖例（沿用於「如何使用」說明彈窗） ── */
@@ -174,13 +268,13 @@ body.print-sizing .btn.gold{animation:none}
 }
 table{border-collapse:separate;border-spacing:0;table-layout:fixed}
 th,td{
-  border-right:1px solid var(--grid);border-bottom:1px solid var(--grid);
+  border-right:1px solid var(--gridline);border-bottom:1px solid var(--gridline);
   padding:0;background:var(--paper);
 }
 thead th{position:sticky;z-index:5;background:var(--paper)}
-thead tr:nth-child(1) th{top:0;height:26px;font-size:13px;font-weight:700}
-thead tr:nth-child(2) th{top:26px;height:30px;font-size:14px;border-bottom-width:2px}
-th.corner{position:sticky;left:0;z-index:8!important;font-size:12px;color:var(--blue);font-weight:700;letter-spacing:1px}
+thead tr:nth-child(1) th{top:0;height:calc(26px*var(--uiFS));font-size:calc(13px*var(--uiFS));font-weight:700}
+thead tr:nth-child(2) th{top:calc(26px*var(--uiFS));height:calc(30px*var(--uiFS));font-size:calc(14px*var(--uiFS));border-bottom-width:2px}
+th.corner{position:sticky;left:0;z-index:8!important;font-size:calc(12px*var(--uiFS));color:var(--blue);font-weight:700;letter-spacing:1px}
 .corner-input{
   width:100%;border:none;background:transparent;color:var(--blue);
   font:inherit;font-weight:700;text-align:center;letter-spacing:1px;padding:0;
@@ -200,20 +294,20 @@ td.name-cell{
 .ot-btn:active{color:var(--blue)}
 th.corner{border-right-width:2px;min-width:92px;max-width:92px;width:92px}
 .name-txt{
-  color:var(--blue);font-weight:700;font-size:15px;
+  color:var(--blue);font-weight:700;font-size:calc(15px*var(--uiFS));
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;
 }
 .name-sub{display:flex;gap:4px;align-items:center;margin-top:1px;flex-wrap:wrap}
 .badge{
-  font-size:10px;border:1px solid var(--pencil);color:#777;
+  font-size:calc(10px*var(--uiFS));border:1px solid var(--pencil);color:#777;
   border-radius:3px;padding:0 3px;line-height:1.4;
 }
 .badge.full{border-color:var(--blue);color:var(--blue)}
 .badge.sup{border-color:#8a4fb0;color:#8a4fb0}
-.rest-count{font-size:11px;color:#555}
+.rest-count{font-size:calc(11px*var(--uiFS));color:#555}
 .rest-count.over{color:var(--red);font-weight:700}
-.typhoon-note{font-size:9px;color:var(--red)}
-.hours-line{display:block;font-size:10px;color:#8a7a4a;margin-top:1px}
+.typhoon-note{font-size:calc(9px*var(--uiFS));color:var(--red)}
+.hours-line{display:block;font-size:calc(10px*var(--uiFS));color:#8a7a4a;margin-top:1px}
 .day-cell{
   min-width:var(--cell);max-width:var(--cell);width:var(--cell);height:var(--cellh);
   position:relative;font-size:var(--cellfs);overflow:hidden;
@@ -221,8 +315,8 @@ th.corner{border-right-width:2px;min-width:92px;max-width:92px;width:92px}
 }
 .day-th{min-width:var(--cell);max-width:var(--cell);width:var(--cell)}
 tr.sum-row td.name-cell{background:#f2efe4;vertical-align:middle;height:34px}
-tr.sum-row .sum-label{font-weight:700;font-size:11px;line-height:1.3;cursor:pointer}
-.mtot{display:block;font-size:12px;color:var(--blue);margin-bottom:1px}
+tr.sum-row .sum-label{font-weight:700;font-size:calc(11px*var(--uiFS));line-height:1.3;cursor:pointer}
+.mtot{display:block;font-size:calc(12px*var(--uiFS));color:var(--blue);margin-bottom:1px}
 tr.sum-row .sum-cell{background:#f8f6ee;height:34px!important}
 tr.sum-row .sum-cell::before{content:none}
 tr.sum-row .t-s,tr.sum-row .t-e{font-weight:700;color:#6b5a1e;font-size:10px}
@@ -258,7 +352,7 @@ body.editing .day-cell:active{background-color:#fdf3d8}
   display:block;font-size:10px;line-height:1;white-space:nowrap;
 }
 body.print-sizing .mark.injury-mark{font-size:calc(7.5px*var(--printScale))}
-.brk-tag{position:absolute;top:0;right:2px;font-size:8px;color:#1e4bb8;font-weight:700;line-height:1.1}
+.brk-tag{position:absolute;top:0;right:2px;font-size:8px;color:var(--blue);font-weight:700;line-height:1.1}
 body.print-sizing .brk-tag{font-size:calc(5.5px*var(--printScale))}
 .injury-tag{position:absolute;top:0;right:2px;font-size:8px;color:#2a8a4a;font-weight:700;line-height:1.1}
 body.print-sizing .injury-tag{font-size:calc(5.5px*var(--printScale))}
@@ -267,9 +361,9 @@ body.print-sizing .injury-tag{font-size:calc(5.5px*var(--printScale))}
   color:var(--red);opacity:.55;font-size:12px;font-weight:700;pointer-events:none;
 }
 th .d-num{display:block;line-height:1.1}
-th .wd{display:block;font-size:14px;font-weight:700;line-height:1.1}
+th .wd{display:block;font-size:calc(14px*var(--uiFS));font-weight:700;line-height:1.1}
 th .wd.red{color:var(--red)}
-th .hname{display:block;font-size:8px;line-height:1.1;white-space:nowrap;overflow:hidden}
+th .hname{display:block;font-size:calc(8px*var(--uiFS));line-height:1.1;white-space:nowrap;overflow:hidden}
 th .hname.red{color:var(--red)}
 th .hname.black{color:var(--ink)}
 th .warn-row{display:flex;justify-content:center;gap:2px;margin-top:1px}
@@ -329,7 +423,7 @@ body.editing thead tr:nth-child(2) th:not(.corner){cursor:pointer}
 .day-cell.lv-clash .prev-value{left:13px} /* 剛改過的舊值往右挪一點，避開驚嘆號 */
 .lv-tabs{display:flex;gap:6px;margin:8px 0 10px}
 .lv-tab{flex:1;border:1.5px solid var(--grid);background:var(--paper);border-radius:6px;padding:7px 0;font-size:14px;font-weight:600;cursor:pointer}
-.lv-tab.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.lv-tab.on{background:var(--blue);border-color:var(--blue);color:var(--onBlue)}
 .lv-brush{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px}
 .lv-brush .lv-bt{flex:1 1 auto;min-width:0} /* 每一行都撐滿，左右跟星期列、日曆切齊 */
 .lv-bt{border:1.5px solid var(--grid);background:var(--paper);border-radius:6px;padding:5px 9px;font-size:13px;font-weight:600;cursor:pointer}
@@ -413,7 +507,7 @@ body.editing thead tr:nth-child(2) th:not(.corner){cursor:pointer}
 .lv-chg-line{font-size:12px;line-height:1.7;margin-left:2px}
 .lv-sort{display:inline-flex;border:1px solid var(--grid);border-radius:5px;overflow:hidden;margin-left:auto}
 .lv-sbt{border:none;background:var(--paper);color:#666;font-size:11px;font-weight:700;padding:3px 8px;cursor:pointer}
-.lv-sbt.on{background:var(--blue);color:#fff}
+.lv-sbt.on{background:var(--blue);color:var(--onBlue)}
 .lv-op{display:inline-block;min-width:30px;text-align:center;font-size:10px;font-weight:700;border-radius:3px;padding:0 4px;margin-right:5px}
 .lv-op.add{background:#ede2f7;color:#6b3a8a}
 .lv-op.del{background:#dff0e2;color:#2a6a3a}
@@ -476,7 +570,7 @@ body.editing thead tr:nth-child(2) th:not(.corner){cursor:pointer}
 .mtoggle{position:relative;display:inline-block;width:38px;height:22px;flex-shrink:0}
 .mtoggle input{opacity:0;width:0;height:0}
 .mtoggle-track{position:absolute;inset:0;background:#ddd;border-radius:22px;transition:background .15s}
-.mtoggle-track::before{content:'';position:absolute;left:2px;top:2px;width:18px;height:18px;background:#fff;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .15s}
+.mtoggle-track::before{content:'';position:absolute;left:2px;top:2px;width:18px;height:18px;background:var(--onBlue);border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform .15s}
 .mtoggle input:checked+.mtoggle-track{background:var(--blue)}
 .mtoggle input:checked+.mtoggle-track::before{transform:translateX(16px)}
 .staff-group-label{font-size:12px;color:#999;padding:10px 4px 4px;font-weight:700}
@@ -497,7 +591,7 @@ body.editing thead tr:nth-child(2) th:not(.corner){cursor:pointer}
 .chip.leave.green{color:#2a8a4a;border-color:#2a8a4a;background:#f3fbf5}
 .chip.leave.purple{color:#8a4fb0;border-color:#8a4fb0;background:#faf6fd}
 .chip.active{background:#2a8a4a;color:#fff;border-color:#2a8a4a}
-.brk-chip.on{background:var(--blue);color:#fff;border-color:var(--blue);font-weight:700}
+.brk-chip.on{background:var(--blue);color:var(--onBlue);border-color:var(--blue);font-weight:700}
 .chip.plain{color:var(--ink)}
 .stepper-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .stepper{display:flex;align-items:center;border:1.5px solid var(--grid);border-radius:8px;overflow:hidden}
@@ -526,9 +620,199 @@ textarea.txt{min-height:110px}
   .overlay{align-items:center}
   .modal{border-radius:14px}
 }
+/* ── 外觀設定（每台裝置各自一份，不會影響別人） ── */
+.lk-row{margin:12px 0 0}
+.lk-lab{font-size:12px;color:var(--fade);letter-spacing:1px;margin-bottom:5px}
+.lk-lab small{letter-spacing:0;font-weight:600}
+.lk-seg{display:flex;gap:6px}
+.lk-seg button{
+  flex:1;min-width:0;border:1.5px solid var(--grid);background:var(--paper);color:var(--ink);
+  border-radius:6px;padding:7px 2px;font-size:13px;font-weight:600;cursor:pointer;
+}
+.lk-seg button.on{background:var(--blue);border-color:var(--blue);color:var(--onBlue)}
+.lk-sw{display:flex;gap:9px;flex-wrap:wrap}
+.lk-sw button{
+  position:relative;width:46px;height:38px;border-radius:9px;
+  border:2px solid var(--line);cursor:pointer;padding:0;
+}
+.lk-sw button.on{border-color:var(--ink)}
+.lk-sw button.on::after{
+  content:'✓';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  color:var(--onBlue);font-size:16px;font-weight:700;text-shadow:0 1px 2px rgba(0,0,0,.35);
+}
+html.dark .lk-sw button.on::after{text-shadow:0 1px 2px rgba(255,255,255,.3)}
+/* 設定視窗裡的迷你預覽：直接看到字級、格高、格線、重點色 */
+.lk-prev{
+  margin-top:6px;border:2px solid var(--grid);border-radius:2px;background:var(--paper);
+  overflow:hidden;box-shadow:1px 2px 5px rgba(0,0,0,.12);
+}
+.lk-prev table{width:100%;table-layout:fixed}
+.lk-prev th,.lk-prev td{border-right:1px solid var(--gridline);border-bottom:1px solid var(--gridline);background:var(--paper)}
+.lk-prev tr:last-child td{border-bottom:none}
+.lk-prev th:last-child,.lk-prev td:last-child{border-right:none}
+.lk-prev th{height:calc(24px*var(--uiFS));font-size:calc(12px*var(--uiFS));font-weight:700}
+.lk-prev th.r{color:var(--red)}
+.lk-prev td.nm{
+  width:70px;padding:2px 5px;border-right-width:2px;vertical-align:middle;
+  color:var(--blue);font-weight:700;font-size:calc(14px*var(--uiFS));
+}
+.lk-prev .lk-sub{display:block;font-size:calc(10px*var(--uiFS));color:var(--fade);font-weight:600}
+html.rh-s .lk-prev td.nm{padding:0 4px}
+html.rh-s .lk-prev .lk-sub{line-height:1.1}
+html.rh-l .lk-prev td.nm{padding:4px}
+.lk-prev td.c{position:relative;height:var(--cellh);font-size:var(--cellfs)}
+.lk-prev td.c .t-s,.lk-prev td.c .t-e{font-weight:600}
+.lk-prev td.c.e::before{content:'';position:absolute;left:50%;top:50%;width:170%;height:1px;background:var(--pencil);transform:translate(-50%,-50%) rotate(-45deg)}
+html.no-anim .day-cell{transition:none}
+/* 說明與提示用的語意色：抽成 class，深色模式才能整批換掉 */
+.c-purple{color:#8a4fb0}
+.c-green{color:#2a8a4a}
+.c-amber{color:#d99a00}
+.c-orange{color:#a85c07}
+.c-fade{color:var(--fade)}
+.lgc.sw-all {background:#dceffa}
+.lgc.sw-only{background:#dcf3da}
+.lgc.sw-part{background:#f7e3f7}
+.lgc.sw-late{background:#ffe3c2}
+.lgc.sw-mark{border:2px dashed #0d94a6;background:#d9f2f7}
+.lgc.sw-flash{border:2px solid #0d94a6}
+.lgc.sw-clash{border:2px solid var(--red)}
+/* 緊湊／寬鬆：列高其實是被名字欄的內容撐住的，所以名字欄要跟著收放 */
+html.rh-s td.name-cell{padding:0 4px}
+html.rh-s .name-txt{line-height:1.12}
+html.rh-s .name-sub{margin-top:0;gap:3px}
+html.rh-s .badge{line-height:1.1}
+html.rh-s .rest-count{line-height:1.1}
+html.rh-s .hours-line{margin-top:0;line-height:1.1}
+html.rh-l td.name-cell{padding:4px 4px}
+html.rh-l .name-txt{line-height:1.45}
+html.rh-l .name-sub{margin-top:3px}
+html.rh-l .hours-line{margin-top:3px}
+/* ── 深色模式 ── */
+html.dark{color-scheme:dark}
+html.dark{
+  --onBlue:#14161a;
+  --paper:#23252b;
+  --bg:#171a1f;
+  --ink:#e8e6df;
+  --grid:#70747c;
+  --gridline:#4a4e56;
+  --pencil:#6a6e76;
+  --red:#ff6b6b;
+  --paper2:#2a2d34;
+  --paper3:#262930;
+  --line:#3a3e46;
+  --line2:#33363d;
+  --field:#1d1f25;
+  --fade:#9a9ba2;
+  --fade2:#b3b4ba;
+}
+html.dark .btn{box-shadow:1px 1px 0 rgba(0,0,0,.45)}
+html.dark .sheet-wrap,html.dark .notes-row{box-shadow:2px 3px 10px rgba(0,0,0,.5)}
+html.dark .topbar{box-shadow:0 1px 4px rgba(0,0,0,.4)}
+html.dark .overlay{background:rgba(0,0,0,.62)}
+html.dark .modal{box-shadow:0 -3px 22px rgba(0,0,0,.6)}
+html.dark #toast{background:#3d4048}
+html.dark input.txt,html.dark textarea.txt,html.dark select.txt,
+html.dark .stepper .tval-input,html.dark .lk-prev td.c{color:var(--ink)}
+html.dark input.txt,html.dark textarea.txt,html.dark select.txt,
+html.dark .stepper .tval-input,html.dark .chip,html.dark .day-chip{background:var(--field)}
+html.dark .day-chip{border-color:var(--line)}
+html.dark .stepper button{background:#2f323a;color:var(--ink)}
+html.dark .chip:active{background:#2a3042}
+html.dark .chip.part-extra{color:var(--fade2)}
+html.dark .chip.leave{background:#3a2226}
+html.dark .chip.leave.green{background:#1f3328;color:#5fc47f;border-color:#5fc47f}
+html.dark .chip.leave.purple{background:#2e2740;color:#c79bd8;border-color:#c79bd8}
+html.dark .mtoggle-track{background:#4a4e56}
+html.dark .mtoggle-track::before{background:#d8d6cf}
+html.dark .save-hint,html.dark .sec-label,html.dark .m-sub,html.dark .small-note,
+html.dark .lv-hint,html.dark .lv-wd,html.dark .lv-range span,html.dark .lv-none,
+html.dark .lv-chg-t,html.dark .lv-was,html.dark .cfg-item small,
+html.dark .staff-group-label,html.dark .note-empty{color:var(--fade)}
+html.dark .legend,html.dark .lv-csum,html.dark .cfg-grid label,
+html.dark .lv-sbt,html.dark #ovHelp .hul,html.dark #ovHelp .hdl{color:var(--fade2)}
+html.dark .ot-btn,html.dark .lv-caret,html.dark .cfg-item::after,
+html.dark .lv-chg-n.read,html.dark .staff-row .chev,html.dark .ot-table .zero{color:#7b7e86}
+html.dark .prev-value{color:#9a9ba2}
+html.dark .hidden-row .name-txt{color:#9a9ba2}
+html.dark .rest-count{color:#b0aea6}
+html.dark .hours-line{color:#c0ab7a}
+html.dark .badge{color:#a8a6a0}
+html.dark #ovHelp .hsub{color:#c0ab7a}
+html.dark .lgc{border-color:#5a5e66}
+html.dark .staff-row,html.dark .hidden-row{border-bottom-color:var(--line2)}
+html.dark .staff-row:active{background:var(--paper2)}
+html.dark .t-s.fs-warn,html.dark .t-e.fs-warn{color:#ff87ac}
+html.dark .mark.green,html.dark .injury-tag,html.dark .lv-free{color:#5fc47f}
+html.dark .mark.purple,html.dark .badge.sup{color:#c79bd8;border-color:#c79bd8}
+/* 表格 */
+html.dark tr.sum-row td.name-cell{background:var(--paper2)}
+html.dark tr.sum-row .sum-cell{background:#2b2e35}
+html.dark tr.sum-row .t-s,html.dark tr.sum-row .t-e{color:#cbb478}
+html.dark body.editing .day-cell:active{background-color:#3b3520}
+html.dark .day-cell.changed-mark{background-color:#1f2c3f!important}
+html.dark .day-cell.marked{outline-color:#39b5c7;background-color:#1b3b42!important}
+html.dark .jump-chip{background:#3a2226}
+html.dark .jump-chip.all,html.dark .mark-btn{background:#16343a;color:#6fd4e2;border-color:#2d7d8a}
+/* 加班統計表 */
+html.dark .ot-table th{background:var(--paper2)}
+html.dark .ot-table th,html.dark .ot-table td{border-color:var(--line)}
+html.dark .ot-table tr.nat td{background:#3a2328}
+html.dark .ot-table tr.otfull td{background:#3a3320}
+/* 後台 */
+html.dark .rule-card{background:var(--paper2);border-color:var(--line)}
+html.dark .rule-card.off{background:#22242a}
+html.dark #adminBanner{background:#3b3320;border-color:#8a6f2a;color:#e8c766}
+html.dark #adminBannerWho{color:#b09a5a}
+/* 劃假 */
+html.dark .lv-warn{background:#2e2540;border-color:#6b4f8a;color:#d3aef0}
+html.dark .lv-warn.late{background:#3d2f1c;border-color:#8a6633;color:#f0b978}
+html.dark #lvModal.late-mode .m-title{color:#f0a44a}
+html.dark .lv-mnote{background:#332e22;color:#d4b47a}
+html.dark .lv-note-line{background:#322d1f;color:#d0bc84}
+html.dark .lv-sum,html.dark .lv-chg-box{background:var(--paper3);border-color:var(--line)}
+html.dark .lv-chg{border-bottom-color:#3a3e46}
+html.dark .lv-chg.new{background:#2b2a22}
+html.dark .lv-chg-detail{border-left-color:var(--line)}
+html.dark .lv-late-tag{background:#42301a;border-color:#8a6633;color:#f0b978}
+html.dark .lv-op.add{background:#332a45;color:#c9a3e0}
+html.dark .lv-op.del{background:#1f3327;color:#8fd0a0}
+html.dark .lv-op.mod{background:#22303f;color:#9cc4e8}
+/* 劃假底色：深色模式改成同色系的深底淺字，保留四種顏色的分辨度 */
+html.dark .day-cell.lv-all {background-color:#1e3646;--lvink:#8fc8e8}
+html.dark .day-cell.lv-only{background-color:#1f3a24;--lvink:#96d69b}
+html.dark .day-cell.lv-part{background-color:#3a2439;--lvink:#e0a6e0}
+html.dark .day-cell.lv-late{background-color:#42301a;--lvink:#f0b978}
+html.dark .lv-d.m-all {background:#1e3646;border-color:#3d6c88;--lvink:#8fc8e8}
+html.dark .lv-d.m-only{background:#1f3a24;border-color:#3f7448;--lvink:#96d69b}
+html.dark .lv-d.m-part{background:#3a2439;border-color:#7a4d7a;--lvink:#e0a6e0}
+html.dark .lv-d.m-late{background:#42301a;border-color:#8a6633;--lvink:#f0b978}
+html.dark .c-purple{color:#c79bd8}
+html.dark .c-green{color:#5fc47f}
+html.dark .c-amber{color:#f0c14b}
+html.dark .c-orange{color:#f0b978}
+html.dark .lgc.sw-all {background:#1e3646}
+html.dark .lgc.sw-only{background:#1f3a24}
+html.dark .lgc.sw-part{background:#3a2439}
+html.dark .lgc.sw-late{background:#42301a}
+html.dark .lgc.sw-mark{background:#1b3b42;border-color:#39b5c7}
+html.dark .lgc.sw-flash{border-color:#39b5c7}
+/* 月底戰績 */
+html.dark .rp-head{background:linear-gradient(135deg,#35312a,#2c2a24);border-bottom-color:#4d452f}
+html.dark .rp-title,html.dark .rp-t,html.dark .rp-v{color:#e2c581}
+html.dark .rp-sub{color:#b9a878}
+html.dark .rp-nums div{background:var(--paper3);border-color:var(--line)}
+html.dark .rp-nums span{color:var(--fade)}
+html.dark .rp-card{border-color:var(--line)}
+html.dark .rp-d{color:#9a9890}
+html.dark .rp-foot{color:#c3ae7e}
+html.dark .rp-bye{background:linear-gradient(135deg,#232b25,#202822);border-color:#3c5240}
+html.dark .rp-bye-t{color:#86c795}
+html.dark .rp-bye-d{color:#9db8a2}
 /* ── 列印／匯出 PDF ── */
 /* 列印尺寸設定：抽成獨立class，供JS在正式列印前先套用做實際量測，量測與正式列印共用同一套數字 */
-body.print-sizing{--printScale:1;width:281mm}
+body.print-sizing{--printScale:1;width:281mm;--uiFS:1}
 body.print-sizing .notes-sec{break-inside:avoid;page-break-inside:avoid}
 body.print-sizing .cov-warn,body.print-sizing .warn-row{display:none!important}
 body.print-sizing .day-cell.marked,body.print-sizing .day-cell.flash{box-shadow:none!important;outline:none!important;background-color:transparent!important;animation:none!important}
@@ -544,6 +828,7 @@ body.print-sizing thead th{position:static}
 body.print-sizing td.name-cell,body.print-sizing th.corner{position:static;min-width:0;max-width:none;width:64px;font-size:10px;padding:1px 3px}
 body.print-sizing table{width:100%}
 body.print-sizing .day-cell,body.print-sizing .day-th{min-width:0;max-width:none;width:auto}
+body.print-sizing .day-cell{transition:none}
 body.print-sizing .day-cell{height:var(--printRowH,32px);font-size:calc(7.5px*var(--printScale))}
 body.print-sizing .mark.tri{font-size:calc(13px*var(--printScale))}
 body.print-sizing .mark.word{font-size:calc(11px*var(--printScale))}
@@ -565,6 +850,26 @@ body.print-sizing .name-sub{margin-top:0}
   *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color-adjust:exact!important}
   html,body{margin:0;padding:0}
   body{background:#fff;font-size:12px;padding:0}
+  /* 保險：直接用瀏覽器列印時也強制回淺色，不會印出一張黑底 */
+  html.dark{color-scheme:light}
+  html.dark body{
+    --paper:#fffdf7;--bg:#eceae3;--ink:#2b2b2b;--grid:#4a4a4a;--gridline:#4a4a4a;
+    --pencil:#9a9a9a;--blue:#1e4bb8;--red:#c92f2f;--accent:#1e4bb8;
+    --paper2:#f2efe4;--paper3:#fcfaf3;--line:#e3ded0;--line2:#eeeeee;
+    --field:#ffffff;--fade:#999999;--fade2:#666666;
+  }
+  html.dark tr.sum-row td.name-cell{background:#f2efe4}
+  html.dark tr.sum-row .sum-cell{background:#f8f6ee}
+  html.dark tr.sum-row .t-s,html.dark tr.sum-row .t-e{color:#6b5a1e}
+  html.dark .hours-line{color:#8a7a4a}
+  html.dark .rest-count{color:#555}
+  html.dark .badge{color:#777}
+  html.dark .mark.green,html.dark .injury-tag{color:#2a8a4a}
+  html.dark .mark.purple,html.dark .badge.sup{color:#8a4fb0;border-color:#8a4fb0}
+  html.dark .c-purple{color:#8a4fb0}
+  html.dark .c-green{color:#2a8a4a}
+  html.dark .c-amber{color:#d99a00}
+  html.dark .c-orange{color:#a85c07}
 }
 </style>
 </head>
@@ -583,8 +888,9 @@ body.print-sizing .name-sub{margin-top:0}
   <button id="btnStaff" class="btn">＋ 人員</button>
   <button id="btnLeave" class="btn">🏖 劃假</button>
   <button id="btnReportTop" class="btn gold" style="display:none">🏆 戰績</button>
-  <button id="btnFilter" class="btn">📅 篩選日期</button>
+  <button id="btnFilter" class="btn">📅 篩選<span class="wide-only">日期</span></button>
   <button id="btnMore" class="btn">⋯</button>
+  <button id="btnLook" class="btn help-btn" title="外觀設定">🎨</button>
   <button id="btnHelp" class="btn help-btn" title="如何使用">？</button>
   <button id="btnClearMarks" class="btn mark-btn" style="display:none">✕ 清除標示</button>
   <span id="saveHint" class="save-hint"></span>
@@ -694,6 +1000,14 @@ body.print-sizing .name-sub{margin-top:0}
       <label><input type="radio" name="smType" value="part">計時</label>
       <label><input type="radio" name="smType" value="sup">支援</label>
     </div>
+    <div class="sec-label">到職年月（選填）</div>
+    <div class="lv-range" style="margin-bottom:0">
+      <select class="txt" id="smJoinY"></select>
+      <span>年</span>
+      <select class="txt" id="smJoinM"></select>
+      <span>月</span>
+    </div>
+    <div class="lv-hint" style="margin:5px 0 0">只用來計算年資（戰績的道別卡）。班表是 2026 年 7 月才開始用的，填了才算得出真正的年資；留空也不影響任何功能。</div>
     <div id="smArchivedWrap" style="display:none">
       <div class="hr"></div>
       <div class="sec-label">或從過往人員加入本月（保留其歷史班表）</div>
@@ -1123,6 +1437,51 @@ body.print-sizing .name-sub{margin-top:0}
   </div>
 </div>
 
+<!-- 外觀設定：只存在這台裝置，不會影響其他人看到的樣子 -->
+<div class="overlay" id="ovLook">
+  <div class="modal">
+    <div class="m-title">外觀設定</div>
+    <div class="m-sub">只會改變這台裝置上的顯示，不會動到班表內容，也不會影響其他夥伴。</div>
+
+    <div class="lk-prev" id="lkPrev"></div>
+
+    <div class="lk-row">
+      <div class="lk-lab">字級</div>
+      <div class="lk-seg" data-k="fs">
+        <button data-v="s">小</button><button data-v="m">標準</button><button data-v="l">大</button>
+      </div>
+    </div>
+    <div class="lk-row">
+      <div class="lk-lab">格子高度</div>
+      <div class="lk-seg" data-k="rh">
+        <button data-v="s">緊湊</button><button data-v="m">標準</button><button data-v="l">寬鬆</button>
+      </div>
+    </div>
+    <div class="lk-row">
+      <div class="lk-lab">格線深淺</div>
+      <div class="lk-seg" data-k="gl">
+        <button data-v="s">淡</button><button data-v="m">標準</button><button data-v="l">深</button>
+      </div>
+    </div>
+    <div class="lk-row">
+      <div class="lk-lab">重點色 <small id="lkAccName"></small></div>
+      <div class="lk-sw" id="lkAccent"></div>
+      <div class="lv-hint" style="margin:6px 0 0">只換人名、按鈕這類重點文字。假別、劃假、衝突的顏色有各自的意思，不會跟著變。</div>
+    </div>
+    <div class="lk-row">
+      <div class="lk-lab">深色模式</div>
+      <div class="lk-seg" data-k="theme">
+        <button data-v="auto">跟隨系統</button><button data-v="light">淺色</button><button data-v="dark">深色</button>
+      </div>
+    </div>
+
+    <div class="m-actions">
+      <button class="btn" id="btnLookReset">還原預設</button>
+      <button class="btn primary" id="btnCloseLook">完成</button>
+    </div>
+  </div>
+</div>
+
 <!-- 匯出或備份 選擇器 -->
 <div class="overlay" id="ovExportChoice">
   <div class="modal">
@@ -1147,8 +1506,8 @@ body.print-sizing .name-sub{margin-top:0}
       <span><b>△</b> 指定休息</span>
       <span><b>特</b> 特休</span>
       <span><b>公</b> 公差</span>
-      <span><b style="color:#8a4fb0">事</b> 事假</span>
-      <span><b style="color:#2a8a4a">職災</b> 職業傷害</span>
+      <span><b class="c-purple">事</b> 事假</span>
+      <span><b class="c-green">職災</b> 職業傷害</span>
       <span><b>颱</b> 颱風假</span>
       <span><b>─</b> 到職前／離職後</span>
       <span><b>國</b> 國定假日未排班</span>
@@ -1157,23 +1516,23 @@ body.print-sizing .name-sub{margin-top:0}
     <div class="edit-only">
       <div class="sec-label" style="margin-top:8px">劃假底色</div>
       <div class="legend">
-        <span><i class="lgc" style="background:#dceffa"></i>整天不能上</span>
-        <span><i class="lgc" style="background:#dcf3da"></i>只能上這段</span>
-        <span><i class="lgc" style="background:#f7e3f7"></i>之前／之後</span>
-        <span><i class="lgc" style="background:#ffe3c2"></i>臨時（候補）</span>
+        <span><i class="lgc sw-all"></i>整天不能上</span>
+        <span><i class="lgc sw-only"></i>只能上這段</span>
+        <span><i class="lgc sw-part"></i>之前／之後</span>
+        <span><i class="lgc sw-late"></i>臨時（候補）</span>
       </div>
     </div>
     <div class="sec-label" style="margin-top:8px">格子的框線</div>
     <div class="legend">
-      <span><i class="lgc" style="border:2px dashed #0d94a6;background:#d9f2f7"></i>標示中</span>
-      <span><i class="lgc" style="border:2px solid #0d94a6"></i>跳轉時閃爍</span>
-      <span class="edit-only"><i class="lgc" style="border:2px solid var(--red)"></i>班次與劃假衝突</span>
+      <span><i class="lgc sw-mark"></i>標示中</span>
+      <span><i class="lgc sw-flash"></i>跳轉時閃爍</span>
+      <span class="edit-only"><i class="lgc sw-clash"></i>班次與劃假衝突</span>
     </div>
     <div class="hr"></div>
     <div class="sec-label">驚嘆號提示</div>
     <dl class="hdl">
       <dt style="color:var(--red)">紅色</dt><dd>當日人力不符合設定的規則（缺開店班、收班人數不足等）。<span class="edit-only">排班鎖定後才進行檢查。</span></dd>
-      <dt style="color:#d99a00">黃色</dt><dd>有人員連續出勤超標（正職連 6 天、計時連 5 天，含跨月）。</dd>
+      <dt class="c-amber">黃色</dt><dd>有人員連續出勤超標（正職連 6 天、計時連 5 天，含跨月）。</dd>
     </dl>
     <ul class="hul"><li>點選驚嘆號可查看該日的詳細原因。</li></ul>
 
@@ -1193,6 +1552,8 @@ body.print-sizing .name-sub{margin-top:0}
         <li>離職後會移出該月名單，可在「⋯」選單的「已隱藏人員」查看離職月份、復原或完全刪除。</li>
         <li><b>刪除</b>　清除所有紀錄，僅適用於輸入錯誤的情況。</li>
         <li>開關用於決定該員本月是否列入排班。</li>
+        <li><b>到職年月</b>　選填。僅用於戰績道別卡的年資計算，不影響排班、時數與任何檢查。</li>
+        <li>未填寫時，年資以班表出現過的月份推算；若該員在班表第一個月就存在，道別卡改以「這段日子」敘述，不標示月數。</li>
       </ul>
     </div>
 
@@ -1235,7 +1596,7 @@ body.print-sizing .name-sub{margin-top:0}
     <ul class="hul">
       <li>開放起日與截止日<b>都包含當天</b>。</li>
       <li>以<b>雲端時間</b>判定，不受裝置日期設定影響。</li>
-      <li>截止後若仍開放，所劃的假將標示為<b style="color:#c26a10">臨時</b>並列入候補。</li>
+      <li>截止後若仍開放，所劃的假將標示為<b class="c-orange">臨時</b>並列入候補。</li>
     </ul>
     <ul class="hul view-only">
       <li>補充說明僅排班人員可見。</li>
@@ -1267,7 +1628,7 @@ body.print-sizing .name-sub{margin-top:0}
       <div class="hsub">收合狀態下顯示的重點</div>
       <dl class="hdl">
         <dt style="color:var(--red)">⚠ 有衝突</dt><dd>該筆異動與已排定的班次衝突。</dd>
-        <dt style="color:#2a8a4a">有釋出</dt><dd>已取消劃假，該日可重新排班。</dd>
+        <dt class="c-green">有釋出</dt><dd>已取消劃假，該日可重新排班。</dd>
       </dl>
       <ul class="hul">
         <li>排序可切換「時間」或「姓名」。以先後順序受理候補時建議用時間排序。</li>
@@ -1284,11 +1645,26 @@ body.print-sizing .name-sub{margin-top:0}
       <li>每個稱號下方會用小字說明該項統計的內容。</li>
       <li>僅列出正面項目：工時、開店、打烊、連續出勤、早晚班比例、國定假日出勤、同班搭檔、準時劃假等。</li>
       <li>沒有排名倒數或遲交次數之類的項目。</li>
+      <li>若下月班表已建立且名單中沒有某位夥伴，最後會附上該員的道別卡。</li>
     </ul>
 
     <div class="hr"></div>
-    <div class="sec-label">篩選日期</div>
-    <ul class="hul"><li>僅改變畫面顯示範圍以便截圖，匯出與列印仍為完整整月。</li></ul>
+    <div class="sec-label">外觀設定</div>
+    <ul class="hul">
+      <li>位置：工具列最右邊、「？」左邊的 <b>🎨</b>。</li>
+      <li>可調整字級、格子高度、格線深淺、重點色與深色模式。</li>
+      <li>設定<b>只存在這台裝置</b>，不會影響班表內容，也不會改變其他夥伴看到的樣子。</li>
+      <li>重點色只套用於人名、按鈕等重點文字。假別、劃假、衝突的顏色代表意義，不會跟著變動。</li>
+      <li>深色模式選「跟隨系統」時，會隨手機的深色設定自動切換。</li>
+      <li>匯出與列印一律使用淺色，不受深色模式影響。</li>
+      <li>按「還原預設」即回到原始外觀。</li>
+    </ul>
+
+    <div class="hr edit-only"></div>
+    <div class="edit-only">
+      <div class="sec-label">篩選日期</div>
+      <ul class="hul"><li>僅改變畫面顯示範圍以便截圖，匯出與列印仍為完整整月。</li></ul>
+    </div>
 
     <div class="hr"></div>
     <div class="sec-label">匯出／列印</div>
@@ -2030,10 +2406,13 @@ function fitCells(){ // 依可用寬度撐滿整個月份；窄螢幕維持 46px
   const N=daysInMonth();
   const avail=wrap.clientWidth-79-N; // 扣掉名字欄與格線
   const w=Math.max(46,Math.floor(avail/N));
+  const rs=(window.UI&&UI.row)?UI.row():1, fs=(window.UI&&UI.fs)?UI.fs():1;
+  const hBase=Math.min(Math.max(46,Math.round(w*.9)),72);
   document.documentElement.style.setProperty('--cell',w+'px');
-  document.documentElement.style.setProperty('--cellh',Math.min(Math.max(46,Math.round(w*.9)),72)+'px');
-  document.documentElement.style.setProperty('--cellfs',(w>=72?14:w>=58?13:11)+'px');
+  document.documentElement.style.setProperty('--cellh',Math.min(Math.max(32,Math.round(hBase*rs)),96)+'px');
+  document.documentElement.style.setProperty('--cellfs',Math.round((w>=72?14:w>=58?13:11)*fs)+'px');
 }
+window.fitCells=fitCells;
 function fitSheetHeight(){ // 讓表格框吃滿螢幕剩餘高度，人多時才需要框內捲動（備註順勢排在下方，整頁往下捲即可看到）
   const wrap=document.querySelector('.sheet-wrap');
   if(!wrap)return;
@@ -2041,6 +2420,7 @@ function fitSheetHeight(){ // 讓表格框吃滿螢幕剩餘高度，人多時�
   const avail=window.innerHeight-docTop-16;                      // 底部留一點邊距
   document.documentElement.style.setProperty('--sheetMaxH',Math.max(320,Math.round(avail))+'px');
 }
+window.fitSheetHeight=fitSheetHeight;
 window.addEventListener('resize',()=>{fitCells();fitSheetHeight()});
 function renderAll(){ensureRoster();fitCells();renderSheet();renderNotes();fitSheetHeight();updateReportBtn()}
 function renderSheet(){
@@ -2150,7 +2530,7 @@ function renderSheet(){
     h+='</tr>';
   }
   if(!visible.length){
-    h+='<tr><td class="name-cell" style="color:#aaa;font-size:12px">本月無人員</td><td class="day-cell" colspan="'+N+'" style="max-width:none;width:auto;background-image:none;color:#aaa;font-size:13px;padding:8px">按「＋ 人員」新增，或在人員視窗從「過往人員」重新加入</td></tr>';
+    h+='<tr><td class="name-cell c-fade" style="font-size:12px">本月無人員</td><td class="day-cell c-fade" colspan="'+N+'" style="max-width:none;width:auto;background-image:none;font-size:13px;padding:8px">按「＋ 人員」新增，或在人員視窗從「過往人員」重新加入</td></tr>';
   }
   h+='</tbody>';
   document.getElementById('sheet').innerHTML=h;
@@ -2610,7 +2990,7 @@ function lvAllHtml(ym){ // 全員總覽，臨時劃的另外標
   const p=parseYm(ym);
   let h=leaveChangeHtml(ym);
   const lateAll=rows.filter(x=>Object.keys(x.o.days).some(d=>x.o.days[d].late));
-  if(lateAll.length)h+='<div class="small-note" style="color:#a85c07;font-weight:700;margin-bottom:6px">⚑ 有 '+lateAll.length+
+  if(lateAll.length)h+='<div class="small-note" class="c-orange" style="font-weight:700;margin-bottom:6px">⚑ 有 '+lateAll.length+
      ' 位夥伴在截止後才劃假，下方標「臨時」的日期請當候補處理。</div>';
   if(!rows.length)return h+'<div class="lv-none">'+p.m+' 月目前沒有人劃假。</div>';
   h+='<div class="sec-label">目前的劃假</div>';
@@ -2658,7 +3038,7 @@ function renderPurgeInfo(){
   const fm=k=>parseYm(k).m+'月';
   box.innerHTML='目前有 '+all.length+' 個月：'+esc(all.map(fm).join('、'))+
     (drop.length?'<br><b style="color:var(--red)">將清除 '+drop.length+' 個月：'+esc(drop.map(fm).join('、'))+'</b>'
-                :'<br><span style="color:#2a8a4a">依目前設定沒有要清除的月份。</span>');
+                :'<br><span class="c-green">依目前設定沒有要清除的月份。</span>');
   document.getElementById('btnPurgeLeave').disabled=!drop.length;
 }
 function leaveSuggestYm(){ // 沒設過時預設下個月
@@ -3054,6 +3434,22 @@ document.getElementById('btnSaveDay').addEventListener('click',()=>{
 document.getElementById('btnCloseDay').addEventListener('click',()=>document.getElementById('ovDay').classList.remove('show'));
 
 /* 人員 */
+function fillJoinSelects(v){ // 到職年月：用下拉選單，避免 Android 的日期選擇器沒有確定鈕
+  const sy=document.getElementById('smJoinY'), sm=document.getElementById('smJoinM');
+  const now=new Date(nowMs()), thisY=now.getFullYear();
+  let oy='<option value="">—</option>', om='<option value="">—</option>';
+  for(let y=thisY+1;y>=thisY-20;y--)oy+='<option value="'+y+'">'+y+'</option>';
+  for(let m=1;m<=12;m++)om+='<option value="'+m+'">'+m+'</option>';
+  sy.innerHTML=oy;sm.innerHTML=om;
+  const q=String(v||'').split('-');
+  sy.value=q.length===2?q[0]:'';
+  sm.value=q.length===2?String(+q[1]):'';
+}
+function readJoinSelects(){
+  const y=document.getElementById('smJoinY').value, m=document.getElementById('smJoinM').value;
+  if(!y||!m)return '';
+  return y+'-'+m;
+}
 function openStaff(id){
   if(viewerMode)return;
   curStaffId=id||null;
@@ -3061,6 +3457,7 @@ function openStaff(id){
   document.getElementById('smTitle').textContent=st?'編輯人員':'新增人員';
   document.getElementById('smName').value=st?st.name:'';
   document.querySelectorAll('input[name=smType]').forEach(r=>r.checked=(r.value===(st?st.type:'full')));
+  fillJoinSelects(st&&st.joinYm?st.joinYm:'');
   const show=st?'':'none';
   document.getElementById('btnDelStaff').style.display=show;
   document.getElementById('btnRemoveMonth').style.display=show;
@@ -3142,7 +3539,7 @@ function renderHiddenList(){
   if(!hidden.length){box.innerHTML='<div class="small-note">目前沒有已隱藏（離職）的人員。</div>';return}
   box.innerHTML=hidden.map(st=>
     '<div class="hidden-row" data-sid="'+st.id+'">'+
-    '<span class="name-txt">'+esc(st.name)+(st.leftYm?'<small style="color:#999;font-weight:400"> · '+esc(st.leftYm.replace("-","/"))+' 起</small>':'')+'</span>'+
+    '<span class="name-txt">'+esc(st.name)+(st.leftYm?'<small class="c-fade" style="font-weight:400"> · '+esc(st.leftYm.replace("-","/"))+' 起</small>':'')+'</span>'+
     '<span class="badge '+st.type+'">'+TYPE_LABEL[st.type][0]+'</span>'+
     '<button class="btn" data-restore="'+st.id+'">回歸</button>'+
     '<button class="btn danger" data-purge="'+st.id+'">刪除</button>'+
@@ -3355,11 +3752,15 @@ document.getElementById('btnSaveStaff').addEventListener('click',()=>{
   const name=document.getElementById('smName').value.trim();
   if(!name){alert('請輸入姓名');return}
   const type=document.querySelector('input[name=smType]:checked').value;
+  const join=readJoinSelects();
   if(curStaffId){
     const st=state.staff.find(s=>s.id===curStaffId);st.name=name;st.type=type;
+    if(join)st.joinYm=join;else delete st.joinYm;
   }else{
     const id='s'+Date.now();
-    state.staff.push({id,name,type});
+    const o={id,name,type};
+    if(join)o.joinYm=join;
+    state.staff.push(o);
     monthData().roster.push(id); // 新人只加入本月名單
   }
   sortStaff(); // 新增或改身分後，自動歸位到該群組最後
@@ -3469,6 +3870,58 @@ document.getElementById('btnCopyChoiceView').addEventListener('click',()=>{
 });
 document.getElementById('btnCloseCopyChoice').addEventListener('click',()=>document.getElementById('ovCopyChoice').classList.remove('show'));
 document.getElementById('btnCloseMore').addEventListener('click',()=>document.getElementById('ovMore').classList.remove('show'));
+
+/* ── 外觀設定 ── */
+function renderLookPreview(){ // 迷你預覽：字級、格高、格線、重點色四項一次看到
+  const box=document.getElementById('lkPrev');
+  if(!box)return;
+  box.innerHTML='<table><tr><th>一</th><th>二</th><th class="r">六</th><th class="r">日</th></tr>'+
+    '<tr><td class="nm">王小明<span class="lk-sub">正職 · 休 8</span></td>'+
+    '<td class="c"><span class="t-s">09:00</span><span class="t-e">18:00</span></td>'+
+    '<td class="c"><span class="t-s">13:30</span><span class="t-e">22:00</span></td>'+
+    '<td class="c e"></td></tr></table>';
+  const a=UI.acc(),lab=document.getElementById('lkAccName');
+  if(lab)lab.textContent='（'+a.n+'）';
+}
+window.renderLookPreview=renderLookPreview;
+function syncLookUI(){
+  const s=UI.get();
+  document.querySelectorAll('#ovLook .lk-seg').forEach(seg=>{
+    const k=seg.dataset.k;
+    seg.querySelectorAll('button').forEach(b=>b.classList.toggle('on',s[k]===b.dataset.v));
+  });
+  const dark=UI.isDark();
+  document.querySelectorAll('#lkAccent button').forEach(b=>{
+    const a=UI.accents.find(x=>x.k===b.dataset.v);
+    b.style.background=a?(dark?a.d:a.l):'';
+    b.classList.toggle('on',s.accent===b.dataset.v);
+  });
+  renderLookPreview();
+}
+(function buildLookUI(){
+  const wrap=document.getElementById('lkAccent');
+  if(!wrap)return;
+  wrap.innerHTML=UI.accents.map(a=>'<button type="button" data-v="'+a.k+'" title="'+a.n+'" aria-label="'+a.n+'"></button>').join('');
+  wrap.addEventListener('click',e=>{
+    const b=e.target.closest('button');
+    if(!b)return;
+    UI.set('accent',b.dataset.v);syncLookUI();
+  });
+  document.querySelectorAll('#ovLook .lk-seg').forEach(seg=>{
+    seg.addEventListener('click',e=>{
+      const b=e.target.closest('button');
+      if(!b)return;
+      UI.set(seg.dataset.k,b.dataset.v);syncLookUI();
+    });
+  });
+})();
+document.getElementById('btnLook').addEventListener('click',()=>{
+  syncLookUI();
+  document.getElementById('ovLook').classList.add('show');
+});
+document.getElementById('btnLookReset').addEventListener('click',()=>{UI.reset();syncLookUI();showToast('已還原預設外觀')});
+document.getElementById('btnCloseLook').addEventListener('click',()=>document.getElementById('ovLook').classList.remove('show'));
+
 document.getElementById('btnExportMenu').addEventListener('click',()=>{
   document.getElementById('ovMore').classList.remove('show');
   document.getElementById('ovExportChoice').classList.add('show');
@@ -4127,6 +4580,7 @@ document.getElementById('btnPrint').addEventListener('click',()=>{
   document.getElementById('ovExportChoice').classList.remove('show');
   const oldTitle=document.title;
   document.title=(state.store||'排班表')+' '+state.y+'年'+state.m+'月';
+  if(window.UI)UI.suspend(); // 量測與列印一律用淺色，深色模式不會印出黑底
   computeAndApplyPrintSizing();
   document.body.classList.add('print-sizing'); // 正式列印期間也要維持同一套尺寸樣式
   setTimeout(()=>{
@@ -4134,6 +4588,7 @@ document.getElementById('btnPrint').addEventListener('click',()=>{
     setTimeout(()=>{
       document.title=oldTitle;
       document.body.classList.remove('print-sizing');
+      if(window.UI)UI.resume();
     },500);
   },150);
 });
@@ -4299,11 +4754,11 @@ function openCoverageDay(d){ // 點擊表頭驚嘆號時顯示該日覆蓋不足
   const stk=streakViolationsMap()[d]||[];
   document.getElementById('covTitle').textContent=state.m+'/'+d+'（'+WD[weekday(d)]+'）班次檢查';
   let html='';
-  if(cov===null&&!stk.length)html='<div style="color:#999">該日尚未排任何班，未列入檢查。</div>';
+  if(cov===null&&!stk.length)html='<div class="c-fade">該日尚未排任何班，未列入檢查。</div>';
   else{
     if(cov&&cov.length)html+=cov.map(c=>'<div><b style="color:var(--red)">✗</b>　'+esc(c)+'</div>').join('');
-    if(stk.length)html+=stk.map(c=>'<div><b style="color:#d99a00">⚠</b>　'+esc(c)+'</div>').join('');
-    if(!html)html='<div style="color:#2a8a4a;font-weight:700">該日符合所有檢查規則 ✓</div>';
+    if(stk.length)html+=stk.map(c=>'<div><b class="c-amber">⚠</b>　'+esc(c)+'</div>').join('');
+    if(!html)html='<div class="c-green" style="font-weight:700">該日符合所有檢查規則 ✓</div>';
   }
   document.getElementById('covBody').innerHTML=html;
   document.getElementById('ovCoverage').classList.add('show');
@@ -4323,7 +4778,7 @@ function openMonthTotal(){ // 全店本月工時細項，按人員類型分組
     html+=list.map(x=>'<div style="display:flex;justify-content:space-between;padding:3px 2px;border-bottom:1px dotted #eee">'+
       '<span>'+esc(x.st.name)+'</span><span style="font-weight:700">'+fmtH(x.h)+'h</span></div>').join('');
   });
-  if(!mt.per.length)html+='<div style="color:#999;text-align:center">本月尚無人員</div>';
+  if(!mt.per.length)html+='<div class="c-fade" style="text-align:center">本月尚無人員</div>';
   document.getElementById('totBody').innerHTML=html;
   document.getElementById('ovTotal').classList.add('show');
 }
@@ -4447,6 +4902,37 @@ function monthsOnRoster(sid){ // 這個人總共出現在幾個月的班表名�
   });
   return n;
 }
+function firstDataYm(){ // 這份班表最早有名單的月份
+  let min=null;
+  Object.keys(state.months).forEach(k=>{
+    const md=state.months[k];
+    if(!md||!Array.isArray(md.roster)||!md.roster.length)return;
+    if(min===null||ymNum(k)<ymNum(min))min=k;
+  });
+  return min;
+}
+function firstRosterYm(sid){ // 這個人最早出現在哪個月的名單
+  let min=null;
+  Object.keys(state.months).forEach(k=>{
+    const md=state.months[k];
+    if(md&&Array.isArray(md.roster)&&md.roster.indexOf(sid)>=0){
+      if(min===null||ymNum(k)<ymNum(min))min=k;
+    }
+  });
+  return min;
+}
+function tenure(st,toYm){ // 到 toYm 為止的年資。exact=false 代表班表資料本身不夠早，只能說「這段日子」
+  const sid=st.id, end=ymNum(toYm);
+  if(st.joinYm){
+    const n=end-ymNum(st.joinYm)+1;
+    if(n>0)return {n,exact:true};
+  }
+  const n=monthsOnRoster(sid);
+  const first=firstRosterYm(sid), base=firstDataYm();
+  // 這個人一開始就在班表的第一個月 → 實際年資一定比算出來的長，不寫死數字
+  const exact=!!(first&&base&&ymNum(first)>ymNum(base));
+  return {n,exact};
+}
 function bestDuo(roster,N){ // 同一天都在店裡最多次的兩個人
   let best=null;
   for(let i=0;i<roster.length;i++)for(let j=i+1;j<roster.length;j++){
@@ -4503,7 +4989,7 @@ function battleReport(ym){
       const next=state.months[ny+'-'+nmo];
       if(!next||!Array.isArray(next.roster))return [];
       return per.filter(x=>x.days>0&&next.roster.indexOf(x.st.id)<0)
-                .map(x=>({st:x.st,months:monthsOnRoster(x.st.id)}));
+                .map(x=>{const t=tenure(x.st,ym);return {st:x.st,months:t.n,exactMonths:t.exact}});
     }
     const worked=dayStat.filter(x=>x.head>0);
     const totalH=per.reduce((a,x)=>a+x.hrs,0);
@@ -4620,7 +5106,7 @@ function openReport(ym){
       h+='<div class="rp-bye">'+
          '<div class="rp-bye-t">🌿　一路順風</div>'+
          '<div class="rp-bye-n">'+esc(who)+'</div>'+
-         '<div class="rp-bye-d">感謝這 '+x.months+' 個月來的並肩作戰。<br>'+
+         '<div class="rp-bye-d">'+(x.exactMonths?('感謝這 '+x.months+' 個月來的並肩作戰。'):'感謝這段日子以來的並肩作戰。')+'<br>'+
          '無論因為什麼原因離開，都謝謝你曾經來過，也祝你往後一切順利。</div>'+
        '</div>';
     });
