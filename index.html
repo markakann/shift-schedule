@@ -319,6 +319,31 @@ body.editing thead tr:nth-child(2) th:not(.corner){cursor:pointer}
 .lv-mnote{font-size:12px;font-weight:700;color:#8a6a3a;background:#f7f1e4;border-radius:5px;padding:5px 8px;margin-top:8px}
 .lv-nat{font-size:8px;font-weight:700;color:var(--red);margin-left:1px;vertical-align:top}
 .lv-mk{display:block;font-weight:700;margin-top:2px} /* 跟著資訊列的咖啡色，日曆與班表上的「補」才維持紅色 */
+/* 月底戰績 */
+.rp-head{
+  position:sticky;top:-16px;z-index:2;
+  margin:-16px -16px 12px;padding:18px 16px 14px;
+  background:linear-gradient(135deg,#f6efdc,#efe6cd);
+  border-bottom:2px solid #ddd0ab;border-radius:14px 14px 0 0;text-align:center;
+}
+.rp-title{font-size:23px;font-weight:700;color:#7a5c14;letter-spacing:2px}
+.rp-sub{font-size:12px;color:#9a8558;margin-top:2px}
+.rp-nums{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.rp-nums div{background:#faf7ee;border:1px solid #e3ded0;border-radius:8px;padding:8px 4px;text-align:center}
+.rp-nums b{display:block;font-size:19px;color:var(--blue);line-height:1.2}
+.rp-nums span{font-size:11px;color:#888}
+.rp-card{
+  display:flex;align-items:flex-start;gap:10px;
+  border:1px solid #e3ded0;border-radius:8px;background:var(--paper);
+  padding:8px 10px;margin-bottom:6px;
+}
+.rp-ic{font-size:19px;line-height:1.3;flex-shrink:0}
+.rp-txt{flex:1;min-width:0}
+.rp-t{font-size:14.5px;color:#7a5c14;font-weight:700;letter-spacing:.5px;line-height:1.35}
+.rp-w{font-size:15px;font-weight:700;color:var(--blue);line-height:1.4}
+.rp-d{font-size:10.5px;color:#a8a294;line-height:1.5;margin-top:1px}
+.rp-v{font-size:13px;font-weight:700;color:#7a5c14;white-space:nowrap;flex-shrink:0;padding-top:2px}
+.rp-foot{text-align:center;font-size:12px;color:#9a8558;margin:12px 0 2px}
 .lgc{display:inline-block;width:13px;height:13px;border:1px solid #bbb;border-radius:3px;vertical-align:-2px;margin-right:3px}
 /* 說明視窗：條列與對照表，一行一件事 */
 #ovHelp .hul{margin:3px 0 0;padding-left:18px;font-size:12.5px;color:#666;line-height:1.8}
@@ -750,6 +775,32 @@ body.print-sizing .name-sub{margin-top:0}
   </div>
 </div>
 
+<!-- 月底戰績：詢問 -->
+<div class="overlay" id="ovReportAsk">
+  <div class="modal" style="max-width:380px">
+    <div class="m-title">🏆 戰績</div>
+    <div class="m-sub" id="askReportText"></div>
+    <div class="m-actions">
+      <button class="btn primary" id="btnReportYes">看戰績</button>
+      <button class="btn" id="btnReportNo">以後再說</button>
+    </div>
+  </div>
+</div>
+
+<!-- 月底戰績：內容 -->
+<div class="overlay" id="ovReport">
+  <div class="modal" style="max-width:460px">
+    <div class="rp-head">
+      <div class="rp-title" id="rpTitle"></div>
+      <div class="rp-sub" id="rpSub"></div>
+    </div>
+    <div id="rpBody"></div>
+    <div class="m-actions">
+      <button class="btn" id="btnCloseReport">關閉</button>
+    </div>
+  </div>
+</div>
+
 <!-- 本月總工時 -->
 <div class="overlay" id="ovTotal">
   <div class="modal">
@@ -1024,6 +1075,7 @@ body.print-sizing .name-sub{margin-top:0}
     <div class="m-title">更多</div>
     <div class="small-note" id="cloudInfo" style="margin:6px 0 12px;font-size:13px;color:#555"></div>
     <div class="m-actions" style="flex-direction:column">
+      <button class="btn" id="btnMenuReport">🏆 戰績</button>
       <button class="btn" id="btnOpenJoin">加入現有代碼</button>
       <button class="btn" id="btnCopyMenu">複製代碼</button>
       <button class="btn" id="btnOpenHub">建立新代碼</button>
@@ -1187,6 +1239,16 @@ body.print-sizing .name-sub{margin-top:0}
         <li>按「標示已讀」後紅點即消失。</li>
       </ul>
     </div>
+
+    <div class="hr"></div>
+    <div class="sec-label">戰績</div>
+    <ul class="hul">
+      <li>月底最後 3 天與隔月前 5 天開啟時會詢問一次，也可隨時從「⋯」選單的「🏆 戰績」開啟。</li>
+      <li>內容全部由既有的班表與劃假紀錄計算，不另外收集任何資料。</li>
+      <li>每個稱號下方會用小字說明該項統計的內容。</li>
+      <li>僅列出正面項目：工時、開店、打烊、連續出勤、早晚班比例、國定假日出勤、同班搭檔、準時劃假等。</li>
+      <li>沒有排名倒數或遲交次數之類的項目。</li>
+    </ul>
 
     <div class="hr"></div>
     <div class="sec-label">篩選日期</div>
@@ -1525,6 +1587,7 @@ async function connectStore(code,isNew,silent){
   setHint('雲端已連線 ✓');
   applyViewerUI();
   watchLeave();
+  setTimeout(maybeAskReport,1200);
   return true;
 }
 async function connectViewer(code,silent){ // 以檢視代碼連線：唯讀，只讀鏡像文件，接觸不到編輯代碼
@@ -1560,6 +1623,7 @@ async function connectViewer(code,silent){ // 以檢視代碼連線：唯讀，�
   setHint('檢視模式');
   applyViewerUI();
   watchLeave();
+  setTimeout(maybeAskReport,1200);
   return true;
 }
 function applyViewerUI(){ // 檢視模式下隱藏所有可編輯入口；回到編輯模式則還原
@@ -4305,6 +4369,193 @@ if('serviceWorker' in navigator){
     navigator.serviceWorker.register('./sw.js').catch(()=>{}); // 用 file:// 開啟或沒放 sw.js 時會失敗，忽略即可
   });
 }
+
+
+/* ────────── 月底戰績 ────────── */
+/* 全部從既有的班表與劃假資料算出來，不額外收集任何東西。
+   只呈現正面的項目：沒有「最少」「最常遲交」這種會變成公審的排名。 */
+function maxStreakOf(sid,N){
+  let run=0,best=0;
+  for(let d=1;d<=N;d++){
+    const e=entryOf(sid,d);
+    if(e&&(e.t==='shift'||e.t==='injury')){run++;if(run>best)best=run}else run=0;
+  }
+  return best;
+}
+function topBy(arr,fn,min){ // 取最高的人，同分並列；都沒達標就回 null
+  let best=-1,out=[];
+  arr.forEach(x=>{
+    const v=fn(x);
+    if(v==null||v<(min==null?1:min))return;
+    if(v>best){best=v;out=[x]}else if(v===best)out.push(x);
+  });
+  return out.length?{val:best,list:out}:null;
+}
+function bestDuo(roster,N){ // 同一天都在店裡最多次的兩個人
+  let best=null;
+  for(let i=0;i<roster.length;i++)for(let j=i+1;j<roster.length;j++){
+    let n=0;
+    for(let d=1;d<=N;d++){
+      const a=entryOf(roster[i].id,d), b=entryOf(roster[j].id,d);
+      const ok=x=>x&&(x.t==='shift'||x.t==='injury')&&x.s!=null&&x.e!=null;
+      if(ok(a)&&ok(b)&&a.s<b.e&&b.s<a.e)n++;   // 班段真的有重疊才算
+    }
+    if(n>=3&&(!best||n>best.n))best={n,a:roster[i],b:roster[j]};
+  }
+  return best;
+}
+function battleReport(ym){
+  return withMonth(ym,()=>{
+    const N=daysInMonth(), roster=monthStaff();
+    const LEAVE_KINDS=['annual','duty','personal','typhoon'];
+    const per=roster.map(st=>{
+      let hrs=0,days=0,open=0,close=0,morning=0,evening=0,leaveCnt=0;
+      const nat=[];
+      for(let d=1;d<=N;d++){
+        const e=entryOf(st.id,d);
+        if(!e)continue;
+        if(e.t==='shift'||e.t==='injury'){
+          if(e.s==null||e.e==null)continue;
+          hrs+=shiftHours(e);days++;
+          if(e.s<=540)open++;
+          if(e.e>=1320)close++;
+          morning+=Math.max(0,Math.min(e.e,960)-e.s);
+          evening+=Math.max(0,e.e-Math.max(e.s,960));
+          if(isNational(d))nat.push(d);
+        }else if(LEAVE_KINDS.indexOf(e.t)>=0)leaveCnt++;
+      }
+      const lv=leaveOf(ym,st.id);
+      const logs=(lv&&lv.log)||[];
+      const marked=lv?Object.keys(lv.days||{}).length:0;
+      return {st,hrs,days,open,close,morning,evening,nat,leaveCnt,
+              streak:maxStreakOf(st.id,N),
+              onTime:!!(logs.length&&marked&&logs.every(l=>!l.late)),
+              firstAt:logs.length?logs[0].at:null,
+              noLeaveMark:marked===0};
+    });
+    const dayStat=[];
+    for(let d=1;d<=N;d++){
+      const sp=dailySplitHours(d);
+      let head=0;
+      roster.forEach(st=>{const e=entryOf(st.id,d);if(e&&(e.t==='shift'||e.t==='injury'))head++});
+      dayStat.push({d,total:(sp.morning+sp.evening)/60,head});
+    }
+    const worked=dayStat.filter(x=>x.head>0);
+    const totalH=per.reduce((a,x)=>a+x.hrs,0);
+    const totalShifts=per.reduce((a,x)=>a+x.days,0);
+    return {
+      ym, m:state.m, store:state.store||'',
+      hasData:totalShifts>0,
+      totalH, totalShifts, people:per.filter(x=>x.days>0).length,
+      fullKing: topBy(per.filter(x=>x.st.type==='full'),x=>x.hrs,0.5),
+      partKing: topBy(per.filter(x=>x.st.type!=='full'),x=>x.hrs,0.5),
+      openKing: topBy(per,x=>x.open,2),
+      closeKing:topBy(per,x=>x.close,2),
+      streakKing:topBy(per,x=>x.streak,3),
+      morningBird:topBy(per.filter(x=>x.morning+x.evening>0),x=>x.morning/(x.morning+x.evening),0.6),
+      nightOwl:  topBy(per.filter(x=>x.morning+x.evening>0),x=>x.evening/(x.morning+x.evening),0.6),
+      natHeroes: per.filter(x=>x.nat.length).sort((a,b)=>b.nat.length-a.nat.length),
+      thinDay: worked.length?worked.reduce((a,b)=>b.total<a.total?b:a):null,
+      busyDay: worked.length?worked.reduce((a,b)=>b.head>a.head?b:a):null,
+      onTimeLeave: per.filter(x=>x.onTime),
+      earliest: per.filter(x=>x.firstAt).sort((a,b)=>a.firstAt-b.firstAt)[0]||null,
+      duo: bestDuo(roster,N)
+    };
+  });
+}
+function reportTargetYm(){ // 月底最後 3 天看當月，隔月前 5 天看上個月，其餘時間不自動跳
+  const t=new Date(nowMs());
+  const y=t.getFullYear(), m=t.getMonth()+1, d=t.getDate();
+  const last=new Date(y,m,0).getDate();
+  if(d>=last-2)return ymOf(y,m);
+  if(d<=5){let py=y,pm=m-1;if(pm===0){pm=12;py--}return ymOf(py,pm)}
+  return null;
+}
+function reportSeenKey(ym){return 'paiban-report-'+(storeCode||'')+'-'+ym}
+function maybeAskReport(){ // 每個代碼、每個月只主動問一次
+  if(!storeCode)return;
+  const ym=reportTargetYm();
+  if(!ym)return;
+  try{if(localStorage.getItem(reportSeenKey(ym)))return}catch(e){}
+  const r=battleReport(ym);
+  if(!r.hasData)return;
+  document.getElementById('askReportText').textContent=parseYm(ym).m+' 月的戰績出爐了，要看看嗎？';
+  document.getElementById('ovReportAsk').dataset.ym=ym;
+  document.getElementById('ovReportAsk').classList.add('show');
+}
+function markReportSeen(ym){try{localStorage.setItem(reportSeenKey(ym),'1')}catch(e){}}
+function nm(list,cap){ // 名單太長就收斂成「A、B、C 等 N 位」
+  const n=list.length, k=cap||3;
+  if(n<=k)return list.map(x=>x.st.name).join('、');
+  return list.slice(0,k).map(x=>x.st.name).join('、')+' 等 '+n+' 位';
+}
+function openReport(ym){
+  const r=battleReport(ym);
+  const p=parseYm(ym);
+  document.getElementById('rpTitle').textContent=p.m+' 月戰績';
+  document.getElementById('rpSub').textContent=(r.store?r.store+'　':'')+p.y+' 年 '+p.m+' 月';
+  const body=document.getElementById('rpBody');
+  if(!r.hasData){
+    body.innerHTML='<div class="lv-none">這個月還沒有排班紀錄。</div>';
+  }else{
+    let h='<div class="rp-nums">'+
+      '<div><b>'+fmtH(r.totalH)+'</b><span>總工時</span></div>'+
+      '<div><b>'+r.totalShifts+'</b><span>總班數</span></div>'+
+      '<div><b>'+r.people+'</b><span>出勤夥伴</span></div>'+
+    '</div>';
+    const card=(icon,title,who,desc,val)=>'<div class="rp-card"><div class="rp-ic">'+icon+'</div>'+
+      '<div class="rp-txt"><div class="rp-t">'+title+'</div><div class="rp-w">'+esc(who)+'</div>'+
+      (desc?'<div class="rp-d">'+esc(desc)+'</div>':'')+'</div>'+
+      (val?'<div class="rp-v">'+esc(val)+'</div>':'')+'</div>';
+    if(r.fullKing)h+=card('🏆','這間店我最熟',nm(r.fullKing.list),
+      '正職裡本月實際工時最多的人（已扣休息）',fmtH(r.fullKing.val)+'h');
+    if(r.partKing)h+=card('⏱','說好只是兼職',nm(r.partKing.list),
+      '計時與支援裡本月實際工時最多的人',fmtH(r.partKing.val)+'h');
+    if(r.openKing)h+=card('🌅','我愛早起拉拉筋',nm(r.openKing.list),
+      '9:00（含）以前上班的天數最多',r.openKing.val+' 天');
+    if(r.closeKing)h+=card('🌙','頂級打烊夥伴',nm(r.closeKing.list),
+      '22:00（含）以後才下班的天數最多',r.closeKing.val+' 天');
+    if(r.streakKing)h+=card('🔥','用賣肝買棟房',nm(r.streakKing.list),
+      '本月連續出勤沒休息的最長天數',r.streakKing.val+' 天');
+    if(r.morningBird&&(!r.nightOwl||r.morningBird.list[0]!==r.nightOwl.list[0]))
+      h+=card('☀️','太陽跟我一起上班',nm(r.morningBird.list),
+        '工時有六成以上落在 16:00 前，比例最高',Math.round(r.morningBird.val*100)+'% 早班');
+    if(r.nightOwl)h+=card('🌛','我跟月亮很熟',nm(r.nightOwl.list),
+      '工時有六成以上落在 16:00 後，比例最高',Math.round(r.nightOwl.val*100)+'% 晚班');
+    if(r.natHeroes.length)h+=card('🎌','別人放假我開店',
+      r.natHeroes.length>=r.people&&r.people>1?('全員都上過陣（'+r.people+' 位）'):nm(r.natHeroes),
+      '國定假日（含補假）當天有排班的夥伴',r.natHeroes[0].nat.length+' 天');
+    if(r.thinDay)h+=card('💪','這天是怎麼撐過來的',p.m+'/'+r.thinDay.d+'　'+r.thinDay.head+' 人在店，辛苦了',
+      '有排班的日子裡，全店總工時最低的一天',fmtH(r.thinDay.total)+'h');
+    if(r.busyDay)h+=card('🎉','今天店裡有點擠',p.m+'/'+r.busyDay.d,
+      '同一天排班人數最多的一天',r.busyDay.head+' 人');
+    if(r.onTimeLeave.length)h+=card('📅','模範生名單',nm(r.onTimeLeave,5),
+      '在開放期間內就劃完假，沒有一筆是臨時補的','');
+    if(r.earliest)h+=card('⚡','我講求效率',r.earliest.st.name,
+      '開放後第一個送出劃假的人',fmtLogTime(r.earliest.firstAt));
+    if(r.duo)h+=card('🤝','這組合有點東西',r.duo.a.name+' ＋ '+r.duo.b.name,
+      '同一天班段有重疊、一起站台最多天的兩個人',r.duo.n+' 天同班');
+    h+='<div class="rp-foot">辛苦了，下個月也請多指教。</div>';
+    body.innerHTML=h;
+  }
+  markReportSeen(ym);
+  document.getElementById('ovReport').dataset.ym=ym;
+  document.getElementById('ovReport').classList.add('show');
+}
+document.getElementById('btnReportYes').addEventListener('click',()=>{
+  const ym=document.getElementById('ovReportAsk').dataset.ym;
+  document.getElementById('ovReportAsk').classList.remove('show');
+  openReport(ym);
+});
+document.getElementById('btnReportNo').addEventListener('click',()=>{
+  markReportSeen(document.getElementById('ovReportAsk').dataset.ym);
+  document.getElementById('ovReportAsk').classList.remove('show');
+});
+document.getElementById('btnCloseReport').addEventListener('click',()=>document.getElementById('ovReport').classList.remove('show'));
+document.getElementById('btnMenuReport').addEventListener('click',()=>{
+  document.getElementById('ovMore').classList.remove('show');
+  openReport(reportTargetYm()||ymOf(state.y,state.m));
+});
 
 /* ────────── 手機返回鍵：關閉最上層彈窗，而不是離開頁面 ────────── */
 (function(){
