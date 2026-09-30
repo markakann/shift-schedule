@@ -4,6 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>排班表</title>
+<!-- 安裝成手機 App（PWA）：需與 manifest.webmanifest、sw.js、圖示放在同一資料夾 -->
+<meta name="theme-color" content="#eceae3">
+<meta name="description" content="門市排班與劃假">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icon-192.png">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="排班表">
 <script>
 /* 在第一次繪製前就決定身分，唯讀使用者重新載入時才不會閃過一瞬間的編輯介面 */
 try{if(localStorage.getItem('paiban-mode')==='view')document.documentElement.classList.add('viewer-boot')}catch(e){}
@@ -243,7 +253,7 @@ th .cov-warn.yellow{background:#d99a00}
 th.nat .d-num{color:var(--red)}
 body.editing thead tr:nth-child(2) th:not(.corner){cursor:pointer}
 /* ── 備註 ── */
-.notes-sec{margin:14px 8px 0}
+.notes-sec{margin:14px 8px 0;padding-bottom:env(safe-area-inset-bottom,0px)}
 .notes-head{
   display:flex;align-items:center;gap:8px;
   font-weight:700;letter-spacing:2px;margin-bottom:6px;
@@ -269,7 +279,7 @@ body.editing thead tr:nth-child(2) th:not(.corner){cursor:pointer}
 .overlay.show{display:flex}
 .modal{
   background:var(--paper);width:100%;max-width:560px;
-  border-radius:14px 14px 0 0;padding:16px 16px 26px;
+  border-radius:14px 14px 0 0;padding:16px 16px calc(26px + env(safe-area-inset-bottom,0px));
   max-height:86vh;overflow-y:auto;
   box-shadow:0 -3px 18px rgba(0,0,0,.25);
 }
@@ -4288,6 +4298,13 @@ document.querySelectorAll('.overlay').forEach(ov=>ov.addEventListener('click',ev
   fetchCalendar(state.y);
   initFirebase();
 })();
+
+/* ────────── 安裝成 App 後的離線支援 ────────── */
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('./sw.js').catch(()=>{}); // 用 file:// 開啟或沒放 sw.js 時會失敗，忽略即可
+  });
+}
 
 /* ────────── 手機返回鍵：關閉最上層彈窗，而不是離開頁面 ────────── */
 (function(){
