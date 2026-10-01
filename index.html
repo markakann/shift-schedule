@@ -1675,8 +1675,11 @@ body.print-sizing .name-sub{margin-top:0}
     <div class="hr"></div>
     <div class="sec-label">戰績</div>
     <ul class="hul">
-      <li>當月倒數第二天起至下個月第三天（共五天），工具列顯示金色的「🏆 戰績」按鈕。</li>
-      <li>期間內首次開啟班表時，另跳出視窗詢問一次。</li>
+      <li>每月的戰績，於<b>當月倒數第二天起至下個月第三天</b>（共五天）顯示。例：10 月戰績於 10/30 至 11/3 出現。</li>
+      <li>期間內工具列會出現金色的「🏆 ○月戰績」按鈕，按鈕上的月份即該份戰績的月份。</li>
+      <li>該月若無任何排班紀錄，按鈕不顯示。</li>
+      <li>日期以雲端時間判定，與目前畫面顯示的月份無關。</li>
+      <li>期間內首次開啟班表時，另跳出視窗詢問一次；同一個月只詢問一次。</li>
       <li>內容全部由既有的班表與劃假紀錄計算，不另外收集任何資料。</li>
       <li>每個稱號下方以小字說明該項統計的內容。</li>
       <li>下月班表已建立且名單中無某位夥伴時，末尾附上該員的道別卡。</li>
@@ -2042,6 +2045,7 @@ async function connectStore(code,isNew,silent){
   setHint('雲端已連線 ✓');
   applyViewerUI();
   watchLeave();
+  renderAll();  // storeCode 設定完成後再畫一次，戰績按鈕等依賴代碼的狀態才會正確
   setTimeout(maybeAskReport,1200);
   return true;
 }
@@ -2078,6 +2082,7 @@ async function connectViewer(code,silent){ // 以檢視代碼連線：唯讀，�
   setHint('檢視模式');
   applyViewerUI();
   watchLeave();
+  renderAll();  // 同上：代碼設定完成後再畫一次
   setTimeout(maybeAskReport,1200);
   return true;
 }
@@ -2911,7 +2916,7 @@ function lvCanEdit(){ // 現在能不能改；回傳 {ok, late, msg}
   return {ok:true,late:false,msg:'開放中，'+fmtMd(w.L.to)+' 截止（含當天）。'+src};
 }
 function openLeave(){
-  syncServerClock(); // 還沒校時就先發一次，校到會自動重繪
+  if(cfg().leave.on)syncServerClock(); // 沒開放劃假時用不到伺服器時間，不必校時
   lvTab=viewerMode?'mine':'all'; // 檢視代碼只有「我要劃假」，看不到別人劃了什麼
   lvWho=null;lvDraft=null;lvOriginal=null;
   lvBrush={m:'all',t:540,t2:1320};
@@ -2927,7 +2932,7 @@ function renderLeaveBody(){
   document.getElementById('lvModal').classList.toggle('late-mode',lateMode);
   document.getElementById('lvTitle').textContent=lateMode?'臨時劃假':'劃假';
   document.getElementById('lvSub').innerHTML=
-    (w.state==='off'?(viewerMode?'目前沒有開放劃假。':'尚未開放劃假　·　按下方「⚙ 開放設定」就能開始')
+    (w.state==='off'?(viewerMode?'目前沒有開放劃假。':'尚未開放劃假　·　請由下方「⚙ 開放設定」開啟')
      :'劃 '+p.m+' 月的假　·　'+esc(ce.msg));
   if(viewerMode)lvTab='mine';
   document.querySelector('.lv-tabs').style.display=viewerMode?'none':'';
@@ -4889,7 +4894,7 @@ document.querySelectorAll('.overlay').forEach(ov=>ov.addEventListener('click',ev
   if(state.title===undefined)state.title='排班表';
   if(state.corner===undefined)state.corner='';
   sortStaff();
-  if(!state.y){const now=new Date();state.y=now.getFullYear();state.m=now.getMonth()+1}
+  const nowD=new Date();state.y=nowD.getFullYear();state.m=nowD.getMonth()+1; // 每次開啟一律回到當月，不沿用上次看的月份
   document.getElementById('storeName').value=state.store||'';
   document.getElementById('sheetTitle').value=state.title||'排班表';
   selY.value=state.y;selM.value=state.m;
@@ -5064,13 +5069,12 @@ function updateReportBtn(){ // 只在那五天、而且該月真的有排班紀�
   if(!b)return;
   const t=reportTargetYm();
   let show=false;
-  if(t&&storeCode){try{show=battleReport(t).hasData}catch(e){show=false}}
+  if(t){try{show=battleReport(t).hasData}catch(e){show=false}}
   b.style.display=show?'':'none';
   if(show){b.textContent='🏆 '+parseYm(t).m+'月戰績';b.dataset.ym=t}
 }
-function reportSeenKey(ym){return 'paiban-report-'+(storeCode||'')+'-'+ym}
+function reportSeenKey(ym){return 'paiban-report-'+(storeCode||'local')+'-'+ym}
 function maybeAskReport(){ // 每個代碼、每個月只主動問一次
-  if(!storeCode)return;
   const ym=reportTargetYm();
   if(!ym)return;
   try{if(localStorage.getItem(reportSeenKey(ym)))return}catch(e){}
