@@ -1631,7 +1631,7 @@ body.print-sizing .name-sub{margin-top:0}
     <div class="hsub">開放期間</div>
     <ul class="hul">
       <li>開放起日與截止日<b>均包含當天</b>。</li>
-      <li>以<b>雲端時間</b>判定，不受裝置日期設定影響。</li>
+      <li>以<b>雲端時間</b>判定，不受裝置日期設定影響；取不到雲端時間時改以裝置時間判定，並於視窗內註明。</li>
       <li>截止後若仍開放，所劃日期標示為<b class="c-orange">臨時</b>並列入候補。</li>
     </ul>
     <ul class="hul view-only">
@@ -1678,7 +1678,7 @@ body.print-sizing .name-sub{margin-top:0}
       <li>每月的戰績，於<b>當月倒數第二天起至下個月第三天</b>（共五天）顯示。例：10 月戰績於 10/30 至 11/3 出現。</li>
       <li>期間內工具列會出現金色的「🏆 ○月戰績」按鈕，按鈕上的月份即該份戰績的月份。</li>
       <li>該月若無任何排班紀錄，按鈕不顯示。</li>
-      <li>日期以雲端時間判定，與目前畫面顯示的月份無關。</li>
+      <li>日期以雲端時間判定，與目前畫面顯示的月份無關；取不到雲端時間時改以裝置時間判定。</li>
       <li>期間內首次開啟班表時，另跳出視窗詢問一次；同一個月只詢問一次。</li>
       <li>內容全部由既有的班表與劃假紀錄計算，不另外收集任何資料。</li>
       <li>每個稱號下方以小字說明該項統計的內容。</li>
@@ -2622,6 +2622,13 @@ async function syncServerClock(){ // 每次連線只校一次
     await FB.setDoc(FB.doc(FB.db,'leaves',code),{clock:FB.serverTimestamp(),clockNonce},{merge:true});
   }catch(e){srvState='fail';refreshLeaveIfOpen()}
 }
+function needServerClock(){ // 劃假的開放判定，以及戰績那五天，都不能被裝置時間左右
+  if(cfg().leave.on)return true;
+  // 先用裝置時間粗篩，前後各放寬一天，避免手機時間偏差剛好讓這一天漏掉
+  const t=new Date(), y=t.getFullYear(), m=t.getMonth()+1, d=t.getDate();
+  const last=new Date(y,m,0).getDate();
+  return d>=last-2||d<=4;
+}
 function refreshLeaveIfOpen(){
   if(document.getElementById('ovLeave').classList.contains('show'))renderLeaveBody();
 }
@@ -2684,13 +2691,14 @@ function watchLeave(){ // 監聽劃假文件，夥伴一送出店長那邊就會
       const half=(Date.now()-clockSentAt)/2;   // 扣掉來回網路時間的一半
       srvOffset=clk.toMillis()+half-Date.now();
       srvState='ok';
+      updateReportBtn(); // 校時後今天可能跨進或跨出戰績那五天，重算一次
     }
     leaveData=d;
     refreshLeaveIfOpen();
     renderSheet();
     updateLeaveBadge();
   },()=>{if(srvState==='wait'){srvState='fail';refreshLeaveIfOpen()}});
-  if(cfg().leave.on)syncServerClock();
+  if(needServerClock())syncServerClock();
 }
 /* 把劃假的日子整理成人看得懂的句子：整月同一星期的會講「每週三」，其餘壓成 3～5、18、20 */
 function summarizeLeave(ym,obj){
@@ -2916,7 +2924,7 @@ function lvCanEdit(){ // 現在能不能改；回傳 {ok, late, msg}
   return {ok:true,late:false,msg:'開放中，'+fmtMd(w.L.to)+' 截止（含當天）。'+src};
 }
 function openLeave(){
-  if(cfg().leave.on)syncServerClock(); // 沒開放劃假時用不到伺服器時間，不必校時
+  if(needServerClock())syncServerClock(); // 用不到伺服器時間的日子就不校時，省下一次寫入
   lvTab=viewerMode?'mine':'all'; // 檢視代碼只有「我要劃假」，看不到別人劃了什麼
   lvWho=null;lvDraft=null;lvOriginal=null;
   lvBrush={m:'all',t:540,t2:1320};
