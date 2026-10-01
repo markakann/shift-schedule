@@ -21,11 +21,17 @@ try{if(localStorage.getItem('paiban-mode')==='view')document.documentElement.cla
    只存在這台裝置的 localStorage，不會上傳、不會影響其他人看到的樣子。 */
 var UI=(function(){
   var KEY='paiban-ui-v1';
-  var DEF={fs:'m',rh:'m',gl:'m',accent:'blue',theme:'auto'};
+  var DEF={font:'sys',fs:'m',rh:'m',gl:'m',accent:'blue',theme:'auto'};
   var FS={s:0.88,m:1,l:1.18};        // 字級倍率
   var RH={s:0.8,m:1,l:1.24};         // 格子高度倍率
   var GL={s:'#a6a6a6',m:'#4a4a4a',l:'#1f1f1f'};   // 淺色模式格線
   var GLD={s:'#3c4046',m:'#4a4e56',l:'#7d828c'};  // 深色模式格線
+  var FONT={ // 只挑免費商用（SIL OFL 1.1）且 Google Fonts 有做 CJK 切片的字體，才不會一次下載整包
+    sys  :{n:'預設'},
+    serif:{n:'思源宋體',css:'"Noto Serif TC"',g:'Noto+Serif+TC:wght@400;500;700'},
+    kai  :{n:'霞鶩文楷',css:'"LXGW WenKai TC"',g:'LXGW+WenKai+TC:wght@400;700'},
+    ians :{n:'芫荽',css:'"Iansui"',g:'Iansui'} // 只有 Regular 一個字重，不能指定 wght，否則整包會 400
+  };
   var ACC=[ // 重點色：淺色與深色各一個值，深色底才讀得清楚
     {k:'blue',n:'靛藍',l:'#1e4bb8',d:'#7fa9f0'},
     {k:'navy',n:'深海藍',l:'#17557a',d:'#6fc0e0'},
@@ -35,6 +41,7 @@ var UI=(function(){
   ];
   var cur=null,forceLight=false;
   function valid(k,v){
+    if(k==='font')return !!FONT[v];
     if(k==='accent'){for(var i=0;i<ACC.length;i++)if(ACC[i].k===v)return true;return false}
     if(k==='theme')return v==='auto'||v==='light'||v==='dark';
     if(DEF[k]==null)return false;
@@ -56,6 +63,22 @@ var UI=(function(){
     try{return !!(window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches)}catch(e){return false}
   }
   function acc(){var k=read().accent;for(var i=0;i<ACC.length;i++)if(ACC[i].k===k)return ACC[i];return ACC[0]}
+  function loadWebFont(key,spec){ // 只有真的選了才去 Google Fonts 拿，預設字體不會有任何對外連線
+    if(document.getElementById('fontcss-'+key))return;
+    if(!document.getElementById('gfPre')){
+      var a=document.createElement('link');a.id='gfPre';a.rel='preconnect';a.href='https://fonts.googleapis.com';
+      var c=document.createElement('link');c.rel='preconnect';c.href='https://fonts.gstatic.com';c.crossOrigin='anonymous';
+      document.head.appendChild(a);document.head.appendChild(c);
+    }
+    var l=document.createElement('link');
+    l.id='fontcss-'+key;l.rel='stylesheet';
+    l.href='https://fonts.googleapis.com/css2?family='+spec+'&display=swap';
+    l.onerror=function(){ // 離線或被擋：--uiFont 後面接著預設字體，畫面照樣正常，只是沒換到
+      l.id='';
+      if(typeof window.showToast==='function')window.showToast('字體載入失敗，改以預設字體顯示',2800);
+    };
+    document.head.appendChild(l);
+  }
   function apply(){
     var s=read(),root=document.documentElement,dark=isDark(),a=acc();
     root.classList.add('no-anim'); // 換色時關掉格子的漸變，才不會停在半途的顏色
@@ -67,6 +90,9 @@ var UI=(function(){
     root.style.setProperty('--gridline',(dark?GLD:GL)[s.gl]);
     root.style.setProperty('--blue',dark?a.d:a.l);
     root.style.setProperty('--accent',dark?a.d:a.l);
+    var f=FONT[s.font]||FONT.sys;
+    if(f.g)loadWebFont(s.font,f.g);
+    root.style.setProperty('--uiFont',(f.css?f.css+',':'')+'var(--fontSys)');
     var mt=document.querySelector('meta[name="theme-color"]');
     if(mt)mt.setAttribute('content',dark?'#171a1f':'#eceae3');
     if(typeof window.fitCells==='function'){window.fitCells();if(window.fitSheetHeight)window.fitSheetHeight()}
@@ -86,6 +112,7 @@ var UI=(function(){
     else if(mq&&mq.addListener)mq.addListener(onch);
   }catch(e){}
   return {get:read,set:set,reset:reset,apply:apply,isDark:isDark,accents:ACC,acc:acc,
+    fonts:FONT,
     fs:function(){return FS[read().fs]},
     row:function(){return RH[read().rh]},
     suspend:function(){forceLight=true;apply()},   // 列印／匯出一律用淺色
@@ -119,16 +146,20 @@ UI.apply();
   --fade:#999999;
   --fade2:#666666;
   --onBlue:#ffffff; /* 疊在重點色上的文字：淺色模式白字、深色模式深字 */
+  --fontSys:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --uiFont:var(--fontSys);
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0}
 body{
   background:var(--bg);
   color:var(--ink);
-  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  font-family:var(--uiFont);
   font-size:calc(15px*var(--uiFS));
   padding-bottom:40px;
 }
+/* 按鈕與輸入框預設不繼承字體，這裡統一拉回來，換字體時整個介面才會一起變 */
+button,input,select,textarea{font-family:inherit}
 /* ── 頂部：仿紙本標題列 ── */
 .topbar{
   background:var(--paper);
@@ -812,7 +843,7 @@ html.dark .rp-bye-t{color:#86c795}
 html.dark .rp-bye-d{color:#9db8a2}
 /* ── 列印／匯出 PDF ── */
 /* 列印尺寸設定：抽成獨立class，供JS在正式列印前先套用做實際量測，量測與正式列印共用同一套數字 */
-body.print-sizing{--printScale:1;width:281mm;--uiFS:1}
+body.print-sizing{--printScale:1;width:281mm;--uiFS:1;--uiFont:var(--fontSys)}
 body.print-sizing .notes-sec{break-inside:avoid;page-break-inside:avoid}
 body.print-sizing .cov-warn,body.print-sizing .warn-row{display:none!important}
 body.print-sizing .day-cell.marked,body.print-sizing .day-cell.flash{box-shadow:none!important;outline:none!important;background-color:transparent!important;animation:none!important}
@@ -956,7 +987,7 @@ body.print-sizing .name-sub{margin-top:0}
       <button class="chip leave" data-leave="typhoon">颱風假</button>
       <button class="chip leave" data-leave="redline">─ 紅線（到職／離職區間）</button>
     </div>
-    <div class="small-note" id="injuryHint" style="display:none;color:#2a8a4a">已選取「職災」，請從上方班別或自訂時間挑選一個時段套用，會記錄成職災＋該時段。</div>
+    <div class="small-note" id="injuryHint" style="display:none;color:#2a8a4a">已選取「職災」。請自上方班別或自訂時間擇一套用，將記錄為職災與該時段。</div>
     <div class="m-actions">
       <button class="btn danger" id="btnClearCell">清除此格</button>
       <button class="btn" id="btnCloseCell">關閉</button>
@@ -968,7 +999,7 @@ body.print-sizing .name-sub{margin-top:0}
 <div class="overlay" id="ovHidden">
   <div class="modal">
     <div class="m-title">已隱藏人員</div>
-    <div class="small-note">離職後保留在這裡，歷史班表不受影響。可以完全刪除，或讓夥伴回歸人員清單。</div>
+    <div class="small-note">離職人員保留於此，歷史班表不受影響。可完全刪除，或復原至人員清單。</div>
     <div id="hiddenListBody" style="max-height:50vh;overflow-y:auto;margin-top:8px"></div>
     <div class="m-actions">
       <button class="btn" id="btnCloseHidden">關閉</button>
@@ -1088,7 +1119,7 @@ body.print-sizing .name-sub{margin-top:0}
 <div class="overlay" id="ovLeaveCfg">
   <div class="modal">
     <div class="m-title">劃假開放設定</div>
-    <div class="m-sub">決定夥伴可以劃哪個月、什麼時候能劃。</div>
+    <div class="m-sub">設定可劃假的月份與開放期間。</div>
     <label class="cfg-row"><input type="checkbox" id="lcOn"><span>開放夥伴劃假</span></label>
     <div id="lcBox" style="display:none">
       <div class="cfg-grid">
@@ -1113,7 +1144,7 @@ body.print-sizing .name-sub{margin-top:0}
       </select>
       <button class="btn" id="btnPurgeLeave" style="white-space:nowrap">清除其餘</button>
     </div>
-    <div class="small-note" style="margin-top:4px">正在開放劃假的月份一定會保留，不會被清掉。</div>
+    <div class="small-note" style="margin-top:4px">開放中的月份一律保留，不列入清除範圍。</div>
 
     <div class="m-actions">
       <button class="btn primary" id="btnLeaveCfgSave">儲存</button>
@@ -1335,7 +1366,7 @@ body.print-sizing .name-sub{margin-top:0}
 <div class="overlay" id="ovCfgShifts">
   <div class="modal">
     <div class="m-title">班段</div>
-    <div class="m-sub">點選班別時會出現的時段選單。</div>
+    <div class="m-sub">點選班別時顯示的時段選單。</div>
     <div class="sec-label">正職班段（每行一組，例如 9:00-17:30）</div>
     <textarea class="txt" id="cfgPresetsCommon" style="height:150px;font-family:monospace"></textarea>
     <div class="sec-label">計時／支援加開班段</div>
@@ -1348,8 +1379,8 @@ body.print-sizing .name-sub{margin-top:0}
 <div class="overlay" id="ovCfgRules">
   <div class="modal">
     <div class="m-title">覆蓋檢查規則</div>
-    <div class="m-sub">不符合就在表頭出現紅色驚嘆號。</div>
-    <div class="small-note">關閉的規則不會檢查。時間可填多個，逗號或頓號都可以（存檔後統一顯示成頓號）。</div>
+    <div class="m-sub">不符合時於表頭顯示紅色驚嘆號。</div>
+    <div class="small-note">關閉的規則不列入檢查。時間可輸入多組，逗號或頓號皆可（儲存後統一顯示為頓號）。</div>
     <div id="cfgRuleList"></div>
     <button class="btn" id="btnAddRule" style="width:100%;margin-top:8px">＋ 新增規則</button>
     <div class="m-actions"><button class="btn primary cfg-back">完成</button></div>
@@ -1360,8 +1391,8 @@ body.print-sizing .name-sub{margin-top:0}
 <div class="overlay" id="ovCfgWarn">
   <div class="modal">
     <div class="m-title">時段提醒</div>
-    <div class="m-sub">只是提醒，不影響驚嘆號。</div>
-    <div class="small-note">排班時出現這些時間就用粉色標示，提醒可能排錯。時間可填多個，逗號或頓號都可以。</div>
+    <div class="m-sub">僅供提醒，不影響驚嘆號判定。</div>
+    <div class="small-note">排入這些時間時以粉色標示，提示可能的輸入錯誤。時間可輸入多組，逗號或頓號皆可。</div>
     <div id="cfgWarnList"></div>
     <button class="btn" id="btnAddWarnRule" style="width:100%;margin-top:8px">＋ 新增提醒</button>
     <div class="m-actions"><button class="btn primary cfg-back">完成</button></div>
@@ -1372,8 +1403,8 @@ body.print-sizing .name-sub{margin-top:0}
 <div class="overlay" id="ovCfgLeave">
   <div class="modal">
     <div class="m-title">劃假</div>
-    <div class="m-sub">開放夥伴自己劃不能上班的日子。</div>
-    <div class="small-note">開放期間內夥伴可自由劃假；超過截止日後，依下方設定決定是否還能臨時劃假（會標成候補讓你知道）。</div>
+    <div class="m-sub">供夥伴自行標記無法上班的日期。</div>
+    <div class="small-note">開放期間內夥伴可自行劃假。截止後是否開放臨時劃假，由下方設定決定；臨時劃假一律標示為候補。</div>
     <label class="cfg-row"><input type="checkbox" id="cfgLeaveOn"><span>開放夥伴劃假</span></label>
     <div id="cfgLeaveBox" style="display:none">
       <div class="cfg-grid">
@@ -1392,7 +1423,7 @@ body.print-sizing .name-sub{margin-top:0}
 <div class="overlay" id="ovCalUrl">
   <div class="modal">
     <div class="m-title">行事曆來源網址</div>
-    <div class="small-note">{year} 會自動替換成年份。網址失效時會改用內建資料；國定假日仍可在排班模式點日期手動調整。<br><b>非必要請勿更動。</b></div>
+    <div class="small-note">{year} 自動替換為年份。網址失效時改用內建資料；國定假日仍可於排班模式點選日期手動調整。<br><b>非必要請勿更動。</b></div>
     <input class="txt" id="cfgCalUrl" autocapitalize="off" autocorrect="off" style="font-size:12px">
     <div class="m-actions">
       <button class="btn primary" id="btnCalUrlOk">確定</button>
@@ -1408,7 +1439,7 @@ body.print-sizing .name-sub{margin-top:0}
     <div class="m-title">刪除店家代碼</div>
     <div class="m-sub">即將刪除代碼：</div>
     <div id="delCodeName" style="color:var(--red);font-weight:700;font-size:18px;word-break:break-all;margin:4px 0 10px"></div>
-    <div class="small-note" style="color:var(--red)">此操作無法復原：雲端上這個代碼的班表資料、對應的檢視代碼都會一併被永久刪除。</div>
+    <div class="small-note" style="color:var(--red)">此操作無法復原：雲端上該代碼的班表資料與對應的檢視代碼將一併永久刪除。</div>
     <div class="m-actions">
       <button class="btn danger" id="btnConfirmDelCode">確定刪除</button>
       <button class="btn" id="btnCancelDelCode">取消</button>
@@ -1439,10 +1470,17 @@ body.print-sizing .name-sub{margin-top:0}
 <div class="overlay" id="ovLook">
   <div class="modal">
     <div class="m-title">外觀設定</div>
-    <div class="m-sub">只會改變這台裝置上的顯示，不會動到班表內容，也不會影響其他夥伴。</div>
+    <div class="m-sub">僅改變本裝置的顯示方式，不影響班表內容與其他夥伴的畫面。</div>
 
     <div class="lk-prev" id="lkPrev"></div>
 
+    <div class="lk-row">
+      <div class="lk-lab">字體</div>
+      <div class="lk-seg" data-k="font">
+        <button data-v="sys">預設</button><button data-v="serif">思源宋體</button><button data-v="kai">霞鶩文楷</button><button data-v="ians">芫荽</button>
+      </div>
+      <div class="lv-hint" style="margin:6px 0 0">預設為裝置原有字體，不產生對外連線。其餘三種為免費商用字體，首次選用時向 Google Fonts 下載字檔，之後由瀏覽器快取。芫荽僅有一個字重，粗體由系統合成。匯出與列印一律使用預設字體。</div>
+    </div>
     <div class="lk-row">
       <div class="lk-lab">字級</div>
       <div class="lk-seg" data-k="fs">
@@ -1464,7 +1502,7 @@ body.print-sizing .name-sub{margin-top:0}
     <div class="lk-row">
       <div class="lk-lab">重點色 <small id="lkAccName"></small></div>
       <div class="lk-sw" id="lkAccent"></div>
-      <div class="lv-hint" style="margin:6px 0 0">只換人名、按鈕這類重點文字。假別、劃假、衝突的顏色有各自的意思，不會跟著變。</div>
+      <div class="lv-hint" style="margin:6px 0 0">僅套用於人名、按鈕等重點文字。假別、劃假與衝突的顏色各具意義，不隨此設定變動。</div>
     </div>
     <div class="lk-row">
       <div class="lk-lab">深色模式</div>
@@ -1538,29 +1576,29 @@ body.print-sizing .name-sub{margin-top:0}
       <div class="hr"></div>
       <div class="sec-label">排班</div>
       <ul class="hul">
-        <li>按「🔒 排班」解鎖後才可編輯，再按一次即鎖定。</li>
+        <li>按「🔒 排班」解鎖後方可編輯，再按一次即鎖定。</li>
         <li>自訂時間僅接受整點或半點（例如 900、1330）。</li>
         <li>休息時間可逐班指定。「自動」為超過 4 小時扣 0.5 小時。</li>
-        <li>與自動值不同時，格子右上角會標示。</li>
+        <li>與自動值不同時，於格子右上角標示。</li>
       </ul>
       <div class="hr"></div>
       <div class="sec-label">人員</div>
       <ul class="hul">
-        <li><b>離職</b>　從操作當下所在的月份起生效。該月之前的班表完全不受影響，姓名也不會被更動。</li>
-        <li>離職後會移出該月名單，可在「⋯」選單的「已隱藏人員」查看離職月份、復原或完全刪除。</li>
+        <li><b>離職</b>　自操作當下所在的月份起生效。該月之前的班表與姓名均不受影響。</li>
+        <li>離職後移出該月名單，可於「⋯」選單的「已隱藏人員」查看離職月份、復原或完全刪除。</li>
         <li><b>刪除</b>　清除所有紀錄，僅適用於輸入錯誤的情況。</li>
         <li>開關用於決定該員本月是否列入排班。</li>
         <li><b>到職年月</b>　選填。僅用於戰績道別卡的年資計算，不影響排班、時數與任何檢查。</li>
-        <li>未填寫時，年資以班表出現過的月份推算；若該員在班表第一個月就存在，道別卡改以「這段日子」敘述，不標示月數。</li>
+        <li>未填寫時，年資以班表出現過的月份推算。若該員於班表第一個月即已在名單中，道別卡改以「這段日子」敘述，不標示月數。</li>
       </ul>
     </div>
 
     <div class="hr"></div>
     <div class="sec-label">加班時數</div>
     <ul class="hul">
-      <li>點姓名右上角的「⋯」開啟該員本月明細。</li>
-      <li>明細中的日期可點選，畫面會跳至該格並閃爍。</li>
-      <li>「全部標示」會一次框出該類的所有日期，再按一次取消。</li>
+      <li>點選姓名右上角的「⋯」開啟該員本月明細。</li>
+      <li>明細中的日期可點選，畫面隨即跳至該格並閃爍。</li>
+      <li>「全部標示」一次框出該類的所有日期，再按一次取消。</li>
       <li>標示為青色<b>虛線</b>框，跳轉閃爍為青色<b>實線</b>框<span class="edit-only">，紅色實線框代表排入該員劃假的時段</span>；詳見上方「格子的框線」。</li>
     </ul>
 
@@ -1576,7 +1614,7 @@ body.print-sizing .name-sub{margin-top:0}
     <div class="sec-label">劃假</div>
     <ul class="hul">
       <li>開放期間內，選擇本人姓名 → 點選日曆 → 送出。</li>
-      <li>規律性的排休可用「整批套用到星期」：選定星期後按「套用」，整月一次完成。</li>
+      <li>規律性的排休可使用「整批套用到星期」：選定星期後按「套用」，整月一次完成。</li>
     </ul>
     <div class="hsub">筆刷以「可上班的時間」描述</div>
     <dl class="hdl">
@@ -1592,9 +1630,9 @@ body.print-sizing .name-sub{margin-top:0}
     </ul>
     <div class="hsub">開放期間</div>
     <ul class="hul">
-      <li>開放起日與截止日<b>都包含當天</b>。</li>
+      <li>開放起日與截止日<b>均包含當天</b>。</li>
       <li>以<b>雲端時間</b>判定，不受裝置日期設定影響。</li>
-      <li>截止後若仍開放，所劃的假將標示為<b class="c-orange">臨時</b>並列入候補。</li>
+      <li>截止後若仍開放，所劃日期標示為<b class="c-orange">臨時</b>並列入候補。</li>
     </ul>
     <ul class="hul view-only">
       <li>補充說明僅排班人員可見。</li>
@@ -1602,9 +1640,9 @@ body.print-sizing .name-sub{margin-top:0}
     </ul>
     <div class="edit-only">
       <ul class="hul">
-        <li>已劃假的空白格會依類型顯示底色與標記。</li>
-        <li>排入該員無法上班的時段時，格子會顯示紅框與驚嘆號。</li>
-        <li>點選格子排班時，視窗上方會先顯示該日的劃假狀況。</li>
+        <li>已劃假的空白格依類型顯示底色與標記。</li>
+        <li>排入該員無法上班的時段時，格子顯示紅框與驚嘆號。</li>
+        <li>點選格子排班時，視窗上方先顯示該日的劃假狀況。</li>
       </ul>
 
       <div class="hr"></div>
@@ -1619,8 +1657,8 @@ body.print-sizing .name-sub{margin-top:0}
       <div class="hr"></div>
       <div class="sec-label">劃假　·　異動通知</div>
       <ul class="hul">
-        <li>每次送出都會留下紀錄，<b>取消劃假同樣會記錄</b>。</li>
-        <li>有未讀異動時，工具列的「劃假」會顯示<b style="color:var(--red)">紅點</b>。</li>
+        <li>每次送出均留下紀錄，<b>取消劃假同樣記錄</b>。</li>
+        <li>有未讀異動時，工具列的「劃假」顯示<b style="color:var(--red)">紅點</b>。</li>
         <li>「全員總覽」最上方的<b>最近異動</b>逐筆列出，點選單列可展開細項。</li>
       </ul>
       <div class="hsub">收合狀態下顯示的重點</div>
@@ -1629,7 +1667,7 @@ body.print-sizing .name-sub{margin-top:0}
         <dt class="c-green">有釋出</dt><dd>已取消劃假，該日可重新排班。</dd>
       </dl>
       <ul class="hul">
-        <li>排序可切換「時間」或「姓名」。以先後順序受理候補時建議用時間排序。</li>
+        <li>排序可切換「時間」或「姓名」。依先後順序受理候補時，建議使用時間排序。</li>
         <li>按「標示已讀」後紅點即消失。</li>
       </ul>
     </div>
@@ -1637,23 +1675,25 @@ body.print-sizing .name-sub{margin-top:0}
     <div class="hr"></div>
     <div class="sec-label">戰績</div>
     <ul class="hul">
-      <li>當月倒數第二天起到下個月第三天（共五天），工具列會出現金色的「🏆 戰績」按鈕。</li>
-      <li>期間內首次開啟班表時也會詢問一次。</li>
+      <li>當月倒數第二天起至下個月第三天（共五天），工具列顯示金色的「🏆 戰績」按鈕。</li>
+      <li>期間內首次開啟班表時，另跳出視窗詢問一次。</li>
       <li>內容全部由既有的班表與劃假紀錄計算，不另外收集任何資料。</li>
-      <li>每個稱號下方會用小字說明該項統計的內容。</li>
-      <li>若下月班表已建立且名單中沒有某位夥伴，最後會附上該員的道別卡。</li>
+      <li>每個稱號下方以小字說明該項統計的內容。</li>
+      <li>下月班表已建立且名單中無某位夥伴時，末尾附上該員的道別卡。</li>
     </ul>
 
     <div class="hr"></div>
     <div class="sec-label">外觀設定</div>
     <ul class="hul">
       <li>位置：工具列最右邊、「？」左邊的 <b>🎨</b>。</li>
-      <li>可調整字級、格子高度、格線深淺、重點色與深色模式。</li>
-      <li>設定<b>只存在這台裝置</b>，不會影響班表內容，也不會改變其他夥伴看到的樣子。</li>
-      <li>重點色只套用於人名、按鈕等重點文字。假別、劃假、衝突的顏色代表意義，不會跟著變動。</li>
-      <li>深色模式選「跟隨系統」時，會隨手機的深色設定自動切換。</li>
-      <li>匯出與列印一律使用淺色，不受深色模式影響。</li>
-      <li>按「還原預設」即回到原始外觀。</li>
+      <li>可調整字體、字級、格子高度、格線深淺、重點色與深色模式。</li>
+      <li><b>字體</b>　預設為裝置原有字體。另提供思源宋體、霞鶩文楷、芫荽三種免費商用字體（SIL OFL 1.1），選用時向 Google Fonts 下載字檔，該連線會使 Google 取得本次的連線資訊；未選用時不產生任何對外連線。</li>
+      <li>芫荽僅有一個字重，粗體由系統合成，與其他字體略有差異。</li>
+      <li>設定<b>僅儲存於本裝置</b>，不影響班表內容，亦不影響其他夥伴的畫面。</li>
+      <li>重點色僅套用於人名、按鈕等重點文字。假別、劃假與衝突的顏色各具意義，不隨此設定變動。</li>
+      <li>深色模式選擇「跟隨系統」時，依裝置的深色設定自動切換。</li>
+      <li>匯出與列印一律使用淺色與預設字體，不受深色模式與字體設定影響。</li>
+      <li>按「還原預設」恢復初始外觀。</li>
     </ul>
 
     <div class="hr edit-only"></div>
@@ -1685,7 +1725,7 @@ body.print-sizing .name-sub{margin-top:0}
       <div class="sec-label">行事曆</div>
       <div class="small-note" id="calStatus"></div>
       <ul class="hul">
-        <li>自動取得政府公告資料，離線時改用內建資料。</li>
+        <li>自動取得政府公告資料；離線時改用內建資料。</li>
         <li>亦可於排班模式點選日期，手動調整紅黑字。</li>
       </ul>
 
@@ -1694,7 +1734,7 @@ body.print-sizing .name-sub{margin-top:0}
       <ul class="hul">
         <li>需管理者帳號登入。</li>
         <li>採選單形式，各項分別設定，右側顯示目前內容：班段、覆蓋檢查規則、時段提醒、劃假、行事曆來源。</li>
-        <li>修改後需按「儲存設定」；有未儲存的變更時按鈕會顯示 ●，未儲存即關閉會出現確認提示。</li>
+        <li>修改後需按「儲存設定」。有未儲存的變更時按鈕顯示 ●；未儲存即關閉將出現確認提示。</li>
         <li>每組店家代碼各有獨立設定，亦可於此設定其他代碼。</li>
       </ul>
     </div>
@@ -2102,7 +2142,7 @@ function ensureRoster(){ // 首次開啟某月時，詢問是否帶入最近月�
     if(pm&&Array.isArray(pm.roster)&&pm.roster.length){src=pm.roster;label='民國'+(y-1911)+'年'+m+'月';break}
   }
   if(src){
-    if(confirm('本月尚無人員名單，是否帶入 '+label+' 的人員？\n（不帶入也可稍後手動加入，過去月份的班表都會完整保留）')){
+    if(confirm('本月尚無人員名單，是否帶入 '+label+' 的人員？\n（不帶入亦可稍後手動加入，過去月份的班表均完整保留）')){
       md.roster=src.filter(id=>state.staff.some(s=>s.id===id));
     }else md.roster=[];
   }else{
@@ -2901,7 +2941,7 @@ function renderLeaveBody(){
 function lvMineHtml(ym,ce){
   const roster=monthStaff();
   if(!roster.length)return '<div class="lv-none">目前沒有人員名單。</div>';
-  let h='<select class="txt" id="lvWhoSel"><option value="">— 選擇你的名字 —</option>'+
+  let h='<select class="txt" id="lvWhoSel"><option value="">— 選擇姓名 —</option>'+
     roster.map(st=>'<option value="'+st.id+'"'+(st.id===lvWho?' selected':'')+'>'+esc(st.name)+'</option>').join('')+
     '</select>';
   if(!lvWho)return h+'<div class="lv-none">先選名字，再點日曆劃假。</div>';
@@ -3047,8 +3087,8 @@ function syncLcBox(){
   const on=document.getElementById('lcOn').checked;
   document.getElementById('lcBox').style.display=on?'':'none';
   document.getElementById('lcHint').textContent=document.getElementById('lcLate').checked
-    ?'截止後夥伴還是進得去，但劃的假會標成「臨時／候補」，你一眼就知道是後來才加的。'
-    :'截止後完全鎖住，夥伴進去只能看，不能再改。';
+    ?'截止後夥伴仍可進入劃假，所劃日期標示為「臨時／候補」，與開放期間內的劃假區隔。'
+    :'截止後鎖定，夥伴僅能檢視，無法再修改。';
 }
 ['lcOn','lcLate'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('change',syncLcBox)});
 document.getElementById('lcKeep').addEventListener('change',renderPurgeInfo);
@@ -3152,13 +3192,13 @@ function paintDay(d){
 }
 function lvBrushValid(){ // only 模式的起訖要合理，否則等於整天不能上
   if(lvBrush.m!=='only')return true;
-  if(lvBrush.t>=lvBrush.t2){showToast('「只能上」的結束時間要晚於開始時間');return false}
+  if(lvBrush.t>=lvBrush.t2){showToast('「只能上這段」的結束時間需晚於開始時間');return false}
   return true;
 }
 function applyBrushToWeekdays(){
   const picked=[...document.querySelectorAll('#lvWdRow [data-lvwd].on')].map(el=>+el.dataset.lvwd);
-  if(!picked.length){showToast('先點上面的星期，再按套用');return}
-  if(!lvDraft){showToast('先選名字');return}
+  if(!picked.length){showToast('請先選擇星期，再按「套用」');return}
+  if(!lvDraft){showToast('請先選擇姓名');return}
   if(!lvBrushValid())return;
   const ym=(leaveWindow().L||{}).ym||ymOf(state.y,state.m);
   const {y,m}=parseYm(ym);
@@ -3182,7 +3222,7 @@ document.getElementById('btnLeaveSave').addEventListener('click',async()=>{
     showToast(ce.late?'已送出臨時劃假，會列為候補讓排班人員知道':'已送出劃假 ✓',3000);
     document.getElementById('ovLeave').classList.remove('show');
   }else{
-    alert('送出失敗，請確認網路連線。\n若一直失敗，請在 Firebase 安全規則中開放 leaves 這個集合的讀寫。');
+    alert('送出失敗，請確認網路連線。\n若持續失敗，請於 Firebase 安全規則開放 leaves 集合的讀寫。');
   }
 });
 
@@ -3398,7 +3438,7 @@ function clearCell(){ // 清除此格；若為紅線，可選擇清除整段
     let a=cur.day,b=cur.day;
     while(a>1&&md.sched[cur.sid][a-1]&&md.sched[cur.sid][a-1].t==='redline')a--;
     while(b<N&&md.sched[cur.sid][b+1]&&md.sched[cur.sid][b+1].t==='redline')b++;
-    if(b>a&&confirm('要清除整段紅線（'+state.m+'/'+a+'～'+state.m+'/'+b+'）嗎？\n按「取消」則只清除此格。')){
+    if(b>a&&confirm('清除整段紅線（'+state.m+'/'+a+'～'+state.m+'/'+b+'）？\n按「取消」僅清除此格。')){
       for(let d=a;d<=b;d++)delete md.sched[cur.sid][d];
       scheduleSave();renderSheet();
       document.getElementById('ovCell').classList.remove('show');
@@ -3546,7 +3586,7 @@ document.getElementById('hiddenListBody').addEventListener('click',ev=>{
   if(restore){
     const st=state.staff.find(s=>s.id===restore.dataset.restore);
     if(!st)return;
-    if(!confirm('讓 '+st.name+' 回歸人員清單？\n離職註記會取消，並加回本月名單。'))return;
+    if(!confirm('將 '+st.name+' 復原至人員清單？\n離職註記將取消，並加回本月名單。'))return;
     st.hidden=false;
     delete st.leftYm;
     st.name=st.name.replace(/（離\d*）$/,''); // 舊資料是直接寫進姓名的，一併清掉
@@ -3559,7 +3599,7 @@ document.getElementById('hiddenListBody').addEventListener('click',ev=>{
   if(purge){
     const st=state.staff.find(s=>s.id===purge.dataset.purge);
     if(!st)return;
-    if(!confirm('完全刪除 '+st.name+'？\n所有月份的排班紀錄都會刪除、無法復原。'))return;
+    if(!confirm('完全刪除 '+st.name+'？\n所有月份的排班紀錄將一併刪除，無法復原。'))return;
     permanentlyDeleteStaff(purge.dataset.purge);
     renderHiddenList();
     return;
@@ -3766,9 +3806,9 @@ document.getElementById('btnSaveStaff').addEventListener('click',()=>{
 document.getElementById('btnRemoveMonth').addEventListener('click',()=>{
   const st=state.staff.find(s=>s.id===curStaffId);
   if(!confirm('將 '+st.name+' 從 '+state.y+' 年 '+state.m+' 月起設為離職？\n\n'+
-      '· '+state.m+' 月之前的班表完全不受影響，姓名不會被改動\n'+
-      '· 從 '+state.m+' 月起，姓名才會加註「（離）」\n'+
-      '· 同時移出本月名單，之後可在「⋯」選單的「已隱藏人員」復原'))return;
+      '· '+state.m+' 月之前的班表與姓名均不受影響\n'+
+      '· 自 '+state.m+' 月起，姓名加註「（離）」\n'+
+      '· 同時移出本月名單，日後可於「⋯」選單的「已隱藏人員」復原'))return;
   const md=monthData();
   md.roster=md.roster.filter(id=>id!==curStaffId);
   st.leftYm=ym();   // 只記「從哪個月起離職」，姓名保持原樣，過去月份才不會被追溯標記
@@ -3778,7 +3818,7 @@ document.getElementById('btnRemoveMonth').addEventListener('click',()=>{
 });
 document.getElementById('btnDelStaff').addEventListener('click',()=>{
   const st=state.staff.find(s=>s.id===curStaffId);
-  if(!confirm('刪除 '+st.name+'？\n所有月份的排班紀錄都會刪除、無法復原。\n若是離職，請改用「離職」以保留歷史班表。'))return;
+  if(!confirm('刪除 '+st.name+'？\n所有月份的排班紀錄將一併刪除，無法復原。\n若為離職，請改用「離職」以保留歷史班表。'))return;
   permanentlyDeleteStaff(curStaffId);renderSheet();
   document.getElementById('ovStaff').classList.remove('show');
 });
@@ -4154,8 +4194,8 @@ function syncLeaveCfgBox(){
   document.getElementById('cfgLeaveBox').style.display=on?'':'none';
   const late=document.getElementById('cfgLeaveLate').checked;
   document.getElementById('cfgLeaveHint').textContent=late
-    ?'截止後夥伴還是進得去，但劃的假會標成「臨時／候補」，你一眼就知道是後來才加的。'
-    :'截止後完全鎖住，夥伴進去只能看，不能再改。';
+    ?'截止後夥伴仍可進入劃假，所劃日期標示為「臨時／候補」，與開放期間內的劃假區隔。'
+    :'截止後鎖定，夥伴僅能檢視，無法再修改。';
 }
 ['cfgLeaveOn','cfgLeaveLate'].forEach(id=>{
   const el=document.getElementById(id);
@@ -4327,7 +4367,7 @@ document.getElementById('btnAdminSave').addEventListener('click',async()=>{
   }
 });
 document.getElementById('btnAdminReset').addEventListener('click',async()=>{
-  if(!confirm('把「'+(cfgTargetCode||storeCode)+'」的後台設定回復成預設值？'))return;
+  if(!confirm('將「'+(cfgTargetCode||storeCode)+'」的後台設定回復為預設值？'))return;
   if(!cfgTargetCode||cfgTargetCode===storeCode){
     state.config={};scheduleSave();renderAll();
     fillCfgFields(cfg());
