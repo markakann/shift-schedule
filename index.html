@@ -29,7 +29,7 @@ var UI=(function(){
   var FONT={ // 只挑免費商用（SIL OFL 1.1）且 Google Fonts 有做 CJK 切片的字體，才不會一次下載整包
     sys  :{n:'預設'},
     serif:{n:'思源宋體',css:'"Noto Serif TC"',g:'Noto+Serif+TC:wght@400;500;700'},
-    kai  :{n:'霞鶩文楷',css:'"LXGW WenKai TC"',g:'LXGW+WenKai+TC:wght@400;700'},
+    round:{n:'昭源圓體',css:'"Chiron GoRound TC"',g:'Chiron+GoRound+TC:wght@400;700'},
     ians :{n:'芫荽',css:'"Iansui"',g:'Iansui'} // 只有 Regular 一個字重，不能指定 wght，否則整包會 400
   };
   var ACC=[ // 重點色：淺色與深色各一個值，深色底才讀得清楚
@@ -1477,7 +1477,7 @@ body.print-sizing .name-sub{margin-top:0}
     <div class="lk-row">
       <div class="lk-lab">字體</div>
       <div class="lk-seg" data-k="font">
-        <button data-v="sys">預設</button><button data-v="serif">思源宋體</button><button data-v="kai">霞鶩文楷</button><button data-v="ians">芫荽</button>
+        <button data-v="sys">預設</button><button data-v="serif">思源宋體</button><button data-v="round">昭源圓體</button><button data-v="ians">芫荽</button>
       </div>
       <div class="lv-hint" style="margin:6px 0 0">預設為裝置原有字體，不產生對外連線。其餘三種為免費商用字體，首次選用時向 Google Fonts 下載字檔，之後由瀏覽器快取。芫荽僅有一個字重，粗體由系統合成。匯出與列印一律使用預設字體。</div>
     </div>
@@ -1690,7 +1690,7 @@ body.print-sizing .name-sub{margin-top:0}
     <ul class="hul">
       <li>位置：工具列最右邊、「？」左邊的 <b>🎨</b>。</li>
       <li>可調整字體、字級、格子高度、格線深淺、重點色與深色模式。</li>
-      <li><b>字體</b>　預設為裝置原有字體。另提供思源宋體、霞鶩文楷、芫荽三種免費商用字體（SIL OFL 1.1），選用時向 Google Fonts 下載字檔，該連線會使 Google 取得本次的連線資訊；未選用時不產生任何對外連線。</li>
+      <li><b>字體</b>　預設為裝置原有字體。另提供思源宋體、昭源圓體、芫荽三種免費商用字體（SIL OFL 1.1），選用時向 Google Fonts 下載字檔，該連線會使 Google 取得本次的連線資訊；未選用時不產生任何對外連線。</li>
       <li>芫荽僅有一個字重，粗體由系統合成，與其他字體略有差異。</li>
       <li>設定<b>僅儲存於本裝置</b>，不影響班表內容，亦不影響其他夥伴的畫面。</li>
       <li>重點色僅套用於人名、按鈕等重點文字。假別、劃假與衝突的顏色各具意義，不隨此設定變動。</li>
