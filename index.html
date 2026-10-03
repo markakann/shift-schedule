@@ -28,7 +28,7 @@ var UI=(function(){
   var GLD={s:'#3c4046',m:'#4a4e56',l:'#7d828c'};  // 深色模式格線
   var FONT={ // 只挑免費商用（SIL OFL 1.1）且 Google Fonts 有做 CJK 切片的字體，才不會一次下載整包
     sys  :{n:'預設'},
-    serif:{n:'思源宋體',css:'"Noto Serif TC"',g:'Noto+Serif+TC:wght@400;500;700'},
+    serif:{n:'思源宋體',css:'"Noto Serif TC"',g:'Noto+Serif+TC:wght@400;700'},
     round:{n:'昭源圓體',css:'"Chiron GoRound TC"',g:'Chiron+GoRound+TC:wght@400;700'},
     ians :{n:'芫荽',css:'"Iansui"',g:'Iansui'} // 只有 Regular 一個字重，不能指定 wght，否則整包會 400
   };
@@ -96,6 +96,11 @@ var UI=(function(){
     var mt=document.querySelector('meta[name="theme-color"]');
     if(mt)mt.setAttribute('content',dark?'#171a1f':'#eceae3');
     if(typeof window.fitCells==='function'){window.fitCells();if(window.fitSheetHeight)window.fitSheetHeight()}
+    if(typeof window.fitSticky==='function')window.fitSticky();
+    try{if(document.fonts&&document.fonts.ready)document.fonts.ready.then(function(){
+      if(window.fitSticky)window.fitSticky();
+      if(window.fitSheetHeight)window.fitSheetHeight();
+    })}catch(e){}
     if(typeof window.renderLookPreview==='function')window.renderLookPreview();
   }
   function set(k,v){
@@ -189,8 +194,9 @@ button,input,select,textarea{font-family:inherit}
 .toolbar{
   display:flex;gap:5px;align-items:center;
   padding:8px 10px;flex-wrap:wrap;
-  position:sticky;top:52px;z-index:29;
-  background:linear-gradient(var(--bg) 85%,transparent);
+  position:sticky;top:var(--topH,52px);z-index:29;
+  background:var(--bg);
+  box-shadow:0 5px 6px -5px rgba(0,0,0,.22);
 }
 .btn{
   border:1.5px solid var(--grid);background:var(--paper);color:var(--ink);
@@ -304,7 +310,7 @@ th,td{
 }
 thead th{position:sticky;z-index:5;background:var(--paper)}
 thead tr:nth-child(1) th{top:0;height:calc(26px*var(--uiFS));font-size:calc(13px*var(--uiFS));font-weight:700}
-thead tr:nth-child(2) th{top:calc(26px*var(--uiFS));height:calc(30px*var(--uiFS));font-size:calc(14px*var(--uiFS));border-bottom-width:2px}
+thead tr:nth-child(2) th{top:var(--thH1,calc(26px*var(--uiFS)));height:calc(30px*var(--uiFS));font-size:calc(14px*var(--uiFS));border-bottom-width:2px}
 th.corner{position:sticky;left:0;z-index:8!important;font-size:calc(12px*var(--uiFS));color:var(--blue);font-weight:700;letter-spacing:1px}
 .corner-input{
   width:100%;border:none;background:transparent;color:var(--blue);
@@ -741,6 +747,7 @@ html.dark{
 html.dark .btn{box-shadow:1px 1px 0 rgba(0,0,0,.45)}
 html.dark .sheet-wrap,html.dark .notes-row{box-shadow:2px 3px 10px rgba(0,0,0,.5)}
 html.dark .topbar{box-shadow:0 1px 4px rgba(0,0,0,.4)}
+html.dark .toolbar{box-shadow:0 5px 8px -5px rgba(0,0,0,.6)}
 html.dark .overlay{background:rgba(0,0,0,.62)}
 html.dark .modal{box-shadow:0 -3px 22px rgba(0,0,0,.6)}
 html.dark #toast{background:#3d4048}
@@ -2454,6 +2461,30 @@ function fitCells(){ // 依可用寬度撐滿整個月份；窄螢幕維持 46px
   document.documentElement.style.setProperty('--cellfs',Math.round((w>=72?14:w>=58?13:11)*fs)+'px');
 }
 window.fitCells=fitCells;
+let stickyRO=null;
+function fitSticky(){ // 標題列高度會隨字體與換行改變，工具列和表頭都不能寫死
+  const tb=document.querySelector('.topbar');
+  if(tb){
+    const h=Math.round(tb.getBoundingClientRect().height);
+    if(h>0)document.documentElement.style.setProperty('--topH',h+'px');
+  }
+  const th=document.querySelector('#sheet thead tr:nth-child(1) th:not(.corner)');
+  if(th){
+    const h=Math.round(th.getBoundingClientRect().height);
+    if(h>0)document.documentElement.style.setProperty('--thH1',h+'px');
+  }
+}
+function watchSticky(){ // 換字體後高度會變，交給 ResizeObserver 自動跟上
+  fitSticky();
+  if(!window.ResizeObserver)return;
+  if(stickyRO)stickyRO.disconnect();
+  stickyRO=new ResizeObserver(()=>{fitSticky();fitSheetHeight()});
+  const tb=document.querySelector('.topbar');
+  const th=document.querySelector('#sheet thead tr:nth-child(1) th:not(.corner)');
+  if(tb)stickyRO.observe(tb);
+  if(th)stickyRO.observe(th);
+}
+window.fitSticky=fitSticky;
 function fitSheetHeight(){ // 讓表格框吃滿螢幕剩餘高度，人多時才需要框內捲動（備註順勢排在下方，整頁往下捲即可看到）
   const wrap=document.querySelector('.sheet-wrap');
   if(!wrap)return;
@@ -2462,8 +2493,8 @@ function fitSheetHeight(){ // 讓表格框吃滿螢幕剩餘高度，人多時�
   document.documentElement.style.setProperty('--sheetMaxH',Math.max(320,Math.round(avail))+'px');
 }
 window.fitSheetHeight=fitSheetHeight;
-window.addEventListener('resize',()=>{fitCells();fitSheetHeight()});
-function renderAll(){ensureRoster();fitCells();renderSheet();renderNotes();fitSheetHeight();updateReportBtn()}
+window.addEventListener('resize',()=>{fitCells();fitSticky();fitSheetHeight()});
+function renderAll(){ensureRoster();fitCells();renderSheet();renderNotes();watchSticky();fitSheetHeight();updateReportBtn()}
 function renderSheet(){
   const md=monthData(),N=daysInMonth();
   let h='<thead><tr><th class="corner" rowspan="2"><input id="cornerLabel" class="corner-input" value="'+esc(state.corner||'')+'" placeholder="標籤" aria-label="表格左上角標籤"></th>';
