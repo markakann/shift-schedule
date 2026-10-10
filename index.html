@@ -657,6 +657,23 @@ textarea.txt{min-height:110px}
   .overlay{align-items:center}
   .modal{border-radius:14px}
 }
+/* ── 行事曆：各年份資料來源 ── */
+.cal-row{display:flex;align-items:center;gap:10px;padding:9px 6px;border-bottom:1px solid var(--line2)}
+.cal-row:last-child{border-bottom:none}
+.cal-row.cur{background:var(--paper3);border-radius:6px}
+.cal-y{font-weight:700;min-width:86px;line-height:1.25}
+.cal-y small{display:block;font-size:11px;color:var(--fade);font-weight:600}
+.cal-d{flex:1;min-width:0}
+.cal-dt{font-size:12px;color:var(--fade2);margin-top:3px;word-break:break-all;line-height:1.5}
+.cal-tag{display:inline-block;font-size:11px;font-weight:700;border-radius:3px;padding:0 6px;border:1px solid}
+.cal-tag.man{color:#a85c07;background:#fff4e6;border-color:#e0a05a}
+.cal-tag.on{color:#2a6a3a;background:#eaf6ec;border-color:#9ccaa6}
+.cal-tag.bi{color:#555;background:#f0f0f0;border-color:#ccc}
+.cal-tag.none{color:#999;background:transparent;border-color:#ddd}
+html.dark .cal-tag.man{color:#f0b978;background:#3d2f1c;border-color:#8a6633}
+html.dark .cal-tag.on{color:#8fd0a0;background:#1f3327;border-color:#3f7448}
+html.dark .cal-tag.bi{color:#b3b4ba;background:#2a2d34;border-color:#4a4e56}
+html.dark .cal-tag.none{color:#7b7e86;border-color:#3a3e46}
 /* ── 外觀設定（每台裝置各自一份，不會影響別人） ── */
 .lk-row{margin:12px 0 0}
 .lk-lab{font-size:12px;color:var(--fade);letter-spacing:1px;margin-bottom:5px}
@@ -1359,7 +1376,7 @@ body.print-sizing .name-sub{margin-top:0}
       <button class="btn cfg-item" data-cfgpanel="ovCfgRules"><span>覆蓋檢查規則</span><small id="sumRules"></small></button>
       <button class="btn cfg-item" data-cfgpanel="ovCfgWarn"><span>時段提醒</span><small id="sumWarn"></small></button>
       <button class="btn cfg-item" data-cfgpanel="ovCfgLeave"><span>劃假</span><small id="sumLeave"></small></button>
-      <button class="btn cfg-item" id="btnOpenCalUrl"><span>行事曆來源網址</span><small>非必要請勿更動</small></button>
+      <button class="btn cfg-item" id="btnOpenCalCfg"><span>行事曆</span><small id="sumCal"></small></button>
     </div>
 
     <div class="m-actions" style="flex-direction:column">
@@ -1428,11 +1445,26 @@ body.print-sizing .name-sub{margin-top:0}
   </div>
 </div>
 
+<!-- 行事曆：手動匯入優先，沒有匯入的年份照常自動取得線上資料 -->
+<div class="overlay" id="ovCal">
+  <div class="modal">
+    <div class="m-title">行事曆</div>
+    <div class="m-sub">所有店家代碼共用同一份行事曆。手動匯入的年份優先使用；沒有匯入的年份照常每天自動取得線上資料。</div>
+    <div id="calList"></div>
+    <button class="btn primary" id="btnCalImport" style="width:100%;margin-top:12px">匯入行事曆檔案</button>
+    <input type="file" id="fileCal" accept=".csv,.json,text/csv,application/json" style="display:none">
+    <div class="lv-hint" style="margin:8px 0 0">支援政府資料開放平臺「中華民國政府行政機關辦公日曆表」CSV、Google 行事曆格式 CSV、TaiwanCalendar JSON。一個檔案含多個年份也可以。<b>匯入與移除立即套用到所有店家代碼</b>，不需按「儲存設定」。</div>
+    <div class="hr"></div>
+    <button class="btn cfg-item" id="btnOpenCalUrl"><span>進階：線上來源網址</span><small>非必要請勿更動</small></button>
+    <div class="m-actions"><button class="btn" id="btnCloseCal">完成</button></div>
+  </div>
+</div>
+
 <!-- 行事曆來源網址 -->
 <div class="overlay" id="ovCalUrl">
   <div class="modal">
     <div class="m-title">行事曆來源網址</div>
-    <div class="small-note">{year} 自動替換為年份。網址失效時改用內建資料；國定假日仍可於排班模式點選日期手動調整。<br><b>非必要請勿更動。</b></div>
+    <div class="small-note">{year} 自動替換為年份。網址失效時改用內建資料；國定假日仍可於排班模式點選日期手動調整。按「確定」即套用到所有店家代碼。<br><b>非必要請勿更動。</b></div>
     <input class="txt" id="cfgCalUrl" autocapitalize="off" autocorrect="off" style="font-size:12px">
     <div class="m-actions">
       <button class="btn primary" id="btnCalUrlOk">確定</button>
@@ -1743,6 +1775,9 @@ body.print-sizing .name-sub{margin-top:0}
       <ul class="hul">
         <li>自動取得政府公告資料；離線時改用內建資料。</li>
         <li>編輯端每台裝置<b>每天自動重新檢查一次</b>；內容有變動才會更新，並同步給所有人。</li>
+        <li><b>所有店家代碼共用同一份行事曆。</b></li>
+        <li><b>手動匯入</b>　位置：後台設定的「行事曆」。可匯入政府資料開放平臺下載的「中華民國政府行政機關辦公日曆表」CSV，<b>手動匯入的年份優先使用</b>，立即套用到所有店家代碼。</li>
+        <li>同一視窗可查看每個年份目前使用的來源；移除手動匯入後即改回線上資料。</li>
         <li>亦可於排班模式點選日期，手動調整紅黑字。</li>
       </ul>
 
@@ -1750,9 +1785,9 @@ body.print-sizing .name-sub{margin-top:0}
       <div class="sec-label">後台設定</div>
       <ul class="hul">
         <li>需管理者帳號登入。</li>
-        <li>採選單形式，各項分別設定，右側顯示目前內容：班段、覆蓋檢查規則、時段提醒、劃假、行事曆來源。</li>
+        <li>採選單形式，各項分別設定，右側顯示目前內容：班段、覆蓋檢查規則、時段提醒、劃假、行事曆。</li>
         <li>修改後需按「儲存設定」。有未儲存的變更時按鈕顯示 ●；未儲存即關閉將出現確認提示。</li>
-        <li>每組店家代碼各有獨立設定，亦可於此設定其他代碼。</li>
+        <li>每組店家代碼各有獨立設定，亦可於此設定其他代碼。行事曆例外：所有代碼共用，修改後立即生效。</li>
       </ul>
     </div>
 
@@ -1937,6 +1972,7 @@ function applyPayload(json){
     state.viewCode=d.viewCode||state.viewCode||'';
     state.config=d.config||{};
     state.staff=d.staff;state.months=d.months;state.calCache=d.calCache||{};
+    legacyCalManual=(d.calManual&&Object.keys(d.calManual).length)?d.calManual:null; // 舊版存在店家資料裡的手動匯入，留著搬到共用行事曆
     sortStaff();
     document.getElementById('storeName').value=state.store;
     document.getElementById('sheetTitle').value=state.title;
@@ -1960,6 +1996,7 @@ async function initFirebase(){
       authMod.onAuthStateChanged(FB.auth,u=>{adminUser=u||null;updateAdminBanner();});
     }catch(e){}
     cloudStatus='雲端已連線';
+    watchCalShared();
     let saved=null;try{saved=localStorage.getItem('paiban-store-code')}catch(e){}
     if(saved)await connectStore(saved,false,true);
     else openFirstSetup();
@@ -1990,6 +2027,7 @@ function removeCodeHistory(code){
 async function connectStore(code,isNew,silent){
   code=code.trim();
   if(!code)return false;
+  if(isReservedCode(code)){if(!silent)alert('此名稱為系統保留，無法作為店家代碼。');return false}
   const ref=FB.doc(FB.db,'stores',code);
   try{
     const snap=await FB.getDoc(ref);
@@ -2062,6 +2100,7 @@ async function connectStore(code,isNew,silent){
   watchLeave();
   renderAll();  // storeCode 設定完成後再畫一次，戰績按鈕等依賴代碼的狀態才會正確
   refreshCalendarDaily(); // 每天自動確認一次行事曆有沒有更新
+  migrateLegacyCal();
   setTimeout(maybeAskReport,1200);
   return true;
 }
@@ -2132,7 +2171,7 @@ let state={
   corner:'',
   staff:[],                 // {id,name,type:'full'|'part'}
   months:{},                // 'YYYY-M': {sched:{staffId:{day:entry}}, notes:[], dayOv:{day:'red'|'black'}}
-  calCache:{},              // year: {'M-D':'名稱'}
+  calCache:{},              // year: {'M-D':'名稱'}　線上自動取得
   config:{},                // 後台設定：班段、行事曆來源、覆蓋規則、提醒時間
   y:2026, m:6
 };
@@ -2173,8 +2212,20 @@ function ensureRoster(){ // 首次開啟某月時，詢問是否帶入最近月�
 }
 function daysInMonth(){return new Date(state.y,state.m,0).getDate()}
 function weekday(d){return new Date(state.y,state.m-1,d).getDay()}
-function holidayMap(){return state.calCache[state.y]||HOLIDAYS_BUILTIN[state.y]||{}}
+function holidayMap(){ // 手動匯入優先，其次線上取得，再其次內建
+  const mn=calManual()[state.y];
+  return (mn&&mn.map)||state.calCache[state.y]||HOLIDAYS_BUILTIN[state.y]||{};
+}
 function holidayName(d){return holidayMap()[state.m+'-'+d]||null}
+/* 表頭只放得下 4 個字：官方全名換成慣用簡稱，點開日期仍顯示全名 */
+const HOLIDAY_SHORT={'開國紀念日':'元旦','中華民國開國紀念日':'元旦','農曆除夕':'除夕','孔子誕辰紀念日':'教師節',
+  '臺灣光復暨金門古寧頭大捷紀念日':'光復節','台灣光復暨金門古寧頭大捷紀念日':'光復節'};
+function shortHoliday(n){
+  n=String(n||'').trim();
+  if(HOLIDAY_SHORT[n])return HOLIDAY_SHORT[n];
+  if(n.includes('/')){const p=n.split('/').map(s=>s.trim()).filter(Boolean);return shortHoliday(p[p.length-1]||n)} // 「孔子誕辰紀念日/教師節」取後段
+  return n;
+}
 function isRed(d){
   const ov=monthData().dayOv[d];
   if(ov==='red')return true; if(ov==='black')return false;
@@ -2432,6 +2483,70 @@ function scheduleSave(){
   },400);
 }
 
+/* ────────── 共用行事曆：所有店家代碼共用一份（手動匯入＋線上來源網址） ──────────
+   存在 stores 集合的保留文件，沿用店家代碼的讀寫權限，不需另外改安全規則。
+   店家代碼只能用 a-z 0-9 -，但這個名稱已列為保留字，不會被建立成店家。 */
+const CAL_SHARED_ID='shared-calendar';
+const CAL_SHARED_KEY='paiban-cal-shared'; // 本機快取：開啟時先顯示，離線／本機模式也能用
+let calShared=(()=>{
+  try{const o=JSON.parse(localStorage.getItem(CAL_SHARED_KEY)||'null');
+    if(o&&typeof o==='object')return {manual:o.manual||{},url:o.url||''}}catch(e){}
+  return {manual:{},url:''};
+})();
+let calSharedState='local'; // local＝尚未取得雲端／ok＝已同步／none＝雲端尚未建立
+let legacyCalManual=null;
+let unsubCalShared=null;
+function calManual(){return calShared.manual||{}}
+function calUrl(){return calShared.url||DEFAULT_CONFIG.calUrl}
+function isReservedCode(c){return c===CAL_SHARED_ID}
+function storeCalShared(){try{localStorage.setItem(CAL_SHARED_KEY,JSON.stringify(calShared))}catch(e){}}
+function normCalShared(o){return {manual:(o&&o.manual)||{},url:(o&&o.url)||''}}
+function applyCalShared(next){
+  next=normCalShared(next);
+  if(JSON.stringify(next)===JSON.stringify(calShared))return;
+  const urlChanged=next.url!==calShared.url;
+  calShared=next;storeCalShared();
+  renderAll();
+  if(document.getElementById('ovCal').classList.contains('show'))renderCalList();
+  renderCfgSummary();
+  const cs=document.getElementById('calStatus');if(cs)cs.textContent='行事曆來源：'+calSourceText();
+  if(urlChanged&&!viewerMode)fetchCalendar(state.y,true); // 換了來源網址，馬上用新網址重抓
+}
+function watchCalShared(){ // 任何身分都監聽：別的店家匯入或移除，這裡即時跟著更新
+  if(!FB||unsubCalShared)return;
+  unsubCalShared=FB.onSnapshot(FB.doc(FB.db,'stores',CAL_SHARED_ID),s=>{
+    if(!s.exists()){
+      if(s.metadata.fromCache)return; // 本機快取沒有不代表雲端沒有，等伺服器回應再判斷
+      calSharedState='none';
+      migrateLegacyCal();
+      return;
+    }
+    calSharedState='ok';
+    try{applyCalShared(JSON.parse(s.data().data||'{}'))}catch(e){}
+  },()=>{});
+}
+function writeCalShared(next){ // 先套用畫面，雲端寫入失敗會由監聽自動還原
+  next=normCalShared(next);
+  const prev=calShared;
+  applyCalShared(next);
+  if(!FB)return Promise.resolve('local');
+  return FB.setDoc(FB.doc(FB.db,'stores',CAL_SHARED_ID),
+      {data:JSON.stringify({manual:next.manual,url:next.url,at:nowMs()}),updatedAt:FB.serverTimestamp()})
+    .then(()=>{calSharedState='ok';return 'cloud'})
+    .catch(e=>{
+      applyCalShared(prev);
+      alert('行事曆寫入雲端失敗，請確認網路連線。\n若持續失敗，請於 Firebase 安全規則開放 stores 集合的讀寫。');
+      throw e;
+    });
+}
+function migrateLegacyCal(){ // 舊版各店家各存一份手動匯入；雲端還沒有共用行事曆時，把現有的搬上去一次
+  if(calSharedState!=='none'||viewerMode||!FB||!storeCode)return;
+  const m=Object.assign({},legacyCalManual||{},calManual());
+  if(!Object.keys(m).length&&!calShared.url)return;
+  legacyCalManual=null;
+  writeCalShared({manual:m,url:calShared.url}).catch(()=>{});
+}
+
 /* ────────── 行事曆抓取 ────────── */
 const calInflight={};          // 同一年同時只發一次請求
 function calCheckKey(){return 'paiban-cal-checked-'+(storeCode||'local')}
@@ -2448,7 +2563,7 @@ function fetchCalendar(year,force){ // force＝已有快取也重抓（每日自
   const job=(async()=>{
     try{
       // no-cache：一定回伺服器確認，不直接拿瀏覽器存的舊檔（jsDelivr 會叫瀏覽器存 7 天，不加的話一週內都看不到更新）
-      const r=await fetch(cfg().calUrl.replace('{year}',year),{cache:'no-cache'});
+      const r=await fetch(calUrl().replace('{year}',year),{cache:'no-cache'});
       if(!r.ok)throw 0;
       const arr=await r.json();
       const map={};
@@ -2470,7 +2585,7 @@ function fetchCalendar(year,force){ // force＝已有快取也重抓（每日自
     }finally{
       delete calInflight[year];
       const cs=document.getElementById('calStatus');
-      if(cs)cs.textContent='行事曆來源：'+calSource;
+      if(cs)cs.textContent='行事曆來源：'+calSourceText();
     }
   })();
   calInflight[year]=job;
@@ -2552,7 +2667,7 @@ function renderSheet(){
         '</span>';
     }
     h+='<th class="day-th" data-day="'+d+'"><span class="wd'+(red?' red':'')+'">'+WD[weekday(d)]+'</span>'+
-       (dispName?'<span class="hname '+(red?'red':'black')+'">'+esc(dispName.slice(0,4))+'</span>':'')+
+       (dispName?'<span class="hname '+(red?'red':'black')+'">'+esc(shortHoliday(dispName).slice(0,4))+'</span>':'')+
        mark+'</th>';
   }
   h+='</tr></thead><tbody>';
@@ -4063,7 +4178,7 @@ document.getElementById('btnCloseNote').addEventListener('click',()=>document.ge
 
 /* 更多 */
 document.getElementById('btnMore').addEventListener('click',()=>{
-  document.getElementById('calStatus').textContent='行事曆來源：'+calSource;
+  document.getElementById('calStatus').textContent='行事曆來源：'+calSourceText();
   document.getElementById('cloudInfo').textContent=cloudStatus;
   document.getElementById('btnCopyMenu').style.display=(storeCode||viewerMode)?'':'none';
   document.getElementById('btnImport').style.display=viewerMode?'none':'';
@@ -4072,7 +4187,7 @@ document.getElementById('btnMore').addEventListener('click',()=>{
   document.getElementById('ovMore').classList.add('show');
 });
 document.getElementById('btnHelp').addEventListener('click',()=>{
-  const src='行事曆來源：'+calSource;
+  const src='行事曆來源：'+calSourceText();
   document.getElementById('calStatus').textContent=src;
   document.getElementById('calStatusView').textContent=src;
   // 檢視模式只列出唯讀身分用得到的功能，編輯功能的說明整段隱藏
@@ -4332,29 +4447,28 @@ document.getElementById('btnAddWarnRule').addEventListener('click',()=>{
   renderWarnEditor();
 });
 document.getElementById('btnOpenCalUrl').addEventListener('click',()=>{
+  document.getElementById('cfgCalUrl').value=calUrl(); // 每次打開都顯示目前實際使用的網址
   document.getElementById('ovCalUrl').classList.add('show');
 });
 document.getElementById('btnCloseCalUrl').addEventListener('click',()=>{
-  document.getElementById('cfgCalUrl').value=cfgCalUrlValue; // 取消就還原，不留下誤改
   document.getElementById('ovCalUrl').classList.remove('show');
 });
 document.getElementById('btnCalUrlOk').addEventListener('click',()=>{
-  cfgCalUrlValue=document.getElementById('cfgCalUrl').value.trim()||DEFAULT_CONFIG.calUrl;
-  document.getElementById('cfgCalUrl').value=cfgCalUrlValue;
+  const v=document.getElementById('cfgCalUrl').value.trim()||DEFAULT_CONFIG.calUrl;
+  if(v.indexOf('{year}')<0&&!confirm('網址裡沒有 {year}，每個年份都會讀同一個檔案。仍要使用？'))return;
   document.getElementById('ovCalUrl').classList.remove('show');
+  const url=v===DEFAULT_CONFIG.calUrl?'':v; // 預設網址不另外存，日後預設值更新時自動跟上
+  if(url===calShared.url)return;
+  writeCalShared({manual:calManual(),url}).then(()=>showToast('已更新行事曆來源網址')).catch(()=>{});
 });
 document.getElementById('btnCalUrlReset').addEventListener('click',()=>{
-  cfgCalUrlValue=DEFAULT_CONFIG.calUrl;
-  document.getElementById('cfgCalUrl').value=cfgCalUrlValue;
+  document.getElementById('cfgCalUrl').value=DEFAULT_CONFIG.calUrl;
 });
-let cfgCalUrlValue=DEFAULT_CONFIG.calUrl; // 面板暫存的行事曆網址（按儲存才真正寫入）
 let cfgTargetCode=null;      // 後台目前正在編輯哪個店家代碼的設定
 let cfgTargetPayload=null;   // 非目前店家時，暫存該代碼的完整資料以便寫回
 function fillCfgFields(c){
   document.getElementById('cfgPresetsCommon').value=fmtPairList(c.presetsCommon);
   document.getElementById('cfgPresetsPart').value=fmtPairList(c.presetsPart);
-  cfgCalUrlValue=c.calUrl;
-  document.getElementById('cfgCalUrl').value=c.calUrl;
   cfgRules=(c.rules||[]).map(r=>Object.assign({},r,{times:(r.times||[]).slice()}));
   renderRuleEditor();
   cfgWarnRules=(c.warnRules||[]).map(r=>Object.assign({},r,{days:(r.days||[]).slice(),times:(r.times||[]).slice()}));
@@ -4427,6 +4541,7 @@ async function loadCfgTarget(code){
     renderCfgTargetOptions();
     return true;
   }
+  if(isReservedCode(code)){msg.textContent='查無此代碼的資料。';msg.style.color='var(--red)';return false}
   msg.textContent='載入中…';msg.style.color='#888';
   try{
     const snap=await FB.getDoc(FB.doc(FB.db,'stores',code));
@@ -4477,6 +4592,7 @@ function renderCfgSummary(){ // 選單上每一項右邊顯示目前設定，不
   put('sumWarn',wOn?('啟用 '+wOn+'／'+cfgWarnRules.length):(cfgWarnRules.length?'全部關閉':'未設定'),wOn);
   const L=leaveFromFields();
   put('sumLeave',!L.on?'未開放':(L.ym?(parseYm(L.ym).m+'月　'+(fmtMd(L.from)||'?')+'–'+(fmtMd(L.to)||'?')):'開放中'),L.on);
+  if(typeof calSummaryText==='function')put('sumCal',calSummaryText(),Object.keys(calManual()).length);
 }
 document.getElementById('btnCloseAdmin').addEventListener('click',()=>{
   if(cfgDirty()&&!confirm('有尚未儲存的變更，直接關閉會全部放棄。確定要關閉嗎？'))return;
@@ -4487,7 +4603,7 @@ function cfgSnapshot(){
   try{return JSON.stringify({
     c:parsePairList(document.getElementById('cfgPresetsCommon').value),
     p:parsePairList(document.getElementById('cfgPresetsPart').value),
-    u:cfgCalUrlValue,r:cfgRules,w:cfgWarnRules,l:leaveFromFields()})}catch(e){return ''}
+    r:cfgRules,w:cfgWarnRules,l:leaveFromFields()})}catch(e){return ''}
 }
 function cfgDirty(){return cfgSavedSnapshot&&cfgSnapshot()!==cfgSavedSnapshot}
 function markCfgSaved(){cfgSavedSnapshot=cfgSnapshot();syncCfgSaveBtn()}
@@ -4521,7 +4637,6 @@ function collectCfgFromFields(){ // 從表單欄位讀出設定物件；格式�
   return {
     presetsCommon:common,
     presetsPart:part,
-    calUrl:cfgCalUrlValue||DEFAULT_CONFIG.calUrl,
     rules:cfgRules.map(r=>({id:r.id,on:!!r.on,name:r.name||'',kind:r.kind,times:(r.times||[]).slice(),min:Math.max(1,r.min||1)})),
     warnRules:cfgWarnRules.map(r=>({id:r.id,on:!!r.on,name:r.name||'',days:(r.days||[]).slice(),field:r.field,times:(r.times||[]).slice()})),
     leave:lv
@@ -5047,6 +5162,162 @@ document.getElementById('btnExport').addEventListener('click',()=>{
   const a=document.createElement('a');
   a.href=URL.createObjectURL(blob);a.download='排班表備份.json';a.click();
 });
+/* ────────── 行事曆手動匯入 ────────── */
+function calSourceText(){ // 目前顯示年份實際用的是哪一份
+  const mn=calManual()[state.y];
+  return mn?'手動匯入（'+mn.name+'）':calSource;
+}
+function decodeCalFile(buf){ // 政府的 CSV 有的年份是 Big5、有的是 UTF-8，兩種都吃
+  let t;
+  try{t=new TextDecoder('utf-8',{fatal:true}).decode(buf)}
+  catch(e){t=new TextDecoder('big5').decode(buf)}
+  return t.replace(/^\uFEFF/,'');
+}
+function parseCsvRows(text){ // 支援雙引號包住的欄位
+  const rows=[];let row=[],cur='',q=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){
+      if(c==='"'){if(text[i+1]==='"'){cur+='"';i++}else q=false}
+      else cur+=c;
+    }else if(c==='"')q=true;
+    else if(c===','){row.push(cur);cur=''}
+    else if(c==='\n'||c==='\r'){
+      if(c==='\r'&&text[i+1]==='\n')i++;
+      row.push(cur);rows.push(row);row=[];cur='';
+    }else cur+=c;
+  }
+  if(cur!==''||row.length){row.push(cur);rows.push(row)}
+  return rows.filter(r=>r.some(x=>String(x).trim()!==''));
+}
+function parseDateLoose(s){ // 20270101／2027/1/1／2027-01-01／116/1/1（民國）
+  s=String(s||'').trim();
+  let m=s.match(/^(\d{4})(\d{2})(\d{2})$/);
+  if(m)return {y:+m[1],m:+m[2],d:+m[3]};
+  m=s.match(/^(\d{2,4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})/);
+  if(m){let y=+m[1];if(y<1911)y+=1911;return {y,m:+m[2],d:+m[3]}}
+  return null;
+}
+function parseCalendarFile(text){ // 回傳 {years:{2027:{'1-1':'開國紀念日',…}}, fmt}
+  const out={};
+  const put=(dt,name)=>{
+    name=String(name||'').trim();
+    if(!dt||!name||dt.m<1||dt.m>12||dt.d<1||dt.d>31)return;
+    (out[dt.y]=out[dt.y]||{})[dt.m+'-'+dt.d]=name;
+  };
+  const t=text.trim();
+  if(t[0]==='['||t[0]==='{'){ // TaiwanCalendar JSON
+    let arr=JSON.parse(t);
+    if(!Array.isArray(arr))arr=arr.data||[];
+    arr.forEach(it=>{
+      if(!it)return;
+      const off=it.isHoliday===true||it.isHoliday==='true'||it.isHoliday===2||it.isHoliday==='2';
+      if(off&&it.description)put(parseDateLoose(it.date),it.description);
+    });
+    return {years:out,fmt:'TaiwanCalendar JSON'};
+  }
+  const rows=parseCsvRows(t);
+  if(rows.length<2)throw new Error('empty');
+  const head=rows[0].map(x=>String(x).trim());
+  const idx=re=>head.findIndex(h=>re.test(h));
+  // Google 行事曆格式：Subject, Start Date, …, End Date
+  const iSub=idx(/^subject$/i),iStart=idx(/^start\s*date$/i),iEnd=idx(/^end\s*date$/i);
+  if(iSub>=0&&iStart>=0){
+    rows.slice(1).forEach(r=>{
+      const name=String(r[iSub]||'').trim();
+      if(!name||/上班/.test(name))return; // 「補行上班」是上班日，不是假日
+      if(/^(例假日|休息日)$/.test(name))return; // 官方 Google 版把每個週六日都列成「例假日」，週末本來就是紅字，不當國定假日
+      const a=parseDateLoose(r[iStart]),b=iEnd>=0?parseDateLoose(r[iEnd]):null;
+      if(!a)return;
+      let cur=new Date(a.y,a.m-1,a.d),end=b?new Date(b.y,b.m-1,b.d):cur,guard=0;
+      while(cur<=end&&guard++<15){
+        put({y:cur.getFullYear(),m:cur.getMonth()+1,d:cur.getDate()},name);
+        cur=new Date(cur.getFullYear(),cur.getMonth(),cur.getDate()+1);
+      }
+    });
+    return {years:out,fmt:'Google 行事曆 CSV'};
+  }
+  // 政府資料開放平臺格式：西元日期, 星期, 是否放假（0 上班／2 放假）, 備註
+  const iDate=idx(/日期|^date$/i),iOff=idx(/放假|holiday/i),iNote=idx(/備註|說明|名稱|description|note/i);
+  if(iDate<0||iOff<0)throw new Error('header');
+  rows.slice(1).forEach(r=>{
+    const off=String(r[iOff]||'').trim();
+    if(off!=='2'&&!/^(是|y|yes|true)$/i.test(off))return;
+    if(iNote<0)return;
+    put(parseDateLoose(r[iDate]),r[iNote]); // 一般週六日沒有名稱，跟線上資料一樣略過
+  });
+  return {years:out,fmt:'政府資料開放平臺 CSV'};
+}
+function sortMD(a,b){const p=x=>x.split('-').map(Number);const A=p(a),B=p(b);return A[0]-B[0]||A[1]-B[1]}
+function renderCalList(){
+  const box=document.getElementById('calList');if(!box)return;
+  const set=new Set([state.y]);
+  Object.keys(calManual()).forEach(y=>set.add(+y));
+  Object.keys(state.calCache||{}).forEach(y=>set.add(+y));
+  const cnt=o=>Object.keys(o||{}).length;
+  box.innerHTML=[...set].sort((a,b)=>a-b).map(y=>{
+    const mn=calManual()[y], on=state.calCache&&state.calCache[y];
+    let tag,dt,btn='';
+    if(mn){
+      tag='<span class="cal-tag man">手動匯入</span>';
+      dt=esc(mn.name)+'　·　'+fmtLogTime(mn.at)+' 匯入　·　'+cnt(mn.map)+' 個假日';
+      btn='<button class="btn" data-calrm="'+y+'" style="padding:4px 10px;font-size:12px;flex-shrink:0">移除</button>';
+    }else if(on){
+      tag='<span class="cal-tag on">線上取得</span>';dt='TaiwanCalendar　·　'+cnt(on)+' 個假日';
+    }else if(HOLIDAYS_BUILTIN[y]){
+      tag='<span class="cal-tag bi">內建</span>';dt=cnt(HOLIDAYS_BUILTIN[y])+' 個假日';
+    }else{
+      tag='<span class="cal-tag none">尚無資料</span>';dt='僅標示週六日';
+    }
+    return '<div class="cal-row'+(y===state.y?' cur':'')+'">'+
+      '<div class="cal-y">民國'+(y-1911)+'年<small>'+y+(y===state.y?'・目前顯示':'')+'</small></div>'+
+      '<div class="cal-d">'+tag+'<div class="cal-dt">'+dt+'</div></div>'+btn+'</div>';
+  }).join('');
+}
+function openCalCfg(){
+  renderCalList();
+  document.getElementById('ovCal').classList.add('show');
+}
+document.getElementById('btnOpenCalCfg').addEventListener('click',openCalCfg);
+function calSummaryText(){ // 後台選單右側的摘要
+  const man=Object.keys(calManual()).sort();
+  return '全部共用．'+(man.length?('手動匯入 '+man.map(y=>'民國'+(y-1911)).join('、')):'線上取得');
+}
+new MutationObserver(()=>{if(!document.getElementById('ovCal').classList.contains('show'))renderCfgSummary()})
+  .observe(document.getElementById('ovCal'),{attributes:true,attributeFilter:['class']});
+document.getElementById('btnCloseCal').addEventListener('click',()=>document.getElementById('ovCal').classList.remove('show'));
+document.getElementById('btnCalImport').addEventListener('click',()=>document.getElementById('fileCal').click());
+document.getElementById('fileCal').addEventListener('change',async ev=>{
+  const f=ev.target.files[0];ev.target.value=''; // 清掉，同一個檔案才能重選
+  if(!f)return;
+  let res;
+  try{res=parseCalendarFile(decodeCalFile(await f.arrayBuffer()))}
+  catch(e){alert('看不懂這個檔案的格式。\n請使用政府資料開放平臺下載的「中華民國政府行政機關辦公日曆表」CSV。');return}
+  const ys=Object.keys(res.years).filter(y=>Object.keys(res.years[y]).length).sort();
+  if(!ys.length){alert('檔案裡沒有找到任何假日。\n請確認下載的是「中華民國政府行政機關辦公日曆表」。');return}
+  const lines=ys.map(y=>{
+    const m=res.years[y],ks=Object.keys(m).sort(sortMD);
+    return '民國'+(y-1911)+'年（'+y+'）：'+ks.length+' 個假日\n'+
+      ks.slice(0,8).map(k=>'　'+k.replace('-','/')+'　'+m[k]).join('\n')+(ks.length>8?'\n　⋯':'');
+  });
+  const replace=ys.filter(y=>calManual()[y]);
+  if(!confirm('讀到以下行事曆（'+res.fmt+'）：\n\n'+lines.join('\n\n')+
+    (replace.length?'\n\n將取代先前手動匯入的 '+replace.join('、')+' 年。':'')+
+    '\n\n套用到所有店家代碼，確定匯入？'))return;
+  const m=Object.assign({},calManual());
+  ys.forEach(y=>{m[y]={map:res.years[y],name:f.name,at:nowMs(),fmt:res.fmt}});
+  writeCalShared({manual:m,url:calShared.url}).then(()=>
+    showToast('已匯入 '+ys.map(y=>'民國'+(y-1911)+'年').join('、')+' 行事曆',2800)).catch(()=>{});
+});
+document.getElementById('calList').addEventListener('click',ev=>{
+  const b=ev.target.closest('[data-calrm]');if(!b)return;
+  const y=+b.dataset.calrm;
+  if(!confirm('移除民國'+(y-1911)+'年手動匯入的行事曆，所有店家代碼改回使用線上資料？'))return;
+  const m=Object.assign({},calManual());delete m[y];
+  writeCalShared({manual:m,url:calShared.url}).then(()=>showToast('已改回線上資料')).catch(()=>{});
+  fetchCalendar(y).then(renderCalList);
+});
+
 document.getElementById('btnImport').addEventListener('click',()=>document.getElementById('fileImport').click());
 document.getElementById('fileImport').addEventListener('change',ev=>{
   const f=ev.target.files[0];if(!f)return;
