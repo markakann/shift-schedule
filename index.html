@@ -1597,7 +1597,6 @@ body.print-sizing .name-sub{margin-top:0}
       <span><b>颱</b> 颱風假</span>
       <span><b>─</b> 到職前／離職後</span>
       <span><b>國</b> 國定假日未排班</span>
-      <span><b>補</b> 補假未排班</span>
     </div>
     <div class="edit-only">
       <div class="sec-label" style="margin-top:8px">劃假底色</div>
@@ -1676,7 +1675,7 @@ body.print-sizing .name-sub{margin-top:0}
     <div class="hsub">日曆上的標示</div>
     <ul class="hul">
       <li>日曆上方顯示該月的月休額度（正職）與國定假日。</li>
-      <li><b style="color:var(--red)">國</b>＝國定假日，<b style="color:var(--red)">補</b>＝補假。補假不計入國定假日天數。</li>
+      <li><b style="color:var(--red)">國</b>＝國定假日（以原日期計算）。政府公告的補假日視為一般日。</li>
     </ul>
     <div class="hsub">開放期間</div>
     <ul class="hul">
@@ -1787,6 +1786,7 @@ body.print-sizing .name-sub{margin-top:0}
         <li><b>所有店家代碼共用同一份行事曆。</b></li>
         <li><b>手動匯入</b>　位置：後台設定的「行事曆」。可匯入政府資料開放平臺下載的「中華民國政府行政機關辦公日曆表」CSV，<b>手動匯入的年份優先使用</b>，按「儲存設定」後套用到所有店家代碼。</li>
         <li>同一視窗可查看每個年份目前使用的來源；移除手動匯入後即改回線上資料。</li>
+        <li><b>國定假日以原日期計算</b>，落在週末也一樣；政府公告的補假日視為一般日（黑字）。正職於國定假日當天休假不計入月休，當天上班列為國定假日出勤；補假日休假計入一般月休。</li>
         <li>亦可於排班模式點選日期，手動調整紅黑字。</li>
       </ul>
 
@@ -2235,21 +2235,24 @@ function shortHoliday(n){
   if(n.includes('/')){const p=n.split('/').map(s=>s.trim()).filter(Boolean);return shortHoliday(p[p.length-1]||n)} // 「孔子誕辰紀念日/教師節」取後段
   return n;
 }
+/* 本店規則：國定假日一律以「原日期」計算（落在週末也一樣）；政府公告的補假日視為一般日（黑字）。
+   正職：國定假日當天休假不計入月休，當天上班列為國定假日出勤；補假日休假屬一般月休。 */
+function isMovedName(n){return /補假|調整放假|彈性放假/.test(n||'')}
 function isRed(d){
   const ov=monthData().dayOv[d];
   if(ov==='red')return true; if(ov==='black')return false;
   const w=weekday(d);
-  return w===0||w===6||!!holidayName(d);
+  return w===0||w===6||isNational(d);
 }
 function isNational(d){
   if(monthData().dayOv[d]==='black')return false;
-  return !!holidayName(d);
+  const n=holidayName(d);
+  return !!n&&!isMovedName(n);
 }
-function isMakeup(d){ // 補假：假日調移過來的那天，本身不是國定假日（計薪與月休仍比照國定假日處理）
-  const n=isNational(d)?holidayName(d):null;
-  return !!n&&/補假/.test(n);
+function isMakeup(d){ // 政府公告的補假日（本店視為一般日，僅供標示）
+  return monthData().dayOv[d]!=='black'&&isMovedName(holidayName(d));
 }
-function realNationalDays(){ // 真正的國定假日（不含補假）
+function realNationalDays(){ // 國定假日（原日期，不含補假）
   const a=[];
   for(let d=1;d<=daysInMonth();d++)if(isNational(d)&&!isMakeup(d))a.push(d);
   return a;
@@ -2333,11 +2336,10 @@ function streakViolationsMap(){ // 回傳 {日:[超標說明,...]}：正職連6�
   }
   return map;
 }
-function restTally(sid){ // 正職月休：排休＋指定休息優先計算；不足額時優先以颱風假補足（落在平日的國定假日不計，與quota基準一致）
+function restTally(sid){ // 正職月休：排休＋指定休息優先計算；不足額時優先以颱風假補足。國定假日當天休假不算月休（週末的國定假日也一樣）
   let base=0,typhoon=0;
   for(let d=1;d<=daysInMonth();d++){
-    const w=weekday(d);
-    if(isNational(d)&&w!==0&&w!==6)continue; // 平日的國定假日另計，不佔月休
+    if(isNational(d))continue; // 國定假日另計，不佔月休
     const e=entryOf(sid,d);
     if(e&&(e.t==='rest'||e.t==='desig'))base++;
     else if(e&&e.t==='typhoon')typhoon++;
@@ -2352,8 +2354,9 @@ function calendarRedDays(){ // 行事曆紅字天數：週六日＋國定假日�
   for(let d=1;d<=daysInMonth();d++)if(isRed(d))n++;
   return n;
 }
-function reqHours(sid){ // 正職本月應上班時數＝(當月天數－行事曆紅字天數，含國定假日)×8，只看行事曆，不看實際排班
-  return (daysInMonth()-calendarRedDays())*8;
+function nationalCount(){let n=0;for(let d=1;d<=daysInMonth();d++)if(isNational(d))n++;return n}
+function reqHours(sid){ // 正職本月應上班時數＝(當月天數－月休額度－國定假日天數)×8；週末的國定假日不另補假，所以另外扣一天。只看行事曆，不看實際排班
+  return (daysInMonth()-quota()-nationalCount())*8;
 }
 function autoBreak(span){ // 預設休息：班段超過4小時扣0.5小時，4小時以內不扣
   return span>4?0.5:0;
@@ -2722,7 +2725,7 @@ function renderSheet(){
       const e=entryOf(st.id,d);
       let cls='day-cell',inner='';
       if(!e){
-        if(st.type==='full'&&isNational(d))inner='<span class="nat-auto">'+(isMakeup(d)?'補':'國')+'</span>';
+        if(st.type==='full'&&isNational(d))inner='<span class="nat-auto">國</span>';
       }else if(e.t==='shift'){
         cls+=' filled';
         const wd=weekday(d);
@@ -3201,7 +3204,6 @@ function lvMonthNote(ym){ // 行事曆上方提示：正職看月休額度，計
   else t+='國定假日 '+info.nat.length+' 天';
   if(info.nat.length)t+='（'+info.nat.map(d=>info.m+'/'+d).join('、')+'）';
   let h='<div class="lv-mnote">'+esc(t);
-  if(info.makeup.length)h+='<span class="lv-mk">補假 '+esc(info.makeup.map(d=>info.m+'/'+d).join('、'))+'</span>';
   return h+'</div>';
 }
 function timeOptions(sel){ // 自己做選單，不用 type="time"：平板上的原生選擇器沒有確定鈕，而且會跟著系統變成 12 小時制
@@ -3557,7 +3559,7 @@ function setEntry(entry){
     const before=entryOf(cur.sid,cur.day);
     const already=before&&(before.t==='rest'||before.t==='desig');
     const after=restTally(cur.sid).count+(already?0:1);
-    if(after>quota()&&!confirm('本月月休天數為 '+quota()+' 天（行事曆紅字，不含國定假日），'+st.name+' 排入後將達 '+after+' 天。仍要排入嗎？'))return;
+    if(after>quota()&&!confirm('本月月休天數為 '+quota()+' 天（週六日，不含國定假日當天），'+st.name+' 排入後將達 '+after+' 天。仍要排入嗎？'))return;
   }
   const prevEntry=entryOf(cur.sid,cur.day); // 覆蓋前先記下目前的值
   if(entry)md.sched[cur.sid][cur.day]=entry;else delete md.sched[cur.sid][cur.day];
@@ -3850,7 +3852,7 @@ function otDetailTable(sid,t){ // 逐日明細：拆開時長／扣休／實際�
   if(!t.detail||!t.detail.length)return '';
   const rows=t.detail.map(x=>{
     const tags=[];
-    if(x.nat)tags.push(withMonth(ymOf(state.y,state.m),()=>isMakeup(x.d))?'補假':'國定');
+    if(x.nat)tags.push('國定');
     if(x.otFull)tags.push('整日');
     if(x.overStreak)tags.push('連'+x.run);
     return '<tr class="'+(x.nat?'nat':(x.otFull?'otfull':''))+'">'+
@@ -5077,7 +5079,7 @@ function drawColorPage(pdf,ctx,scale,y,m){
       const e=entryOf(st.id,d);
       let fill=null,label=null,labelColor='#333';
       if(!e){
-        if(isNational(d)){fill=[250,215,220];label=isMakeup(d)?'補':'國';labelColor='#c92f2f';}
+        if(isNational(d)){fill=[250,215,220];label='國';labelColor='#c92f2f';}
       }else if(e.t==='rest'){fill=[224,224,224];label='休';}
       else if(e.t==='desig'){fill=[205,222,245];label='休';}
       else if(e.t==='annual'){fill=[250,235,180];label='特';labelColor='#8a6d00';}
@@ -5667,7 +5669,7 @@ function openReport(ym){
       '工時有六成以上落在 16:00 後，比例最高',Math.round(r.nightOwl.val*100)+'% 晚班');
     if(r.natHeroes.length)h+=card('🎌','別人放假我開店',
       r.natHeroes.length>=r.people&&r.people>1?('全員都上過陣（'+r.people+' 位）'):nm(r.natHeroes),
-      '國定假日（含補假）當天有排班的夥伴',r.natHeroes[0].nat.length+' 天');
+      '國定假日當天有排班的夥伴',r.natHeroes[0].nat.length+' 天');
     if(r.thinDay)h+=card('💪','這天是怎麼撐過來的',p.m+'/'+r.thinDay.d+'　'+r.thinDay.head+' 人在店，辛苦了',
       '有排班的日子裡，全店總工時最低的一天',fmtH(r.thinDay.total)+'h');
     if(r.busyDay)h+=card('🎉','今天店裡有點擠',p.m+'/'+r.busyDay.d,
