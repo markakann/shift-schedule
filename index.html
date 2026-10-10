@@ -1240,6 +1240,8 @@ body.print-sizing .name-sub{margin-top:0}
       <span style="font-size:13px;color:#888">到</span>
       <input class="txt" id="filterTo" type="number" min="1" max="31" style="width:70px;text-align:center" placeholder="31">
     </div>
+    <button class="btn" id="btnCaptureRange" style="width:100%;margin-top:12px">📷 擷取成圖片</button>
+    <div class="lv-hint" style="margin:6px 0 0">依上方日期範圍產生整張班表圖片，不受螢幕大小影響。</div>
     <div class="m-actions">
       <button class="btn primary" id="btnApplyFilter">套用</button>
       <button class="btn" id="btnClearFilter">顯示全部日期</button>
@@ -1709,7 +1711,11 @@ body.print-sizing .name-sub{margin-top:0}
     <div class="hr edit-only"></div>
     <div class="edit-only">
       <div class="sec-label">篩選日期</div>
-      <ul class="hul"><li>僅改變畫面顯示範圍以便截圖，匯出與列印仍為完整整月。</li></ul>
+      <ul class="hul">
+        <li>僅改變畫面顯示範圍以便截圖，匯出與列印仍為完整整月。</li>
+        <li><b>📷 擷取成圖片</b>　依所填日期範圍產生整張班表圖片並儲存，不受螢幕大小影響。不需先按「套用」。</li>
+        <li>圖片比照列印：一律淺色、預設字體，不含劃假底色、標示框與驚嘆號。</li>
+      </ul>
     </div>
 
     <div class="hr"></div>
@@ -3855,6 +3861,124 @@ document.getElementById('btnClearFilter').addEventListener('click',()=>{
   document.getElementById('ovFilter').classList.remove('show');
 });
 document.getElementById('btnCloseFilter').addEventListener('click',()=>document.getElementById('ovFilter').classList.remove('show'));
+
+/* ── 擷取成圖片：複製班表、套同一套樣式，交給瀏覽器自己畫進畫布 ──
+   跟螢幕截圖不同：不受螢幕寬度限制、不會被工具列遮住，格子大小固定，任何裝置產生的圖都一樣。
+   外觀比照列印：一律淺色、預設字體，不帶劃假底色與標示這類排班人員自己看的標記。 */
+function readFilterRange(){
+  const N=daysInMonth();
+  let a=parseInt(document.getElementById('filterFrom').value);
+  let b=parseInt(document.getElementById('filterTo').value);
+  if(isNaN(a))a=1;
+  if(isNaN(b))b=N;
+  a=Math.max(1,Math.min(a,N));
+  b=Math.max(1,Math.min(b,N));
+  if(a>b){const t=a;a=b;b=t}
+  return {from:a,to:b};
+}
+function buildCaptureNode(from,to){
+  const src=document.getElementById('sheet');
+  const tb=src.cloneNode(true);
+  tb.removeAttribute('id');
+  // 只留選定日期
+  tb.querySelectorAll('[data-day]').forEach(el=>{
+    const d=+el.dataset.day;
+    if(d<from||d>to)el.remove();
+  });
+  // 跨整列的提示格（例如「本月無人員」）要跟著縮
+  const N=daysInMonth();
+  tb.querySelectorAll('td[colspan]').forEach(el=>{if(+el.getAttribute('colspan')===N)el.setAttribute('colspan',to-from+1)});
+  // 拿掉排班人員自己看的標記
+  ['lv-all','lv-only','lv-part','lv-late','lv-clash','marked','flash','changed-mark'].forEach(c=>
+    tb.querySelectorAll('.'+c).forEach(el=>el.classList.remove(c)));
+  tb.querySelectorAll('.lv-cell-tag,.prev-value,.warn-row,.cov-warn,.ot-btn').forEach(el=>el.remove());
+  // 左上角的輸入框換成純文字
+  tb.querySelectorAll('input.corner-input').forEach(el=>{
+    const sp=document.createElement('span');
+    sp.className='corner-input';sp.style.display='block';
+    sp.textContent=el.value||'';
+    el.replaceWith(sp);
+  });
+  // 外框與標題
+  const root=document.createElement('div');
+  const head=document.createElement('div');
+  const store=(document.getElementById('storeName').value||state.store||'').trim(); // 以畫面上的欄位為準，剛改還沒存也算
+  const title=(document.getElementById('sheetTitle').value||state.title||'排班表').trim();
+  head.textContent=(store?store+'　':'')+'民國'+(state.y-1911)+'年'+state.m+'月　'+
+    from+(from===to?'':'～'+to)+'日　'+title;
+  head.style.cssText='font-size:17px;font-weight:700;letter-spacing:1px;margin:0 2px 10px;color:var(--ink)';
+  const frame=document.createElement('div');
+  frame.style.cssText='display:inline-block;border:2px solid var(--grid);background:var(--paper)';
+  frame.appendChild(tb);
+  root.appendChild(head);root.appendChild(frame);
+  return root;
+}
+async function captureRange(from,to){
+  const html=document.documentElement;
+  const savedStyle=html.getAttribute('style'), savedCls=html.className;
+  let root,w,h,vars='';
+  // ── 以下同步完成，畫面不會閃：暫時回到預設外觀 → 量尺寸、抄變數 → 立刻還原 ──
+  try{
+    html.classList.remove('dark','rh-s','rh-l','no-anim');
+    html.removeAttribute('style');                      // 回到 :root 預設（淺色、預設字體、預設重點色）
+    const cs=getComputedStyle(html);
+    const pairs=[];
+    for(let i=0;i<cs.length;i++){const k=cs[i];if(k.startsWith('--'))pairs.push(k+':'+cs.getPropertyValue(k).trim())}
+    // 固定格子尺寸，不跟螢幕寬度走
+    pairs.push('--cell:54px','--cellh:50px','--cellfs:12px','--uiFS:1','--thH1:26px','--uiFont:var(--fontSys)');
+    vars=pairs.join(';');
+    root=buildCaptureNode(from,to);
+    root.style.cssText=vars+';display:inline-block;padding:16px;background:#fffdf7;color:#2b2b2b;'+
+      'font-family:var(--fontSys);font-size:15px;line-height:normal;'+
+      'position:absolute;left:-100000px;top:0';
+    document.body.appendChild(root);
+    const r=root.getBoundingClientRect();
+    w=Math.ceil(r.width);h=Math.ceil(r.height);
+    root.remove();
+  }finally{
+    html.className=savedCls;
+    if(savedStyle!=null)html.setAttribute('style',savedStyle);
+  }
+  // ── 組成 SVG，交給瀏覽器畫 ──
+  root.style.position='static';root.style.left='';
+  const st=document.createElement('style');
+  st.textContent=document.head.querySelector('style').textContent; // 主樣式表；不含篩選用的隱藏規則
+  root.insertBefore(st,root.firstChild);
+  const xhtml=new XMLSerializer().serializeToString(root);
+  const svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+w+'" height="'+h+'">'+
+            '<foreignObject x="0" y="0" width="100%" height="100%">'+xhtml+'</foreignObject></svg>';
+  const img=new Image();
+  img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
+  await img.decode();
+  const ratio=2; // 兩倍解析度，放大看也清楚
+  const cv=document.createElement('canvas');
+  cv.width=w*ratio;cv.height=h*ratio;
+  const ctx=cv.getContext('2d');
+  ctx.fillStyle='#fffdf7';ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.scale(ratio,ratio);
+  ctx.drawImage(img,0,0);
+  return await new Promise((res,rej)=>cv.toBlob(b=>b?res(b):rej(new Error('toBlob')),'image/png'));
+}
+document.getElementById('btnCaptureRange').addEventListener('click',async()=>{
+  const {from,to}=readFilterRange();
+  const btn=document.getElementById('btnCaptureRange');
+  const label=btn.textContent;
+  btn.disabled=true;btn.textContent='產生中…';
+  try{
+    const blob=await captureRange(from,to);
+    const name=((document.getElementById('storeName').value||state.store||'').trim()||'排班表')+'_'+state.y+String(state.m).padStart(2,'0')+'_'+from+(from===to?'':'-'+to)+'日.png';
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;a.download=name;
+    document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),4000);
+    showToast('已儲存圖片：'+state.m+'/'+from+(from===to?'':'～'+state.m+'/'+to),2600);
+  }catch(e){
+    alert('擷取失敗。此瀏覽器可能不支援，請改用 Chrome 或 Samsung 網際網路瀏覽器。');
+  }finally{
+    btn.disabled=false;btn.textContent=label;
+  }
+});
 document.getElementById('smName').addEventListener('keydown',ev=>{
   if(ev.key==='Enter'){ev.preventDefault();document.getElementById('btnSaveStaff').click();}
 });
