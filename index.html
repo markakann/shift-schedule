@@ -1736,6 +1736,7 @@ body.print-sizing .name-sub{margin-top:0}
       <div class="small-note" id="calStatus"></div>
       <ul class="hul">
         <li>自動取得政府公告資料；離線時改用內建資料。</li>
+        <li>編輯端每台裝置<b>每天自動重新檢查一次</b>；內容有變動才會更新，並同步給所有人。</li>
         <li>亦可於排班模式點選日期，手動調整紅黑字。</li>
       </ul>
 
@@ -1959,6 +1960,7 @@ async function initFirebase(){
   }catch(e){
     FB=null;cloudStatus='雲端無法載入（本機模式）';
     setHint('本機模式');
+    refreshCalendarDaily();
   }
 }
 function recordCodeHistory(code){ // 記錄「這台裝置」用過的店家代碼，僅存本機，不是全系統清單
@@ -2053,6 +2055,7 @@ async function connectStore(code,isNew,silent){
   applyViewerUI();
   watchLeave();
   renderAll();  // storeCode 設定完成後再畫一次，戰績按鈕等依賴代碼的狀態才會正確
+  refreshCalendarDaily(); // 每天自動確認一次行事曆有沒有更新
   setTimeout(maybeAskReport,1200);
   return true;
 }
@@ -2424,27 +2427,54 @@ function scheduleSave(){
 }
 
 /* ────────── 行事曆抓取 ────────── */
-async function fetchCalendar(year){
-  if(state.calCache[year])return;
-  try{
-    const r=await fetch(cfg().calUrl.replace('{year}',year));
-    if(!r.ok)throw 0;
-    const arr=await r.json();
-    const map={};
-    for(const it of arr){
-      if(it.isHoliday&&it.description){
-        const mm=parseInt(it.date.slice(4,6)),dd=parseInt(it.date.slice(6,8));
-        map[mm+'-'+dd]=it.description;
+const calInflight={};          // 同一年同時只發一次請求
+function calCheckKey(){return 'paiban-cal-checked-'+(storeCode||'local')}
+function calCheckedToday(year){
+  try{const o=JSON.parse(localStorage.getItem(calCheckKey())||'{}');return o[year]===todayStr()}catch(e){return false}
+}
+function markCalChecked(year){
+  try{const o=JSON.parse(localStorage.getItem(calCheckKey())||'{}');o[year]=todayStr();
+      localStorage.setItem(calCheckKey(),JSON.stringify(o))}catch(e){}
+}
+function fetchCalendar(year,force){ // force＝已有快取也重抓（每日自動檢查用）
+  if(state.calCache[year]&&!force)return Promise.resolve();
+  if(calInflight[year])return calInflight[year];
+  const job=(async()=>{
+    try{
+      // no-cache：一定回伺服器確認，不直接拿瀏覽器存的舊檔（jsDelivr 會叫瀏覽器存 7 天，不加的話一週內都看不到更新）
+      const r=await fetch(cfg().calUrl.replace('{year}',year),{cache:'no-cache'});
+      if(!r.ok)throw 0;
+      const arr=await r.json();
+      const map={};
+      for(const it of arr){
+        if(it.isHoliday&&it.description){
+          const mm=parseInt(it.date.slice(4,6)),dd=parseInt(it.date.slice(6,8));
+          map[mm+'-'+dd]=it.description;
+        }
       }
+      const changed=JSON.stringify(state.calCache[year]||null)!==JSON.stringify(map);
+      state.calCache[year]=map;
+      markCalChecked(year);
+      calSource='政府公告行事曆（線上）';
+      if(changed){scheduleSave();renderAll()} // 內容有變才存、才重畫；沒變就不寫雲端
+    }catch(e){
+      calSource=state.calCache[year]
+        ?'政府公告行事曆（本次更新失敗，沿用上次取得的資料）'
+        :(HOLIDAYS_BUILTIN[year]?'內建 '+year+' 年資料（離線）':'僅週六日（離線，可手動點日期補紅字）');
+    }finally{
+      delete calInflight[year];
+      const cs=document.getElementById('calStatus');
+      if(cs)cs.textContent='行事曆來源：'+calSource;
     }
-    state.calCache[year]=map;
-    calSource='政府公告行事曆（線上）';
-    scheduleSave();renderAll();
-  }catch(e){
-    calSource=HOLIDAYS_BUILTIN[year]?'內建 '+year+' 年資料（離線）':'僅週六日（離線，可手動點日期補紅字）';
-  }
-  const cs=document.getElementById('calStatus');
-  if(cs)cs.textContent='行事曆來源：'+calSource;
+  })();
+  calInflight[year]=job;
+  return job;
+}
+function refreshCalendarDaily(){ // 編輯端每台裝置每天最多重抓一次目前年份；有變動會存上雲端，檢視端跟著同步
+  if(viewerMode)return;
+  const y=state.y;
+  if(state.calCache[y]&&calCheckedToday(y))return;
+  fetchCalendar(y,true);
 }
 
 /* ────────── 畫面 ────────── */
@@ -4920,7 +4950,7 @@ for(let y=2024;y<=2032;y++){
 for(let m=1;m<=12;m++){
   const o=document.createElement('option');o.value=m;o.textContent=m+'月份';selM.appendChild(o);
 }
-selY.addEventListener('change',()=>{state.y=+selY.value;clearDayFilter();scheduleSave();renderAll();fetchCalendar(state.y)});
+selY.addEventListener('change',()=>{state.y=+selY.value;clearDayFilter();scheduleSave();renderAll();fetchCalendar(state.y);refreshCalendarDaily()});
 selM.addEventListener('change',()=>{state.m=+selM.value;clearDayFilter();scheduleSave();renderAll()});
 document.getElementById('storeName').addEventListener('input',scheduleSave);
 document.getElementById('sheetTitle').addEventListener('input',scheduleSave);
@@ -4937,7 +4967,8 @@ document.querySelectorAll('.overlay').forEach(ov=>ov.addEventListener('click',ev
   document.getElementById('storeName').value=state.store||'';
   document.getElementById('sheetTitle').value=state.title||'排班表';
   selY.value=state.y;selM.value=state.m;
-  if(HOLIDAYS_BUILTIN[state.y]&&!state.calCache[state.y])calSource='內建 '+state.y+' 年資料';
+  if(state.calCache[state.y])calSource='政府公告行事曆（線上）';
+  else if(HOLIDAYS_BUILTIN[state.y])calSource='內建 '+state.y+' 年資料';
   // 沿用上次的身分先套用畫面，避免唯讀使用者在雲端回應前看到一瞬間的編輯介面
   try{if(localStorage.getItem('paiban-mode')==='view')viewerMode=true}catch(e){}
   applyViewerUI();
