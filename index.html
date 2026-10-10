@@ -744,6 +744,7 @@ html.no-anim .day-cell{transition:none}
 .c-purple{color:#8a4fb0}
 .c-green{color:#2a8a4a}
 .c-amber{color:#d99a00}
+.c-red{color:var(--red)}
 .c-orange{color:#a85c07}
 .c-fade{color:var(--fade)}
 .lgc.sw-all {background:#dceffa}
@@ -2370,7 +2371,10 @@ function streakFlags(st){ // 回傳 [{d,msg,tag}]
     for(let d=1;d<=N;d++){
       if(countsTowardStreak(entryOf(st.id,d))){
         run++;
-        if(run>6)out.push({d,run,tag:'連'+run,msg:st.name+' 連續出勤第'+run+'天（上限連6）'});
+        if(run>6){
+          const a=new Date(state.y,state.m-1,d-run+1); // 連續出勤的第一天（可能在上個月）
+          out.push({d,run,tag:'連'+run,msg:st.name+'：從 '+(a.getMonth()+1)+'/'+a.getDate()+' 起到 '+state.m+'/'+d+' 連續出勤第 '+run+' 天。正職最多連上 6 天，第 7 天起標示。'});
+        }
       }else run=0;
     }
     return out;
@@ -2382,8 +2386,10 @@ function streakFlags(st){ // 回傳 [{d,msg,tag}]
     let n=0;for(let k=i-6;k<=i;k++)if(seq[k].w)n++;
     if(n>=6){
       const a=seq[i-6],rest=7-n;
+      const offs=seq.slice(i-6,i+1).filter(x=>!x.w).map(x=>x.m+'/'+x.d); // 這 7 天裡有休的日子
       out.push({d:seq[i].d,worked:n,tag:'7休'+rest,
-        msg:st.name+' '+a.m+'/'+a.d+'～'+state.m+'/'+seq[i].d+' 這7天只休'+rest+'天（任7天需休2天）'});
+        msg:st.name+'：從 '+state.m+'/'+seq[i].d+' 往前算 7 天（'+a.m+'/'+a.d+'～'+state.m+'/'+seq[i].d+'），上班 '+n+' 天，'+
+          (rest?'只休 '+offs.join('、')+' 一天':'一天都沒休')+'。'+(TYPE_LABEL[st.type]||'')+'人員任 7 天要休 2 天，這段少休 '+(2-rest)+' 天。'});
     }
   }
   return out;
@@ -5314,8 +5320,9 @@ function openCoverageDay(d){ // 點擊表頭驚嘆號時顯示該日覆蓋不足
   let html='';
   if(cov===null&&!stk.length)html='<div class="c-fade">該日尚未排任何班，未列入檢查。</div>';
   else{
-    if(cov&&cov.length)html+=cov.map(c=>'<div><b style="color:var(--red)">✗</b>　'+esc(c)+'</div>').join('');
-    if(stk.length)html+=stk.map(c=>'<div><b class="c-amber">⚠</b>　'+esc(c)+'</div>').join('');
+    const row=(icon,cls,c)=>'<div style="display:flex;gap:10px;align-items:baseline;margin:6px 0;line-height:1.55"><b class="'+cls+'" style="flex:none">'+icon+'</b><span>'+esc(c)+'</span></div>';
+    if(cov&&cov.length)html+=cov.map(c=>row('✗','c-red',c)).join('');
+    if(stk.length)html+=stk.map(c=>row('⚠','c-amber',c)).join('');
     if(!html)html='<div class="c-green" style="font-weight:700">該日符合所有檢查規則 ✓</div>';
   }
   document.getElementById('covBody').innerHTML=html;
