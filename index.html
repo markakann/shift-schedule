@@ -440,6 +440,10 @@ body.editing thead tr:nth-child(2) th:not(.corner){cursor:pointer}
   box-shadow:0 -3px 18px rgba(0,0,0,.25);
 }
 .m-title{font-size:17px;font-weight:700;margin-bottom:2px}
+/* 有輸入內容的視窗點空白處不關閉，輕輕彈一下表示「請用下方按鈕」 */
+@keyframes sheetNudge{0%,100%{transform:none}35%{transform:translateY(-8px)}70%{transform:translateY(2px)}}
+.modal.nudge{animation:sheetNudge .28s ease}
+@media (prefers-reduced-motion:reduce){.modal.nudge{animation:none}}
 .lv-warn{
   border-radius:6px;padding:7px 10px;font-size:13px;font-weight:600;
   margin:0 0 10px;border:1.5px solid #c9a3e0;background:#f6effb;color:#6b3a8a;
@@ -3355,10 +3359,19 @@ document.getElementById('btnLeaveCfgSave').addEventListener('click',()=>{
 /* 事件 */
 document.getElementById('btnLeave').addEventListener('click',openLeave);
 document.getElementById('btnLeaveCfg').addEventListener('click',openLeaveCfg);
-document.getElementById('btnCloseLeave').addEventListener('click',()=>document.getElementById('ovLeave').classList.remove('show'));
+function lvUnsent(){ // 已經點了日期或改了補充說明，但還沒按送出
+  if(!lvDraft||!lvOriginal)return false;
+  const pick=o=>JSON.stringify({d:o.days||{},n:o.note||''});
+  return pick(lvDraft)!==pick(lvOriginal);
+}
+document.getElementById('btnCloseLeave').addEventListener('click',()=>{
+  if(lvUnsent()&&!confirm('劃假還沒送出，關閉會放棄這次的修改。確定要關閉嗎？'))return;
+  document.getElementById('ovLeave').classList.remove('show');
+});
 document.querySelectorAll('.lv-tab').forEach(t=>t.addEventListener('click',()=>{lvTab=t.dataset.lvtab;renderLeaveBody()}));
 document.getElementById('lvBody').addEventListener('change',ev=>{
   if(ev.target.id==='lvWhoSel'){
+    if(lvUnsent()&&!confirm('目前的劃假還沒送出，切換姓名會放棄這次的修改。確定要切換嗎？')){ev.target.value=lvWho||'';return}
     lvWho=ev.target.value||null;
     const ym=(leaveWindow().L||{}).ym||ymOf(state.y,state.m);
     const o=lvWho?leaveOf(ym,lvWho):null;
@@ -3387,7 +3400,9 @@ document.getElementById('lvBody').addEventListener('click',ev=>{
   const lg=ev.target.closest('[data-lvlog]');
   if(lg){const k=lg.dataset.lvlog;lvLogOpen[k]=!lvLogOpen[k];renderLeaveBody();return}
   const ed=ev.target.closest('[data-lvedit]');
-  if(ed){lvTab='mine';lvWho=ed.dataset.lvedit;
+  if(ed){
+    if(ed.dataset.lvedit!==lvWho&&lvUnsent()&&!confirm('目前的劃假還沒送出，切換姓名會放棄這次的修改。確定要切換嗎？'))return;
+    lvTab='mine';lvWho=ed.dataset.lvedit;
     const ym=(leaveWindow().L||{}).ym||ymOf(state.y,state.m);
     const o=leaveOf(ym,lvWho);
     lvOriginal=o?JSON.parse(JSON.stringify(o)):{days:{},note:'',log:[]};
@@ -5391,7 +5406,17 @@ selY.addEventListener('change',()=>{state.y=+selY.value;clearDayFilter();schedul
 selM.addEventListener('change',()=>{state.m=+selM.value;clearDayFilter();scheduleSave();renderAll()});
 document.getElementById('storeName').addEventListener('input',scheduleSave);
 document.getElementById('sheetTitle').addEventListener('input',scheduleSave);
-document.querySelectorAll('.overlay').forEach(ov=>ov.addEventListener('click',ev=>{if(ev.target===ov)ov.classList.remove('show')}));
+/* 點空白處：純選單／說明類視窗＝按它的「關閉」鈕（走同一套流程）；其他有輸入或設定的視窗一律不關，避免誤觸放棄修改 */
+const BACKDROP_CLOSE={ovMore:'btnCloseMore',ovHelp:'btnCloseHelp',ovHidden:'btnCloseHidden',ovStaffList:'btnCloseStaffList',
+  ovOT:'btnCloseOT',ovTotal:'btnCloseTotal',ovCoverage:'btnCloseCoverage',ovReport:'btnCloseReport',
+  ovExportChoice:'btnCloseExportChoice',ovCopyChoice:'btnCloseCopyChoice',ovLook:'btnCloseLook'};
+document.querySelectorAll('.overlay').forEach(ov=>ov.addEventListener('click',ev=>{
+  if(ev.target!==ov||ov.id==='ovCell')return; // 排班格子另有處理：改動即時套用，點外面直接關
+  const btn=BACKDROP_CLOSE[ov.id]&&document.getElementById(BACKDROP_CLOSE[ov.id]);
+  if(btn){btn.click();return}
+  const m=ov.querySelector('.modal');
+  if(m){m.classList.remove('nudge');void m.offsetWidth;m.classList.add('nudge')}
+}));
 
 /* ────────── 啟動 ────────── */
 (async function init(){
