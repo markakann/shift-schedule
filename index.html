@@ -274,6 +274,15 @@ body.print-sizing .btn.gold{animation:none}
 }
 .jump-chip.all{border-color:#0d94a6;color:#0a6f7d;background:#eefafc;font-weight:700}
 .jump-row{margin-top:4px}
+.ot-group{font-size:15px;font-weight:700;color:var(--ink);margin:22px 0 8px;padding-bottom:5px;border-bottom:1.5px solid var(--grid)}
+.ot-group.first{margin-top:10px}
+.ot-formula{font-size:13px;color:var(--fade2);margin-top:8px}
+.ot-leaves{margin-top:12px;display:flex;flex-direction:column;gap:8px}
+.ot-lrow{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;font-size:14px}
+.ot-lrow .ot-ln{font-weight:700;min-width:3.2em}
+.ot-lrow .ot-lnote{font-size:12px;color:var(--fade2)}
+.ot-lrow .jump-row{margin:0;display:inline-flex;flex-wrap:wrap;gap:4px}
+.ot-lrow .jump-chip{margin:0;padding:1px 8px;font-size:12px}
 .mark-btn{border-color:#0d94a6;color:#0a6f7d;background:#eefafc;font-weight:700}
 .ot-table{width:max-content;min-width:100%;border-collapse:collapse;font-size:12px;margin-top:6px;table-layout:auto}
 .ot-table th,.ot-table td{border:1px solid #ddd;padding:3px 6px;text-align:center;white-space:nowrap}
@@ -1708,7 +1717,7 @@ body.print-sizing .name-sub{margin-top:0}
         <li><b>特定時段</b>　不勾＝整天 8 小時，格子只標「特／公／事／颱／職災」。勾選＝依班段記錄：預設整段班，調整「從／到」就只請其中一段，開頭、結尾或中間都可以。</li>
         <li>計時、支援的班段不是 8 小時時，「特定時段」會自動勾選並鎖定。沒勾選時欄位裡的時間一律不套用，不需要手動清掉。</li>
         <li>例如班段 11:00～19:00、特休 15:00～16:00，記成上班 6.5 小時＋特休 1 小時。格子上下仍寫原本的班段（11、19），中間標「特1」與時段 15-16。</li>
-        <li>計入時數：特休、職災、公差算進正職的已上時數；職災、公差也算進計時人員的本月時數；事假、颱風假不算。</li>
+        <li>計入時數：特休、職災、公差算進正職的已上時數；職災、公差也算進計時人員的本月時數；事假、颱風假不算。國定假日當天的假不另計時數。</li>
         <li>只請其中一段時，請假的時段不列入人力檢查與早／晚工時。</li>
         <li><b>紅線</b>　用於正職月中到職或離職。紅線天數依日期順序優先算成月休，補滿月休額度為止；國定假日照常另計；補不完的天數視為未在職，會反映在加班明細的「不足」時數。</li>
       </ul>
@@ -2537,13 +2546,14 @@ function overtimeStats(sid){ // 本月加班時數統計：國定假日出勤／
   const streakLabel=isFull?'連續出勤第7天起（含）時數':'任7天休不到2天的出勤時數';
   let holiday=0,streakHours=0;
   const lv={annual:0,duty:0,personal:0,typhoon:0,injury:0}; // 各假別時數（國定假日當天不計）
+  const lvDays={annual:[],duty:[],personal:[],typhoon:[],injury:[]};
   let holidayDays=[],streakDays=[],annualDays=[]; // 供加班統計跳轉標示用
   let workDays=[]; // 非國定假日的出勤日 {d,hrs}，供正職判斷月休不足時使用
   let detail=[];   // 逐日明細，供對帳使用
   for(let d=1;d<=N;d++){
     const e=entryOf(sid,d);
     const lt=leaveTypeOf(e),ah=leaveHours(e,d);
-    if(lt&&ah>0){lv[lt]+=ah;if(lt==='annual')annualDays.push(d)}
+    if(lt&&ah>0){lv[lt]+=ah;lvDays[lt].push(d);if(lt==='annual')annualDays.push(d)}
     if(!(e&&e.t==='shift'))continue;
     const hrs=shiftHours(e);
     const fr=fullRange(e),span=(fr.e-fr.s)/60;
@@ -2599,7 +2609,7 @@ function overtimeStats(sid){ // 本月加班時數統計：國定假日出勤／
     for(let d=1;d<=N;d++){const e=entryOf(sid,d);if(e&&e.t==='redline'){tot++;if(isNational(d))nat++}}
     if(tot){const rt=restTally(sid);off={total:tot,nat,rest:rt.offUsed,idle:rt.offExtra}}
   }
-  return {holiday,streakHours,otHours,otDays,shortfall,tier1,tier2,isFull,streakLabel,holidayDays,streakDays,detail,actualTotal,reqH,monthlyOT,monthlyShort,annual,annualDays,injury,duty,lv,off};
+  return {holiday,streakHours,otHours,otDays,shortfall,tier1,tier2,isFull,streakLabel,holidayDays,streakDays,detail,actualTotal,reqH,monthlyOT,monthlyShort,annual,annualDays,injury,duty,lv,lvDays,off};
 }
 
 /* ────────── 工具 ────────── */
@@ -4163,41 +4173,49 @@ function openOT(sid){
      '</div>'
     :'';
   const stat=(lb,v,big,color,cls)=>'<div><div style="font-size:12px;color:#888">'+lb+'</div><div'+(cls?' class="'+cls+'"':'')+' style="font-size:'+(big?22:20)+'px;font-weight:700'+(color?';color:'+color:'')+'">'+v+'</div></div>';
-  const unpaid=[t.lv.personal?'事假 '+fmtH(t.lv.personal)+' 小時':'',t.lv.typhoon?'颱風假 '+fmtH(t.lv.typhoon)+' 小時':''].filter(Boolean).join('、');
-  const annualNote=(t.annual||t.injury||t.duty||unpaid)
-    ?'<div class="small-note">假別時數：整天不記時段計 8 小時，有記時段的依時段計；國定假日當天不計。'+(unpaid?'另有'+unpaid+'，不算進已上時數。':'')+'</div>'+
-     (t.annual?jumpChips(sid,t.annualDays):'')
-    :'';
+  // 假別明細：一種假一行（名稱、時數、算不算、日期）
+  const LV_COLOR={annual:'',duty:'c-brown',personal:'c-purple',typhoon:'c-sky',injury:'c-green'};
+  const counted=t.isFull?['annual','injury','duty']:['injury','duty'];
+  const leaveRows=['annual','duty','injury','personal','typhoon'].filter(k=>t.lv[k]>0).map(k=>
+    '<div class="ot-lrow"><span class="ot-ln '+LV_COLOR[k]+'">'+LEAVE_SHORT[k]+'</span><b>'+fmtH(t.lv[k])+' 小時</b>'+
+    '<span class="ot-lnote">'+(counted.includes(k)?(t.isFull?'算進已上時數':'算進本月時數'):'不算進工時')+'</span>'+
+    jumpChips(sid,t.lvDays[k])+'</div>').join('');
+  const leaveBlock=leaveRows?'<div class="ot-leaves">'+leaveRows+'</div>':'';
   const offNote=t.off
     ?'<div class="small-note">到職前／離職後（紅線）共 '+t.off.total+' 天：'+
        [t.off.rest?'先算成月休 '+t.off.rest+' 天':'',t.off.nat?'國定假日 '+t.off.nat+' 天':'',
         t.off.idle?'其餘 '+t.off.idle+' 天未在職（'+fmtH(t.off.idle*8)+' 小時）':''].filter(Boolean).join('、')+'。</div>'
     :'';
+  let formula='';
+  if(t.isFull){ // 一行算式說明怎麼得出加班／不足
+    const adds=[['annual','特休'],['injury','職災'],['duty','公差']].filter(([k])=>t.lv[k]>0).map(([k,n])=>n+' '+fmtH(t.lv[k]));
+    const got=fmtH(t.actualTotal)+(adds.length?' ＋ '+adds.join(' ＋ '):'');
+    formula=t.monthlyShort>0
+      ?'應上 '+fmtH(t.reqH)+' － '+(adds.length?'（'+got+'）':got)+' ＝ 不足 '+fmtH(t.monthlyShort)+' 小時'
+      :got+' － 應上 '+fmtH(t.reqH)+' ＝ 加班 '+fmtH(t.monthlyOT)+' 小時';
+  }
   const monthlyBlock=t.isFull
-    ?'<div class="hr"></div>'+
-     '<div class="sec-label">月總工時制</div>'+
-     '<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end">'+
-       stat('實際總工時',fmtH(t.actualTotal))+
-       (t.annual>0?stat('特休',fmtH(t.annual)):'')+
-       (t.injury>0?stat('職災',fmtH(t.injury)):'')+
-       (t.duty>0?stat('公差',fmtH(t.duty)):'')+
-       stat('應上時數',fmtH(t.reqH))+
+    ?'<div class="ot-group first">月總工時制</div>'+
+     '<div style="display:flex;gap:18px;flex-wrap:wrap;align-items:baseline">'+
+       stat('實際總工時',fmtH(t.actualTotal),true)+
+       stat('應上時數',fmtH(t.reqH),true)+
        (t.monthlyShort>0
          ?stat('不足',fmtH(t.monthlyShort)+' 小時',true,'','c-amber')
          :stat('加班',fmtH(t.monthlyOT)+' 小時',true,'var(--red)'))+
      '</div>'+
-     annualNote+offNote+
-     '<div class="small-note">（實際總工時'+(t.annual>0?'＋特休':'')+(t.injury>0?'＋職災':'')+(t.duty>0?'＋公差':'')+'）與應上時數的差額。下方則是逐日級距算法，兩者用途不同，請以公司規定為準。</div>'
-    :'<div class="hr"></div>'+
-     '<div class="sec-label">本月實際總工時</div>'+
-     '<div style="font-size:22px;font-weight:700">'+fmtH(t.actualTotal)+' 小時</div>'+
-     ((t.injury||t.duty)?'<div class="small-note">'+[t.injury?'職災 '+fmtH(t.injury)+' 小時':'',t.duty?'公差 '+fmtH(t.duty)+' 小時':''].filter(Boolean).join('、')+'已算進姓名下方的本月時數，未列在上方工時。</div>':'')+
-     ((t.annual||t.lv.personal||t.lv.typhoon)?'<div class="small-note">另有'+[t.annual?'特休 '+fmtH(t.annual)+' 小時':'',t.lv.personal?'事假 '+fmtH(t.lv.personal)+' 小時':'',t.lv.typhoon?'颱風假 '+fmtH(t.lv.typhoon)+' 小時':''].filter(Boolean).join('、')+'（未計入工時）。</div>'+(t.annual?jumpChips(sid,t.annualDays):''):'');
+     '<div class="ot-formula">'+formula+'</div>'+
+     leaveBlock+offNote
+    :'<div class="ot-group first">本月工時</div>'+
+     '<div style="display:flex;gap:18px;flex-wrap:wrap;align-items:baseline">'+
+       stat('實際總工時',fmtH(t.actualTotal)+' 小時',true)+
+       ((t.injury||t.duty)?stat('本月時數（姓名下方）',fmtH(partHours(sid))+' 小時',true):'')+
+     '</div>'+
+     ((t.injury||t.duty)?'<div class="ot-formula">'+fmtH(t.actualTotal)+[t.injury?' ＋ 職災 '+fmtH(t.injury):'',t.duty?' ＋ 公差 '+fmtH(t.duty):''].join('')+' ＝ 本月時數 '+fmtH(partHours(sid))+'</div>':'')+
+     leaveBlock;
   document.getElementById('otBody').innerHTML=
     monthlyBlock+
-    '<div class="hr"></div>'+
-    '<div class="sec-label">以下為逐日級距算法</div>'+
-    '<div class="hr"></div>'+
+    '<div class="ot-group">逐日級距算法</div>'+
+    (t.isFull?'<div class="small-note" style="margin-top:0">跟上方月總工時制是兩種算法，用途不同，請以公司規定為準。</div>':'')+
     '<div class="sec-label">國定假日出勤</div>'+
     '<div style="font-size:22px;font-weight:700;color:var(--red)">'+fmtH(t.holiday)+' 小時</div>'+
     jumpChips(sid,t.holidayDays)+
