@@ -645,7 +645,22 @@ body.editing thead tr:nth-child(2) th:not(.corner){cursor:pointer}
 .chip.leave.purple{color:#8a4fb0;border-color:#8a4fb0;background:#faf6fd}
 .chip.active{background:#2a8a4a;color:#fff;border-color:#2a8a4a}
 .chip.leave.active:not(.green){background:var(--red);color:#fff;border-color:var(--red)}
-.annual-box{margin-top:10px;padding:10px;border:1.5px dashed var(--red);border-radius:8px}
+.cm-leave-box{border:1px solid var(--pencil);border-radius:10px;padding:0 10px 10px;margin:8px 0 4px}
+.cm-leave-box>.sec-label:first-child{margin-top:8px}
+.cm-actions{margin-top:18px}
+.cm-actions .btn{min-width:0}
+.al-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:14px 0 6px}
+.al-toggle{display:inline-flex;align-items:center;gap:6px;font-size:15px;font-weight:700;color:var(--red);cursor:pointer}
+.al-toggle input{width:20px;height:20px;margin:0;accent-color:var(--red);cursor:pointer}
+.al-sub{font-size:12px;color:var(--fade)}
+.al-fields.off{opacity:.35}
+.al-fields.off button{pointer-events:none}
+.al-note{font-size:13px;margin-top:6px;min-height:1em}
+@media (max-width:400px){ /* 窄螢幕：上班／下班（特休從／到）兩組維持同一行 */
+  #ovCell .stepper-row{gap:6px}
+  #ovCell .stepper button{width:32px}
+  #ovCell .stepper .tval-input{width:54px;font-size:15px}
+}
 .brk-chip.on{background:var(--blue);color:var(--onBlue);border-color:var(--blue);font-weight:700}
 .chip.plain{color:var(--ink)}
 .stepper-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
@@ -744,7 +759,6 @@ html.no-anim .day-cell{transition:none}
 .c-purple{color:#8a4fb0}
 .c-green{color:#2a8a4a}
 .c-amber{color:#d99a00}
-.c-red{color:var(--red)}
 .c-orange{color:#a85c07}
 .c-fade{color:var(--fade)}
 .lgc.sw-all {background:#dceffa}
@@ -998,7 +1012,21 @@ body.print-sizing .name-sub{margin-top:0}
     <div class="m-title" id="cmTitle"></div>
     <div class="m-sub" id="cmSub"></div>
     <div id="cmLeave" class="lv-warn" style="display:none"></div>
-    <div class="sec-label">班別（點選即排入）</div>
+    <div class="cm-leave-box">
+      <div class="sec-label">假別</div>
+      <div class="chips">
+        <button class="chip leave" data-leave="desig">△ 指定休息</button>
+        <button class="chip plain" data-leave="rest">╲ 排休</button>
+        <button class="chip leave" data-leave="annual">特休</button>
+        <button class="chip leave" data-leave="duty">公差</button>
+        <button class="chip leave purple" data-leave="personal">事假</button>
+        <button class="chip leave green" data-leave="injury">職災</button>
+        <button class="chip leave" data-leave="typhoon">颱風假</button>
+        <button class="chip leave" data-leave="redline">─ 紅線（到職／離職區間）</button>
+      </div>
+      <div class="small-note" id="injuryHint" style="display:none;color:#2a8a4a">已選取「職災」。請自下方班別或自訂時間擇一套用，將記錄為職災與該時段。</div>
+    </div>
+    <div class="sec-label" id="cmPresetLabel">班別（點選即排入）</div>
     <div class="chips" id="cmPresets"></div>
     <div class="sec-label">自訂時間（可直接輸入，如 900、1330、1500、2400；或用±微調半小時）</div>
     <div class="stepper-row">
@@ -1015,42 +1043,35 @@ body.print-sizing .name-sub{margin-top:0}
         <button data-t="e" data-d="30">＋</button>
       </div>
     </div>
+    <div class="al-head">
+      <label class="al-toggle"><input type="checkbox" id="alOn"><span>特休</span></label>
+      <span class="al-sub">勾選後這段班記為特休；只請特定時段就調整下方時間</span>
+    </div>
+    <div class="stepper-row al-fields off" id="alFields">
+      <span style="font-size:13px;color:#888">從</span>
+      <div class="stepper">
+        <button data-t="as" data-d="-30">−</button>
+        <input class="tval-input" id="alS" inputmode="numeric" pattern="[0-9]*" maxlength="4" disabled>
+        <button data-t="as" data-d="30">＋</button>
+      </div>
+      <span style="font-size:13px;color:#888">到</span>
+      <div class="stepper">
+        <button data-t="ae" data-d="-30">−</button>
+        <input class="tval-input" id="alE" inputmode="numeric" pattern="[0-9]*" maxlength="4" disabled>
+        <button data-t="ae" data-d="30">＋</button>
+      </div>
+    </div>
+    <div class="al-note" id="alNote"></div>
     <div class="sec-label">休息時間</div>
     <div class="chips" id="cmBreaks">
-      <button class="chip brk-chip" data-brk="auto">自動</button>
-      <button class="chip brk-chip" data-brk="0">不扣</button>
+      <button class="chip brk-chip" data-brk="0">未休</button>
       <button class="chip brk-chip" data-brk="0.5">0.5 小時</button>
       <button class="chip brk-chip" data-brk="1">1 小時</button>
     </div>
-    <button class="btn primary" id="btnApplyTime" style="width:100%;margin-top:10px">套用自訂時間</button>
-    <div class="sec-label">假別</div>
-    <div class="chips">
-      <button class="chip leave" data-leave="desig">△ 指定休息</button>
-      <button class="chip plain" data-leave="rest">╲ 排休</button>
-      <button class="chip leave" data-leave="annual">特休</button>
-      <button class="chip leave" data-leave="duty">公差</button>
-      <button class="chip leave purple" data-leave="personal">事假</button>
-      <button class="chip leave green" data-leave="injury">職災</button>
-      <button class="chip leave" data-leave="typhoon">颱風假</button>
-      <button class="chip leave" data-leave="redline">─ 紅線（到職／離職區間）</button>
-    </div>
-    <div class="small-note" id="injuryHint" style="display:none;color:#2a8a4a">已選取「職災」。請自上方班別或自訂時間擇一套用，將記錄為職災與該時段。</div>
-    <div class="annual-box" id="annualBox" style="display:none">
-      <div class="small-note" style="margin:0 0 8px">已選取「特休」。整天特休計 8 小時；要記錄班段時，自上方班別或自訂時間套用。</div>
-      <button class="btn primary" id="btnAnnualFull" style="width:100%">整天特休（計 8 小時）</button>
-      <div class="sec-label" style="margin-top:10px">只請其中一段（選填）</div>
-      <div class="stepper-row">
-        <span style="font-size:13px;color:#888">特休</span>
-        <div class="stepper"><input class="tval-input" id="alS" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="起"></div>
-        <span style="font-size:13px;color:#888">～</span>
-        <div class="stepper"><input class="tval-input" id="alE" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="迄"></div>
-      </div>
-      <div class="small-note">可在班段內的任一段，開頭、結尾或中間都可以。例：班段 11:00～19:00、特休填 1500～1600，記成上班 6.5 小時＋特休 1 小時。兩格留空＝整段班都請特休。</div>
-      <button class="btn" id="btnAnnualCur" style="width:100%;margin-top:8px">套用到 11:00～19:30</button>
-    </div>
-    <div class="m-actions">
+    <div class="m-actions cm-actions">
+      <button class="btn primary" id="btnApplyTime">套用</button>
       <button class="btn danger" id="btnClearCell">清除此格</button>
-      <button class="btn" id="btnCloseCell">關閉</button>
+      <button class="btn" id="btnCloseCell">不儲存退出</button>
     </div>
   </div>
 </div>
@@ -1656,10 +1677,12 @@ body.print-sizing .name-sub{margin-top:0}
       <ul class="hul">
         <li>按「🔒 排班」解鎖後方可編輯，再按一次即鎖定。</li>
         <li>自訂時間僅接受整點或半點（例如 900、1330）。</li>
-        <li>休息時間可逐班指定。「自動」為超過 4 小時扣 0.5 小時。</li>
-        <li>與自動值不同時，於格子右上角標示。</li>
-        <li><b>特休</b>　按「特休」後選「整天特休」計 8 小時；或自班別／自訂時間套用，記錄為該時段的特休。</li>
-        <li>只請一段特休時，填寫特休起迄，班段內的開頭、結尾或中間都可以。例如班段 11:00～19:00、特休 15:00～16:00，記成上班 6.5 小時＋特休 1 小時。格子上下仍寫原本的班段（11、19），中間標「特1」與特休時段 15-16；請在頭、尾或中間都是同樣寫法。</li>
+        <li>休息時間依班段長度自動選：4 小時以內未休；超過 4 小時休 0.5 小時；扣掉 0.5 休息後仍超過 8 小時（班段超過 8.5 小時）休 1 小時。</li>
+        <li>可逐班改成未休／0.5 小時／1 小時。休 1 小時，或與自動選的不同時，於格子右上角標示「休○」。</li>
+        <li><b>特休</b>　假別的「特休」按一下即排入，不記時段，計 8 小時。</li>
+        <li>要記錄時段時，在自訂時間下方勾選「特休」：預設整段班都請特休；只請特定時段就調整「從／到」，開頭、結尾或中間都可以，再按「套用」。勾選時點班別只會帶入時間，不會直接排入。</li>
+        <li>沒勾選「特休」時，欄位裡的時間一律不套用，不需要手動清掉。</li>
+        <li>例如班段 11:00～19:00、特休 15:00～16:00，記成上班 6.5 小時＋特休 1 小時。格子上下仍寫原本的班段（11、19），中間標「特1」與特休時段 15-16。</li>
         <li>部分特休的時段不列入人力檢查與早／晚工時。</li>
         <li><b>紅線</b>　用於正職月中到職或離職。紅線天數依日期順序優先算成月休，補滿月休額度為止；國定假日照常另計；補不完的天數視為未在職，會反映在加班明細的「不足」時數。</li>
       </ul>
@@ -2220,7 +2243,7 @@ let state={
 };
 let editMode=false, saveTimer=null, calSource='內建資料';
 let changedCells=new Map(); // 本次排班（解鎖到鎖定之間）異動過的格子 → 改動前的原始內容；鎖定後淡出提示用
-let cur={sid:null,day:null,s:810,e:1320,leaveTag:null,brk:null}; // brk=null 代表用自動規則 // 彈窗暫存；leaveTag用於「職災+時段」的待套用狀態
+let cur={sid:null,day:null,s:810,e:1320,leaveTag:null,brk:null,alOn:false,as:null,ae:null}; // alOn／as／ae：自訂時間下方的特休列 // brk=null 代表用自動規則 // 彈窗暫存；leaveTag用於「職災+時段」的待套用狀態
 let curNoteIdx=-1, curStaffId=null, curDayForOv=null;
 
 function ym(){return state.y+'-'+state.m}
@@ -2371,10 +2394,7 @@ function streakFlags(st){ // 回傳 [{d,msg,tag}]
     for(let d=1;d<=N;d++){
       if(countsTowardStreak(entryOf(st.id,d))){
         run++;
-        if(run>6){
-          const a=new Date(state.y,state.m-1,d-run+1); // 連續出勤的第一天（可能在上個月）
-          out.push({d,run,tag:'連'+run,msg:st.name+'：從 '+(a.getMonth()+1)+'/'+a.getDate()+' 起到 '+state.m+'/'+d+' 連續出勤第 '+run+' 天。正職最多連上 6 天，第 7 天起標示。'});
-        }
+        if(run>6)out.push({d,run,tag:'連'+run,msg:st.name+' 連續出勤第'+run+'天（上限連6）'});
       }else run=0;
     }
     return out;
@@ -2386,10 +2406,8 @@ function streakFlags(st){ // 回傳 [{d,msg,tag}]
     let n=0;for(let k=i-6;k<=i;k++)if(seq[k].w)n++;
     if(n>=6){
       const a=seq[i-6],rest=7-n;
-      const offs=seq.slice(i-6,i+1).filter(x=>!x.w).map(x=>x.m+'/'+x.d); // 這 7 天裡有休的日子
       out.push({d:seq[i].d,worked:n,tag:'7休'+rest,
-        msg:st.name+'：從 '+state.m+'/'+seq[i].d+' 往前算 7 天（'+a.m+'/'+a.d+'～'+state.m+'/'+seq[i].d+'），上班 '+n+' 天，'+
-          (rest?'只休 '+offs.join('、')+' 一天':'一天都沒休')+'。'+(TYPE_LABEL[st.type]||'')+'人員任 7 天要休 2 天，這段少休 '+(2-rest)+' 天。'});
+        msg:st.name+' '+a.m+'/'+a.d+'～'+state.m+'/'+seq[i].d+' 這7天只休'+rest+'天（任7天需休2天）'});
     }
   }
   return out;
@@ -2423,8 +2441,12 @@ function nationalCount(){let n=0;for(let d=1;d<=daysInMonth();d++)if(isNational(
 function reqHours(sid){ // 正職本月應上班時數＝(當月天數－月休額度－國定假日天數)×8；週末的國定假日不另補假，所以另外扣一天。只看行事曆，不看實際排班
   return (daysInMonth()-quota()-nationalCount())*8;
 }
-function autoBreak(span){ // 預設休息：班段超過4小時扣0.5小時，4小時以內不扣
-  return span>4?0.5:0;
+function autoBreak(span){ // 預設休息：4 小時以內不休；超過 4 小時休 0.5 小時；扣掉 0.5 休息後仍超過 8 小時（班段超過 8.5 小時）休 1 小時
+  return span>8.5?1:span>4?0.5:0;
+}
+function brkTagOf(span,brk){ // 格子右上角的休息註記：休 1 小時，或跟預設不同時才標
+  const auto=autoBreak(span),eff=(brk==null)?auto:brk;
+  return (eff!==auto||eff>=1)?'休'+fmtH(eff):'';
 }
 function paidSpan(s,e,brk){ // 班段長度扣掉休息；brk 有值時以該班自己設定的休息為準
   const span=(e-s)/60;
@@ -2836,7 +2858,8 @@ function renderSheet(){
           r.on&&(r.days||[]).includes(wd)&&(r.times||[]).includes(r.field==='end'?fr.e:fr.s));
         inner='<span class="t-s'+(anyWarn?' fs-warn':'')+'">'+fmtDec(fr.s)+'</span><span class="t-e'+(anyWarn?' fs-warn':'')+'">'+fmtDec(fr.e)+'</span>';
         const spanH=(fr.e-fr.s)/60; // 休息時間跟預設不同時標在右上角，避免同樣班段看不出差別
-        if(e.brk!=null&&e.brk!==autoBreak(spanH))inner+='<span class="brk-tag">休'+fmtH(e.brk)+'</span>';
+        const bt=brkTagOf(spanH,e.brk);
+        if(bt)inner+='<span class="brk-tag">'+bt+'</span>';
         const al=alRange(e);
         if(al){ // 部分特休：中間標「特＋時數」與特休時段（頭、尾、中間寫法一致）
           cls+=' al-part';
@@ -3587,8 +3610,8 @@ function openCell(sid,day){
   const alPart=hasTime&&!!alRange(e); // 部分特休：自訂時間帶回原本的整段班
   const fr=hasTime?(e.t==='shift'?fullRange(e):{s:e.s,e:e.e}):null;
   cur.s=hasTime?fr.s:810; cur.e=hasTime?fr.e:1320;
-  document.getElementById('alS').value=alPart?fmtDigits(e.al[0]):'';
-  document.getElementById('alE').value=alPart?fmtDigits(e.al[1]):'';
+  cur.alOn=alPart||(hasTime&&e.t==='annual'); // 有時段的特休：打開時就勾好特休，時段帶回
+  if(alPart){cur.as=e.al[0];cur.ae=e.al[1]}else{cur.as=cur.s;cur.ae=cur.e}
   cur.brk=(hasTime&&e.brk!=null)?e.brk:null;
   syncBreakChips();
   document.getElementById('cmTitle').textContent=st.name+'（'+TYPE_LABEL[st.type]+'）';
@@ -3622,39 +3645,73 @@ function openCell(sid,day){
   syncLeaveTag();
   syncTv();
   document.getElementById('ovCell').classList.add('show');
+  const cm=document.querySelector('#ovCell .modal');if(cm)cm.scrollTop=0;
 }
-function syncLeaveTag(){ // 職災／特休的「先選取再套用班段」狀態
+function syncLeaveTag(){ // 職災的「先選取再套用班段」狀態
   document.querySelectorAll('#ovCell .chip[data-leave]').forEach(c=>c.classList.toggle('active',c.dataset.leave===cur.leaveTag));
   document.getElementById('injuryHint').style.display=cur.leaveTag==='injury'?'':'none';
-  document.getElementById('annualBox').style.display=cur.leaveTag==='annual'?'':'none';
 }
-function buildAnnualEntry(s,e){ // 依特休起迄欄位組出這一格；格式不對回傳 null（已提示）
-  const a=document.getElementById('alS').value.trim(),b=document.getElementById('alE').value.trim();
-  if(!a&&!b)return withBreak({t:'annual',s,e});
-  const as=parseTimeDigits(a),ae=parseTimeDigits(b);
-  if(as===null||ae===null){alert('特休時段格式不正確，請輸入整點或半點，例如 1800、1930。\n整段班都請特休時，兩格留空即可。');return null}
-  if(as>=ae){alert('特休的開始時間需早於結束時間。');return null}
-  if(as<s||ae>e){alert('特休時段需在班段 '+fmtHM(s)+'～'+fmtHM(e)+' 之內。');return null}
-  if(as===s&&ae===e)return withBreak({t:'annual',s,e});
-  return withBreak({t:'shift',s,e,al:[as,ae]}); // 班段頭、尾、中間都可以
+/* 特休列：勾選才算數。勾選時預設整段班，調整「從／到」就只請其中一段；
+   沒勾選時欄位裡的時間一律不套用，不用手動清掉 */
+function annualPreview(){ // 依目前的班段與特休時段組出這一格（尚未寫入）
+  const whole=cur.as===cur.s&&cur.ae===cur.e;
+  return withBreak(whole?{t:'annual',s:cur.s,e:cur.e}:{t:'shift',s:cur.s,e:cur.e,al:[cur.as,cur.ae]});
 }
-function applyCurrent(){ // 套用目前的班段（依是否選取職災／特休決定記成什麼）
+function refitAl(os,oe){ // 班段改了：原本整段特休就跟著整段；否則夾進新班段，夾不出來就改回整段
+  if(cur.as==null||cur.ae==null||(cur.as===os&&cur.ae===oe)){cur.as=cur.s;cur.ae=cur.e;return}
+  cur.as=Math.max(cur.as,cur.s);cur.ae=Math.min(cur.ae,cur.e);
+  if(cur.as>=cur.ae){cur.as=cur.s;cur.ae=cur.e}
+}
+function syncAl(){
+  const on=!!cur.alOn;
+  if(cur.as==null||cur.ae==null){cur.as=cur.s;cur.ae=cur.e}
+  document.getElementById('alOn').checked=on;
+  document.getElementById('alFields').classList.toggle('off',!on);
+  ['alS','alE'].forEach(id=>document.getElementById(id).disabled=!on);
+  document.getElementById('alS').value=fmtDigits(cur.as);
+  document.getElementById('alE').value=fmtDigits(cur.ae);
+  let note='';
+  if(on){
+    const en=annualPreview();
+    note=en.t==='annual'
+      ?'整段班 '+fmtHM(cur.s)+'～'+fmtHM(cur.e)+' 都請特休，計 '+fmtH(annualRawHours(en))+' 小時'
+      :'班段 '+fmtHM(cur.s)+'～'+fmtHM(cur.e)+'：上班 '+fmtH(shiftHours(en))+' 小時＋特休 '+fmtH(annualRawHours(en))+' 小時';
+  }
+  document.getElementById('alNote').textContent=note;
+  document.getElementById('cmPresetLabel').textContent=on?'班別（點選帶入時間，再按下方「套用」）':'班別（點選即排入）';
+}
+function commitAlInput(which){ // 特休從／到的直接輸入
+  const el=document.getElementById(which==='s'?'alS':'alE');
+  const v=parseTimeDigits(el.value);
+  if(v===null){alert('時間格式不正確，請輸入整點或半點，例如 1800、1930。');syncAl();return false}
+  if(which==='s'){
+    if(v<cur.s||v>=cur.ae){alert('特休開始需在班段 '+fmtHM(cur.s)+'～'+fmtHM(cur.e)+' 之內，且早於特休結束 '+fmtHM(cur.ae)+'。');syncAl();return false}
+    cur.as=v;
+  }else{
+    if(v>cur.e||v<=cur.as){alert('特休結束需在班段 '+fmtHM(cur.s)+'～'+fmtHM(cur.e)+' 之內，且晚於特休開始 '+fmtHM(cur.as)+'。');syncAl();return false}
+    cur.ae=v;
+  }
+  syncAl();return true;
+}
+function applyCurrent(){ // 套用目前的班段：職災／特休（有勾選）／一般上班
   let en;
-  if(cur.leaveTag==='annual'){en=buildAnnualEntry(cur.s,cur.e);if(!en){syncTv();return}}
-  else en=withBreak(cur.leaveTag?{t:cur.leaveTag,s:cur.s,e:cur.e}:{t:'shift',s:cur.s,e:cur.e});
+  if(cur.leaveTag==='injury')en=withBreak({t:'injury',s:cur.s,e:cur.e});
+  else if(cur.alOn){
+    if(!(cur.as>=cur.s&&cur.ae<=cur.e&&cur.as<cur.ae)){alert('特休時段需在班段 '+fmtHM(cur.s)+'～'+fmtHM(cur.e)+' 之內。');syncAl();return}
+    en=annualPreview();
+  }
+  else en=withBreak({t:'shift',s:cur.s,e:cur.e});
   setEntry(en);cur.leaveTag=null;
 }
-function syncBreakChips(){ // 反白目前選中的休息時間
-  document.querySelectorAll('#cmBreaks .brk-chip').forEach(c=>{
-    const v=c.dataset.brk;
-    const on=(cur.brk==null)?(v==='auto'):(v!=='auto'&&parseFloat(v)===cur.brk);
-    c.classList.toggle('on',on);
-  });
+function syncBreakChips(){ // 反白目前的休息時間：沒手動選時跟著班段長度自動選
+  const eff=(cur.brk==null)?autoBreak((cur.e-cur.s)/60):cur.brk;
+  document.querySelectorAll('#cmBreaks .brk-chip').forEach(c=>c.classList.toggle('on',parseFloat(c.dataset.brk)===eff));
 }
 document.getElementById('cmBreaks').addEventListener('click',ev=>{
   const c=ev.target.closest('.brk-chip');if(!c)return;
-  cur.brk=(c.dataset.brk==='auto')?null:parseFloat(c.dataset.brk);
-  syncBreakChips();
+  const v=parseFloat(c.dataset.brk);
+  cur.brk=(v===autoBreak((cur.e-cur.s)/60))?null:v; // 選的剛好是預設值＝跟著班段自動
+  syncBreakChips();syncAl();
 });
 function fmtDigits(min){ // 4碼數字格式，如 0900／1330／2400，用於輸入框顯示
   const h=Math.floor(min/60),m=min%60;
@@ -3676,7 +3733,7 @@ function parseTimeDigits(str){ // 解析使用者輸入，回傳分鐘數；格�
 function syncTv(){
   document.getElementById('tvS').value=fmtDigits(cur.s);
   document.getElementById('tvE').value=fmtDigits(cur.e);
-  document.getElementById('btnAnnualCur').textContent='套用到 '+fmtHM(cur.s)+'～'+fmtHM(cur.e);
+  syncBreakChips();syncAl();
 }
 function commitTimeInput(which){ // which: 's' 或 'e'；驗證通過回傳true並更新cur，否則還原並提示
   const el=document.getElementById(which==='s'?'tvS':'tvE');
@@ -3685,6 +3742,7 @@ function commitTimeInput(which){ // which: 's' 或 'e'；驗證通過回傳true�
     alert('時間格式不正確，請輸入整點或半點，例如 900、1330、1500、2400。');
     syncTv();return false;
   }
+  const os=cur.s,oe=cur.e;
   if(which==='s'){
     if(parsed>=cur.e){alert('上班時間不正確，需早於下班時間。');syncTv();return false}
     cur.s=parsed;
@@ -3692,10 +3750,14 @@ function commitTimeInput(which){ // which: 's' 或 'e'；驗證通過回傳true�
     if(parsed<=cur.s){alert('下班時間不正確，需晚於上班時間。');syncTv();return false}
     cur.e=parsed;
   }
+  refitAl(os,oe);
   syncTv();return true;
 }
-function withBreak(entry){ // 使用者有指定休息時間就寫進這一筆，維持自動則不寫（沿用預設規則）
-  if(cur.brk!=null)entry.brk=cur.brk;
+function withBreak(entry){ // 手動選的休息跟預設不同才寫進這一筆；跟預設相同就不寫（沿用預設規則）
+  if(cur.brk!=null){
+    const span=(entry.s!=null&&entry.e!=null)?(entry.e-entry.s)/60:null;
+    if(span==null||cur.brk!==autoBreak(span))entry.brk=cur.brk;
+  }
   return entry;
 }
 function setEntry(entry){
@@ -3761,29 +3823,34 @@ document.getElementById('btnEdit').addEventListener('click',()=>{
 document.getElementById('ovCell').addEventListener('click',ev=>{
   const chip=ev.target.closest('.chip[data-s]');
   if(chip){
+    const os=cur.s,oe=cur.e;
     cur.s=+chip.dataset.s;cur.e=+chip.dataset.e;
+    if(cur.alOn){refitAl(os,oe);syncTv();return} // 勾了特休：只帶入時間，調好特休時段再按套用
     applyCurrent();return;
   }
   const lv=ev.target.closest('.chip[data-leave]');
   if(lv){
     if(lv.dataset.leave==='redline'){applyRedline();return}
-    if(lv.dataset.leave==='injury'||lv.dataset.leave==='annual'){ // 職災／特休：先選取，再挑時段一起套用（特休也可直接整天）
-      const k=lv.dataset.leave;
-      cur.leaveTag=(cur.leaveTag===k)?null:k;
-      syncLeaveTag();
+    if(lv.dataset.leave==='injury'){ // 職災：先選取，再挑時段一起套用（申報用需要記錄時段）
+      cur.leaveTag=(cur.leaveTag==='injury')?null:'injury';
+      if(cur.leaveTag)cur.alOn=false; // 職災與特休不同時套用
+      syncLeaveTag();syncAl();
       return;
     }
     setEntry({t:lv.dataset.leave});return;
   }
   const stp=ev.target.closest('.stepper button');
   if(stp){
-    const d=+stp.dataset.d;
-    if(stp.dataset.t==='s')cur.s=Math.min(Math.max(cur.s+d,0),cur.e-30);
+    const d=+stp.dataset.d,t=stp.dataset.t;
+    if(t==='as'){cur.as=Math.min(Math.max(cur.as+d,cur.s),cur.ae-30);syncAl();return}
+    if(t==='ae'){cur.ae=Math.min(Math.max(cur.ae+d,cur.as+30),cur.e);syncAl();return}
+    const os=cur.s,oe=cur.e;
+    if(t==='s')cur.s=Math.min(Math.max(cur.s+d,0),cur.e-30);
     else cur.e=Math.min(Math.max(cur.e+d,cur.s+30),1440);
+    refitAl(os,oe);
     syncTv();return;
   }
-  if(ev.target.id==='btnApplyTime'||ev.target.id==='btnAnnualCur'){applyCurrent();return}
-  if(ev.target.id==='btnAnnualFull'){setEntry({t:'annual'});cur.leaveTag=null;return}
+  if(ev.target.id==='btnApplyTime'){applyCurrent();return}
   if(ev.target.id==='btnClearCell'){clearCell();return}
   if(ev.target.id==='btnCloseCell'||ev.target===document.getElementById('ovCell'))
     document.getElementById('ovCell').classList.remove('show');
@@ -3795,6 +3862,19 @@ document.getElementById('ovCell').addEventListener('click',ev=>{
     if(ev.key==='Enter'){ev.preventDefault();commitTimeInput(which);el.blur();}
   });
   el.addEventListener('blur',()=>commitTimeInput(which));
+});
+['alS','alE'].forEach(id=>{
+  const which=id==='alS'?'s':'e';
+  const el=document.getElementById(id);
+  el.addEventListener('keydown',ev=>{
+    if(ev.key==='Enter'){ev.preventDefault();commitAlInput(which);el.blur();}
+  });
+  el.addEventListener('blur',()=>{if(cur.alOn)commitAlInput(which)});
+});
+document.getElementById('alOn').addEventListener('change',ev=>{
+  cur.alOn=ev.target.checked;
+  if(cur.alOn){cur.as=cur.s;cur.ae=cur.e;if(cur.leaveTag==='injury'){cur.leaveTag=null;syncLeaveTag()}} // 每次勾選都從整段班開始
+  syncAl();
 });
 function applyRedline(){ // 從此格畫一段連續紅線（到職前／離職後不排班）
   const N=daysInMonth();
@@ -5320,9 +5400,8 @@ function openCoverageDay(d){ // 點擊表頭驚嘆號時顯示該日覆蓋不足
   let html='';
   if(cov===null&&!stk.length)html='<div class="c-fade">該日尚未排任何班，未列入檢查。</div>';
   else{
-    const row=(icon,cls,c)=>'<div style="display:flex;gap:10px;align-items:baseline;margin:6px 0;line-height:1.55"><b class="'+cls+'" style="flex:none">'+icon+'</b><span>'+esc(c)+'</span></div>';
-    if(cov&&cov.length)html+=cov.map(c=>row('✗','c-red',c)).join('');
-    if(stk.length)html+=stk.map(c=>row('⚠','c-amber',c)).join('');
+    if(cov&&cov.length)html+=cov.map(c=>'<div><b style="color:var(--red)">✗</b>　'+esc(c)+'</div>').join('');
+    if(stk.length)html+=stk.map(c=>'<div><b class="c-amber">⚠</b>　'+esc(c)+'</div>').join('');
     if(!html)html='<div class="c-green" style="font-weight:700">該日符合所有檢查規則 ✓</div>';
   }
   document.getElementById('covBody').innerHTML=html;
