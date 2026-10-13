@@ -304,7 +304,8 @@ body.print-sizing .btn.gold{animation:none}
   padding:2px 0 6px;font-size:13px;color:#666;
   display:flex;gap:12px;flex-wrap:wrap;line-height:1.8;
 }
-.legend b{color:var(--red);font-weight:600}
+.legend b{font-weight:600}
+.legend b:not([class]){color:var(--red)} /* 有指定顏色（事、公、颱、職災）的照各自顏色 */
 /* ── 表格 ── */
 .sheet-wrap{
   margin:0 8px;background:var(--paper);
@@ -546,7 +547,8 @@ body.editing thead tr:nth-child(2) th:not(.corner){cursor:pointer}
 #ovHelp .hul li{margin-bottom:1px}
 #ovHelp .hul b{color:var(--ink)}
 #ovHelp .hdl{display:grid;grid-template-columns:auto 1fr;gap:1px 10px;margin:3px 0 0;font-size:12.5px;color:#666;line-height:1.8}
-#ovHelp .hdl dt{font-weight:700;color:var(--ink);white-space:nowrap}
+#ovHelp .hdl dt{font-weight:700;white-space:nowrap}
+#ovHelp .hdl dt:not([class]){color:var(--ink)} /* 黃色、有釋出等有指定顏色的照各自顏色 */
 #ovHelp .hdl dd{margin:0}
 #ovHelp .hsub{font-size:11.5px;font-weight:700;color:#8a7a4a;margin:8px 0 1px}
 .lv-hint{font-size:11px;color:#777;line-height:1.5;margin:-2px 0 6px}
@@ -1675,6 +1677,7 @@ body.print-sizing .name-sub{margin-top:0}
       <span><b>△</b> 指定休息</span>
       <span><b>特</b> 特休（整天計 8 小時）</span>
       <span><b>特1</b> 只請其中一段（假別＋時數與時段）</span>
+      <span><b style="color:var(--blue)">休1</b> 休息註記（休 1 小時或與預設不同）</span>
       <span><b class="c-brown">公</b> 公差</span>
       <span><b class="c-purple">事</b> 事假</span>
       <span><b class="c-green">職災</b> 職業傷害</span>
@@ -1712,7 +1715,7 @@ body.print-sizing .name-sub{margin-top:0}
         <li>按「🔒 排班」解鎖後方可編輯，再按一次即鎖定。</li>
         <li>自訂時間僅接受整點或半點（例如 900、1330）。</li>
         <li>休息時間依班段長度自動選：4 小時以內未休；超過 4 小時休 0.5 小時；扣掉 0.5 休息後仍超過 8 小時（班段超過 8.5 小時）休 1 小時。</li>
-        <li>可逐班改成未休／0.5 小時／1 小時。休 1 小時，或與自動選的不同時，於格子右上角標示「休○」。</li>
+        <li>可逐班改成未休／0.5 小時／1 小時。休 1 小時，或與自動選的不同時，於格子右邊中間標示「休○」；只請其中一段假的格子，標在中間假別時數的後面（例如「公2 休1」）。</li>
         <li><b>特休、公差、事假、颱風假、職災</b>　同一套流程：先點假別（反白），再選班別或自訂時間，最後按「套用」。再點一次假別可取消。</li>
         <li><b>特定時段</b>　不勾＝整天 8 小時，格子只標「特／公／事／颱／職災」。勾選＝依班段記錄：預設整段班，調整「從／到」就只請其中一段，開頭、結尾或中間都可以。</li>
         <li>計時、支援的班段不是 8 小時時，「特定時段」會自動勾選並鎖定。沒勾選時欄位裡的時間一律不套用，不需要手動清掉。</li>
@@ -1737,7 +1740,7 @@ body.print-sizing .name-sub{margin-top:0}
     <div class="sec-label">加班時數</div>
     <ul class="hul">
       <li>點選姓名右上角的「⋯」開啟該員本月明細。</li>
-      <li>正職以「實際總工時＋特休＋職災」對比應上時數，顯示加班或不足。</li>
+      <li>正職以「實際總工時＋特休＋職災＋公差」對比應上時數，顯示加班或不足，並附一行算式；各假別的時數與日期逐行列出。</li>
       <li>明細中的日期可點選，畫面隨即跳至該格並閃爍。</li>
       <li>「全部標示」一次框出該類的所有日期，再按一次取消。</li>
       <li>標示為青色<b>虛線</b>框，跳轉閃爍為青色<b>實線</b>框<span class="edit-only">，紅色實線框代表排入該員劃假的時段</span>；詳見上方「格子的框線」。</li>
@@ -1747,7 +1750,7 @@ body.print-sizing .name-sub{margin-top:0}
     <div class="sec-label">早／晚工時列　·　月總工時</div>
     <ul class="hul">
       <li>表格最下方一列為每日早晚班總工時，以 16:00 分界，<b>含</b>休息時間。</li>
-      <li>該列最左側的<b style="color:var(--blue)">月總 ○h</b>為全店本月實際工時，每班已<b>扣</b>除休息。</li>
+      <li>該列最左側的<b style="color:var(--blue)">月總 ○h</b>為全店本月工時，每班已<b>扣</b>除休息；職災、公差的時數也算在內，特休、事假、颱風假不算。</li>
       <li>點選月總可查看正職／計時／支援分組與各員時數。</li>
     </ul>
 
@@ -5481,7 +5484,7 @@ function openCoverageDay(d){ // 點擊表頭驚嘆號時顯示該日覆蓋不足
 document.getElementById('btnCloseCoverage').addEventListener('click',()=>document.getElementById('ovCoverage').classList.remove('show'));
 function openMonthTotal(){ // 全店本月工時細項，按人員類型分組
   const mt=monthTotalHours();
-  document.getElementById('totSub').textContent=state.y+'年'+state.m+'月　每班已扣掉休息時間';
+  document.getElementById('totSub').textContent=state.y+'年'+state.m+'月　每班已扣掉休息時間；含職災、公差';
   let html='<div style="text-align:center;padding:6px 0 12px">'+
     '<div style="font-size:12px;color:#888">全店實際總工時</div>'+
     '<div style="font-size:26px;font-weight:700;color:var(--blue)">'+fmtH(mt.total)+' 小時</div></div>';
