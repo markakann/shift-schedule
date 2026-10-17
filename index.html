@@ -8,8 +8,8 @@
 <meta name="theme-color" content="#eceae3">
 <meta name="description" content="門市排班與劃假">
 <link rel="manifest" href="./manifest.webmanifest">
-<link rel="icon" href="./icon-192.png">
-<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<link rel="icon" href="./icon-192.png?v=2">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png?v=2">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -997,9 +997,79 @@ body.print-sizing .name-sub{margin-top:0}
   html.dark .c-amber{color:#d99a00}
   html.dark .c-orange{color:#a85c07}
 }
+/* ── 開啟動畫：圖示淡入後自己畫出來，再放大淡出進入班表（框線規格同實際班表） ── */
+.splash{position:fixed;inset:0;z-index:9999;background:#eceae3;display:flex;align-items:center;justify-content:center;
+  transition:opacity .5s ease .1s;-webkit-tap-highlight-color:transparent}
+.splash .sp-ico{width:min(46vw,230px);height:auto;overflow:visible;
+  transform-origin:50% 50%;transition:transform .6s cubic-bezier(.55,0,.75,.2),opacity .5s ease}
+.splash .sp-in{transform-box:view-box;transform-origin:50% 50%;animation:spIn .45s cubic-bezier(.2,.7,.3,1) both}
+.splash.out{opacity:0;pointer-events:none}
+.splash.out .sp-ico{transform:scale(5.5);opacity:0}
+.splash .sp-paper{filter:drop-shadow(0 6px 14px rgba(0,0,0,.12))}
+.splash .sp-draw{stroke-dasharray:1;stroke-dashoffset:1;animation:spDraw var(--t,.3s) cubic-bezier(.3,.1,.3,1) var(--d,0s) forwards}
+.splash .sp-cell{opacity:0;animation:spFade .28s ease var(--d,0s) forwards}
+.splash .sp-ban{opacity:0;transform-box:fill-box;transform-origin:50% 55%;animation:spStamp .42s cubic-bezier(.2,.9,.3,1.25) var(--d,0s) forwards}
+.splash .sp-ink{opacity:0;transform-box:fill-box;transform-origin:50% 50%;animation:spInk .62s ease-out var(--d,0s) forwards}
+@keyframes spIn{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:none}}
+@keyframes spDraw{to{stroke-dashoffset:0}}
+@keyframes spFade{to{opacity:1}}
+@keyframes spStamp{0%{opacity:0;transform:scale(1.8) rotate(-8deg)}55%{opacity:1;transform:scale(.9) rotate(1deg)}100%{opacity:1;transform:scale(1) rotate(0)}}
+@keyframes spInk{0%{opacity:.4;transform:scale(.55)}100%{opacity:0;transform:scale(1.45)}}
+@media (prefers-reduced-motion:reduce){ /* 系統設定減少動態：直接顯示完成的圖示 */
+  .splash .sp-draw{animation:none;stroke-dashoffset:0}
+  .splash .sp-cell,.splash .sp-ban{animation:none;opacity:1}
+  .splash .sp-ink{display:none}
+  .splash .sp-in{animation:none}
+}
+@media print{.splash{display:none!important}}
 </style>
 </head>
 <body>
+<div class="splash" id="splash" aria-hidden="true">
+  <svg class="sp-ico" viewBox="0 0 512 512"><g class="sp-in">
+    <rect class="sp-paper" x="0" y="0" width="512" height="512" rx="96" fill="#fffdf7"/>
+    <rect class="sp-cell" style="--d:1.12s" x="51" y="51" width="102.5" height="63" fill="#f2efe4"/>
+    <rect class="sp-cell" style="--d:1.18s" x="153.5" y="51" width="102.5" height="63" fill="#f2efe4"/>
+    <rect class="sp-cell" style="--d:1.23s" x="256" y="51" width="102.5" height="63" fill="#f2efe4"/>
+    <rect class="sp-cell" style="--d:1.30s" x="358.5" y="51" width="102.5" height="63" fill="#f9dbe0"/>
+    <line class="sp-draw sp-slash" pathLength="1" style="--d:1.32s;--t:0.18s" x1="51" y1="223.08" x2="153.5" y2="120.58" stroke="#9a9a9a" stroke-width="3"/>
+    <line class="sp-draw" pathLength="1" style="--d:1.46s;--t:0.18s" x1="51" y1="120.58" x2="153.5" y2="223.08" stroke="#2b2b2b" stroke-width="4"/>
+    <line class="sp-draw sp-slash" pathLength="1" style="--d:1.39s;--t:0.18s" x1="153.5" y1="223.08" x2="256" y2="120.58" stroke="#9a9a9a" stroke-width="3"/>
+    <line class="sp-draw sp-slash" pathLength="1" style="--d:1.46s;--t:0.18s" x1="256" y1="223.08" x2="358.5" y2="120.58" stroke="#9a9a9a" stroke-width="3"/>
+    <line class="sp-draw sp-slash" pathLength="1" style="--d:1.53s;--t:0.18s" x1="358.5" y1="223.08" x2="461" y2="120.58" stroke="#9a9a9a" stroke-width="3"/>
+    <line class="sp-draw sp-slash" pathLength="1" style="--d:1.39s;--t:0.18s" x1="51" y1="338.75" x2="153.5" y2="236.25" stroke="#9a9a9a" stroke-width="3"/>
+    <line class="sp-draw sp-slash" pathLength="1" style="--d:1.46s;--t:0.18s" x1="153.5" y1="338.75" x2="256" y2="236.25" stroke="#9a9a9a" stroke-width="3"/>
+    <line class="sp-draw sp-slash" pathLength="1" style="--d:1.53s;--t:0.18s" x1="256" y1="338.75" x2="358.5" y2="236.25" stroke="#9a9a9a" stroke-width="3"/>
+    <line class="sp-draw sp-slash" pathLength="1" style="--d:1.60s;--t:0.18s" x1="358.5" y1="338.75" x2="461" y2="236.25" stroke="#9a9a9a" stroke-width="3"/>
+    <line class="sp-draw" pathLength="1" style="--d:1.74s;--t:0.18s" x1="358.5" y1="236.25" x2="461" y2="338.75" stroke="#2b2b2b" stroke-width="4"/>
+    <line class="sp-draw sp-slash" pathLength="1" style="--d:1.46s;--t:0.18s" x1="51" y1="454.42" x2="153.5" y2="351.92" stroke="#9a9a9a" stroke-width="3"/>
+    <line class="sp-draw" pathLength="1" style="--d:1.60s;--t:0.18s" x1="51" y1="351.92" x2="153.5" y2="454.42" stroke="#2b2b2b" stroke-width="4"/>
+    <line class="sp-draw sp-slash" pathLength="1" style="--d:1.53s;--t:0.18s" x1="153.5" y1="454.42" x2="256" y2="351.92" stroke="#9a9a9a" stroke-width="3"/>
+    <line class="sp-draw sp-slash" pathLength="1" style="--d:1.60s;--t:0.18s" x1="256" y1="454.42" x2="358.5" y2="351.92" stroke="#9a9a9a" stroke-width="3"/>
+    <line class="sp-draw sp-slash" pathLength="1" style="--d:1.67s;--t:0.18s" x1="358.5" y1="454.42" x2="461" y2="351.92" stroke="#9a9a9a" stroke-width="3"/>
+    <line class="sp-draw" pathLength="1" style="--d:1.81s;--t:0.18s" x1="358.5" y1="351.92" x2="461" y2="454.42" stroke="#2b2b2b" stroke-width="4"/>
+    <line class="sp-draw" pathLength="1" style="--d:0.78s;--t:0.35s" x1="153.5" y1="51" x2="153.5" y2="461" stroke="#4a4a4a" stroke-width="4"/>
+    <line class="sp-draw" pathLength="1" style="--d:0.85s;--t:0.35s" x1="256" y1="51" x2="256" y2="461" stroke="#4a4a4a" stroke-width="4"/>
+    <line class="sp-draw" pathLength="1" style="--d:0.93s;--t:0.35s" x1="358.5" y1="51" x2="358.5" y2="461" stroke="#4a4a4a" stroke-width="4"/>
+    <line class="sp-draw" pathLength="1" style="--d:0.90s;--t:0.35s" x1="51" y1="229.67" x2="461" y2="229.67" stroke="#4a4a4a" stroke-width="4"/>
+    <line class="sp-draw" pathLength="1" style="--d:0.97s;--t:0.35s" x1="51" y1="345.33" x2="461" y2="345.33" stroke="#4a4a4a" stroke-width="4"/>
+    <line class="sp-draw" pathLength="1" style="--d:0.68s;--t:0.30s" x1="51" y1="114" x2="461" y2="114" stroke="#4a4a4a" stroke-width="8"/>
+    <rect class="sp-draw" pathLength="1" style="--d:0.35s;--t:0.53s" x="51" y="51" width="410" height="410" fill="none" stroke="#4a4a4a" stroke-width="8"/>
+    <circle class="sp-ink" style="--d:1.88s" cx="256" cy="290" r="120" fill="none" stroke="#1e4bb8" stroke-width="6"/>
+    <path class="sp-ban" style="--d:1.72s" d="M279.2 280V300.6H300.9V352.8H266.8V374.1H347V352.8H322.8V300.6H341.4V280H322.8V232.4H343.7V211.7H276.9V232.4H300.9V280ZM222.2 249.7C229.9 263.7 239.3 282.7 243.3 294.8L252.4 290.8C251.6 320.3 246 346.4 217 363.9C221.4 367.4 228.4 375.4 231.2 380.2C267.9 357.8 272.7 322.8 272.7 283.5V199.8H252.4V267.7C248.1 259.5 243.3 250.6 238.9 243.2ZM165 343.9 169 365.3C185.9 361.4 207.4 356.6 227.4 351.6L225.1 331.3L208 335.1V294.8H223.2V274.3H208V232.8H227.8V211.9H168.5V232.8H187.1V274.3H170.4V294.8H187.1V339.7Z" fill="#1e4bb8"/>
+  </g></svg>
+</div>
+<script>
+(function(){ // 播完自動進入；點畫面可跳過
+  const sp=document.getElementById('splash');if(!sp)return;
+  if(navigator.webdriver){sp.remove();return}
+  let done=false;
+  const finish=()=>{if(done)return;done=true;sp.classList.add('out');setTimeout(()=>sp.remove(),700)};
+  const reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+  setTimeout(finish,reduce?350:2400);
+  sp.addEventListener('click',finish);
+})();
+</script>
 
 <div id="exportArea">
 <header class="topbar">
