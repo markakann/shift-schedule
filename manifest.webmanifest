@@ -1,6 +1,6 @@
 {
-  "name": "排班表",
-  "short_name": "排班表",
+  "name": "我的班表",
+  "short_name": "我的班表",
   "description": "門市排班與劃假",
   "lang": "zh-Hant",
   "start_url": "./",
