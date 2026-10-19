@@ -21,7 +21,7 @@ try{if(localStorage.getItem('paiban-mode')==='view')document.documentElement.cla
    只存在這台裝置的 localStorage，不會上傳、不會影響其他人看到的樣子。 */
 var UI=(function(){
   var KEY='paiban-ui-v1';
-  var DEF={font:'sys',fs:'m',rh:'m',gl:'m',accent:'blue',paper:'cream',tc:'ink',hd:'plain',rd:'off',theme:'auto'};
+  var DEF={font:'sys',fs:'m',rh:'m',gl:'m',accent:'blue',paper:'cream',tc:'def',hd:'plain',rd:'off',theme:'auto'};
   var FS={s:0.88,m:1,l:1.18};        // 字級倍率
   var RH={s:0.8,m:1,l:1.24};         // 格子高度倍率
   var GL={s:'#a6a6a6',m:'#4a4a4a',l:'#1f1f1f'};   // 淺色模式格線
@@ -65,7 +65,7 @@ var UI=(function(){
     if(k==='accent'){for(var i=0;i<ACC.length;i++)if(ACC[i].k===v)return true;return false}
     if(k==='theme')return v==='auto'||v==='light'||v==='dark';
     if(k==='paper')return !!PAPER[v];
-    if(k==='tc')return v==='ink'||v==='acc';
+    if(k==='tc')return v==='def'||v==='acc'||(typeof v==='string'&&v.indexOf('c-')===0&&!!accOf(v.slice(2))); // c-顏色代號
     if(k==='hd')return v==='plain'||v==='tint';
     if(k==='rd')return v==='off'||v==='on';
     if(DEF[k]==null)return false;
@@ -86,7 +86,8 @@ var UI=(function(){
     if(t==='light')return false;
     try{return !!(window.matchMedia&&window.matchMedia('(prefers-color-scheme:dark)').matches)}catch(e){return false}
   }
-  function acc(){var k=read().accent;for(var i=0;i<ACC.length;i++)if(ACC[i].k===k)return ACC[i];return ACC[0]}
+  function accOf(k){for(var i=0;i<ACC.length;i++)if(ACC[i].k===k)return ACC[i];return null}
+  function acc(){return accOf(read().accent)||ACC[0]}
   function loadWebFont(key,spec){ // 只有真的選了才去 Google Fonts 拿，預設字體不會有任何對外連線
     if(document.getElementById('fontcss-'+key))return;
     if(!document.getElementById('gfPre')){
@@ -127,7 +128,9 @@ var UI=(function(){
     root.style.setProperty('--thbg',thbg);
     root.style.setProperty('--rdbg',rdbg);
     root.style.setProperty('--rdthbg',rdOn?(hdOn?mix(tint,pt.p,dark?0.2:0.15):rdbg):thbg);
-    root.style.setProperty('--tcol',s.tc==='acc'?av:'var(--ink)');
+    var tco=s.tc.indexOf('c-')===0?accOf(s.tc.slice(2)):null; // 上下班時間：預設黑字、跟重點色，或另外挑一色
+    root.style.setProperty('--tcol',s.tc==='acc'?av:(tco?(dark?tco.d:tco.l):'var(--ink)'));
+    root.classList.toggle('tc-color',s.tc!=='def');
     var f=FONT[s.font]||FONT.sys;
     if(f.g)loadWebFont(s.font,f.g);
     root.style.setProperty('--uiFont',(f.css?f.css+',':'')+'var(--fontSys)');
@@ -154,7 +157,7 @@ var UI=(function(){
     if(mq&&mq.addEventListener)mq.addEventListener('change',onch);
     else if(mq&&mq.addListener)mq.addListener(onch);
   }catch(e){}
-  return {get:read,set:set,reset:reset,apply:apply,isDark:isDark,accents:ACC,acc:acc,
+  return {get:read,set:set,reset:reset,apply:apply,isDark:isDark,accents:ACC,acc:acc,accOf:accOf,
     fonts:FONT,papers:PAPER,
     fs:function(){return FS[read().fs]},
     row:function(){return RH[read().rh]},
@@ -432,6 +435,7 @@ body.editing .day-cell:active{background-color:#fdf3d8}
 .day-cell.changed-mark{background-color:#e3edfa!important}
 .prev-value{position:absolute;bottom:1px;left:3px;font-size:7px;color:#8a8a8a;text-decoration:line-through;line-height:1;white-space:nowrap}
 .t-s.fs-warn,.t-e.fs-warn{color:#d6336c}
+.tc-color .t-s.fs-warn,.tc-color .t-e.fs-warn{text-decoration:underline;text-decoration-thickness:1.5px;text-underline-offset:1px}
 .t-e{position:absolute;bottom:1px;right:3px;font-weight:600}
 .mark{
   position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
@@ -1809,10 +1813,11 @@ body.print-sizing .name-sub{margin-top:0}
       <div class="lk-sw paper" id="lkPaper"></div>
     </div>
     <div class="lk-row">
-      <div class="lk-lab">上下班時間的字</div>
+      <div class="lk-lab">上下班時間的字 <small id="lkTimeName"></small></div>
       <div class="lk-seg" data-k="tc">
-        <button data-v="ink">預設</button><button data-v="acc">跟重點色</button>
+        <button data-v="def">預設</button><button data-v="acc">跟重點色</button>
       </div>
+      <div class="lk-sw" id="lkTime" style="margin-top:8px"></div>
     </div>
     <div class="lk-row">
       <div class="lk-lab">表頭（日期、星期）</div>
@@ -2027,7 +2032,7 @@ body.print-sizing .name-sub{margin-top:0}
       <li><b>字體</b>　預設為裝置原有字體。另提供思源宋體、昭源圓體、芫荽三種免費商用字體（SIL OFL 1.1），選用時向 Google Fonts 下載字檔，該連線會使 Google 取得本次的連線資訊；未選用時不產生任何對外連線。</li>
       <li>芫荽僅有一個字重，粗體由系統合成，與其他字體略有差異。</li>
       <li>設定<b>僅儲存於本裝置</b>，不影響班表內容，亦不影響其他夥伴的畫面。</li>
-      <li>重點色套用於人名、按鈕等重點文字；上下班時間可選擇跟著重點色。假別、劃假與衝突的顏色各具意義，不隨此設定變動。</li>
+      <li>重點色套用於人名、按鈕等重點文字。上下班時間的字可另外挑選顏色（與重點色相同的 10 種），或選「跟重點色」隨重點色變動；改成彩色後，提醒規則命中的時間會另加底線。假別、劃假與衝突的顏色各具意義，不隨此設定變動。</li>
       <li><b>紅字日整欄</b>　週末與國定假日（表頭紅字的日子）整欄淡淡上色，方便一眼找到假日。格子有劃假、標示等底色時，以那些底色為優先。</li>
       <li>深色模式選擇「跟隨系統」時，依裝置的深色設定自動切換。</li>
       <li>匯出與列印一律使用淺色、預設字體與米白紙，不加表頭與紅字日底色，不受這些設定影響。</li>
@@ -4851,6 +4856,8 @@ function renderLookPreview(){ // 迷你預覽：字級、格高、格線、重�
   if(lab)lab.textContent='（'+a.n+'）';
   const pp=UI.papers[UI.get().paper],plab=document.getElementById('lkPaperName');
   if(plab&&pp)plab.textContent='（'+pp.n+'）';
+  const tc=UI.get().tc,tlab=document.getElementById('lkTimeName');
+  if(tlab)tlab.textContent='（'+(tc==='def'?'預設':tc==='acc'?'跟重點色':(UI.accOf(tc.slice(2))||{n:''}).n)+'）';
 }
 window.renderLookPreview=renderLookPreview;
 function syncLookUI(){
@@ -4864,6 +4871,11 @@ function syncLookUI(){
     const a=UI.accents.find(x=>x.k===b.dataset.v);
     b.style.background=a?(dark?a.d:a.l):'';
     b.classList.toggle('on',s.accent===b.dataset.v);
+  });
+  document.querySelectorAll('#lkTime button').forEach(b=>{
+    const a=UI.accOf(b.dataset.v.slice(2));
+    b.style.background=a?(dark?a.d:a.l):'';
+    b.classList.toggle('on',s.tc===b.dataset.v);
   });
   document.querySelectorAll('#lkPaper button').forEach(b=>{
     const p=UI.papers[b.dataset.v];if(!p)return;
@@ -4881,6 +4893,13 @@ function syncLookUI(){
     const b=e.target.closest('button');
     if(!b)return;
     UI.set('accent',b.dataset.v);syncLookUI();
+  });
+  const tw=document.getElementById('lkTime');
+  tw.innerHTML=UI.accents.map(a=>'<button type="button" data-v="c-'+a.k+'" title="'+a.n+'" aria-label="時間字色：'+a.n+'"></button>').join('');
+  tw.addEventListener('click',e=>{
+    const b=e.target.closest('button');
+    if(!b)return;
+    UI.set('tc',b.dataset.v);syncLookUI();
   });
   const pw=document.getElementById('lkPaper');
   pw.innerHTML=Object.keys(UI.papers).map(k=>'<button type="button" data-v="'+k+'" aria-label="'+UI.papers[k].n+'"><span>'+UI.papers[k].n+'</span></button>').join('');
