@@ -21,7 +21,7 @@ try{if(localStorage.getItem('paiban-mode')==='view')document.documentElement.cla
    只存在這台裝置的 localStorage，不會上傳、不會影響其他人看到的樣子。 */
 var UI=(function(){
   var KEY='paiban-ui-v1';
-  var DEF={font:'sys',fs:'m',rh:'m',gl:'m',accent:'blue',theme:'auto'};
+  var DEF={font:'sys',fs:'m',rh:'m',gl:'m',accent:'blue',paper:'cream',tc:'ink',hd:'plain',rd:'off',theme:'auto'};
   var FS={s:0.88,m:1,l:1.18};        // 字級倍率
   var RH={s:0.8,m:1,l:1.24};         // 格子高度倍率
   var GL={s:'#a6a6a6',m:'#4a4a4a',l:'#1f1f1f'};   // 淺色模式格線
@@ -32,18 +32,42 @@ var UI=(function(){
     round:{n:'昭源圓體',css:'"Chiron GoRound TC"',g:'Chiron+GoRound+TC:wght@400;700'},
     ians :{n:'芫荽',css:'"Iansui"',g:'Iansui'} // 只有 Regular 一個字重，不能指定 wght，否則整包會 400
   };
-  var ACC=[ // 重點色：淺色與深色各一個值，深色底才讀得清楚
+  var ACC=[ // 重點色：淺色與深色各一個值，深色底才讀得清楚（淺色值配白字都在 4.5:1 以上）
     {k:'blue',n:'靛藍',l:'#1e4bb8',d:'#7fa9f0'},
     {k:'navy',n:'深海藍',l:'#17557a',d:'#6fc0e0'},
+    {k:'teal',n:'青瓷',l:'#0b7268',d:'#5fd0c2'},
+    {k:'moss',n:'墨綠',l:'#2a6a2e',d:'#8fd08a'},
+    {k:'olive',n:'橄欖',l:'#5f6a12',d:'#c5d16e'},
+    {k:'rust',n:'柿橙',l:'#b0500f',d:'#f4a46a'},
+    {k:'wine',n:'酒紅',l:'#8e2440',d:'#ee8ea8'},
+    {k:'rose',n:'玫瑰',l:'#b02e74',d:'#f59ccb'},
     {k:'plum',n:'墨紫',l:'#5b3fa0',d:'#b79bea'},
-    {k:'moss',n:'墨綠',l:'#1f6b52',d:'#6fc9a6'},
     {k:'ink',n:'炭灰',l:'#3f3f3f',d:'#cfcdc6'}
   ];
+  // 紙張底色：p 紙、b 背景、p2 次級面（表頭上色也用這個）、p3 淡框底、ln 細線、sm 合計列
+  var PAPER={
+    cream:{n:'米白',l:{p:'#fffdf7',b:'#eceae3',p2:'#f2efe4',p3:'#fcfaf3',ln:'#e3ded0',sm:'#f8f6ee'},
+                    d:{p:'#23252b',b:'#171a1f',p2:'#2a2d34',p3:'#262930',ln:'#3a3e46',sm:'#2b2e35'}},
+    white:{n:'純白',l:{p:'#ffffff',b:'#e8e9eb',p2:'#f0f1f3',p3:'#fafafb',ln:'#e0e2e5',sm:'#f6f7f8'},
+                    d:{p:'#242424',b:'#161616',p2:'#2d2d2d',p3:'#282828',ln:'#3d3d3d',sm:'#2e2e2e'}},
+    sky  :{n:'淡藍',l:{p:'#f8fbfe',b:'#dfe7f0',p2:'#e8eff7',p3:'#f2f7fc',ln:'#d3dde9',sm:'#eef3f9'},
+                    d:{p:'#1f2633',b:'#131924',p2:'#273041',p3:'#222a38',ln:'#37435a',sm:'#283142'}},
+    mint :{n:'淡綠',l:{p:'#f9fcf6',b:'#e1e9dc',p2:'#eaf1e3',p3:'#f4f9ef',ln:'#d5e0ca',sm:'#f0f6ea'},
+                    d:{p:'#212922',b:'#141a15',p2:'#29332a',p3:'#252e26',ln:'#3a463b',sm:'#2a342b'}},
+    pink :{n:'淡粉',l:{p:'#fffafa',b:'#efe3e4',p2:'#f7ebec',p3:'#fdf5f5',ln:'#ebdadb',sm:'#fbf1f2'},
+                    d:{p:'#2a2326',b:'#1c1618',p2:'#33292d',p3:'#2f2629',ln:'#4a3b41',sm:'#352b2f'}}
+  };
+  function hx(h){return [parseInt(h.substr(1,2),16),parseInt(h.substr(3,2),16),parseInt(h.substr(5,2),16)]}
+  function mix(a,b,t){var A=hx(a),B=hx(b),o='#';for(var i=0;i<3;i++){var v=Math.round(A[i]*t+B[i]*(1-t)).toString(16);o+=(v.length<2?'0':'')+v}return o}
   var cur=null,forceLight=false;
   function valid(k,v){
     if(k==='font')return !!FONT[v];
     if(k==='accent'){for(var i=0;i<ACC.length;i++)if(ACC[i].k===v)return true;return false}
     if(k==='theme')return v==='auto'||v==='light'||v==='dark';
+    if(k==='paper')return !!PAPER[v];
+    if(k==='tc')return v==='ink'||v==='acc';
+    if(k==='hd')return v==='plain'||v==='tint';
+    if(k==='rd')return v==='off'||v==='on';
     if(DEF[k]==null)return false;
     return v==='s'||v==='m'||v==='l';
   }
@@ -88,13 +112,27 @@ var UI=(function(){
     root.classList.toggle('rh-l',s.rh==='l');
     root.style.setProperty('--uiFS',String(FS[s.fs]));
     root.style.setProperty('--gridline',(dark?GLD:GL)[s.gl]);
-    root.style.setProperty('--blue',dark?a.d:a.l);
-    root.style.setProperty('--accent',dark?a.d:a.l);
+    var av=dark?a.d:a.l;
+    root.style.setProperty('--blue',av);
+    root.style.setProperty('--accent',av);
+    // 紙張與底色：列印時一律回到米白、不加底色（省墨，印出來每個人都一樣）
+    var plain=forceLight,pt=(PAPER[plain?'cream':s.paper]||PAPER.cream)[dark?'d':'l'];
+    root.style.setProperty('--paper',pt.p);root.style.setProperty('--bg',pt.b);
+    root.style.setProperty('--paper2',pt.p2);root.style.setProperty('--paper3',pt.p3);
+    root.style.setProperty('--line',pt.ln);root.style.setProperty('--sumbg',pt.sm);
+    var tint=dark?'#ff7a90':'#e0506e';                       // 紅字日的底色：偏玫瑰的紅，跟各種紙色都搭
+    var hdOn=!plain&&s.hd==='tint',rdOn=!plain&&s.rd==='on';
+    var thbg=hdOn?pt.p2:pt.p;
+    var rdbg=rdOn?mix(tint,pt.p,dark?0.11:0.075):pt.p;
+    root.style.setProperty('--thbg',thbg);
+    root.style.setProperty('--rdbg',rdbg);
+    root.style.setProperty('--rdthbg',rdOn?(hdOn?mix(tint,pt.p,dark?0.2:0.15):rdbg):thbg);
+    root.style.setProperty('--tcol',s.tc==='acc'?av:'var(--ink)');
     var f=FONT[s.font]||FONT.sys;
     if(f.g)loadWebFont(s.font,f.g);
     root.style.setProperty('--uiFont',(f.css?f.css+',':'')+'var(--fontSys)');
     var mt=document.querySelector('meta[name="theme-color"]');
-    if(mt)mt.setAttribute('content',dark?'#171a1f':'#eceae3');
+    if(mt)mt.setAttribute('content',pt.b);
     if(typeof window.fitCells==='function'){window.fitCells();if(window.fitSheetHeight)window.fitSheetHeight()}
     if(typeof window.fitSticky==='function')window.fitSticky();
     try{if(document.fonts&&document.fonts.ready)document.fonts.ready.then(function(){
@@ -117,7 +155,7 @@ var UI=(function(){
     else if(mq&&mq.addListener)mq.addListener(onch);
   }catch(e){}
   return {get:read,set:set,reset:reset,apply:apply,isDark:isDark,accents:ACC,acc:acc,
-    fonts:FONT,
+    fonts:FONT,papers:PAPER,
     fs:function(){return FS[read().fs]},
     row:function(){return RH[read().rh]},
     suspend:function(){forceLight=true;apply()},   // 列印／匯出一律用淺色
@@ -147,6 +185,11 @@ UI.apply();
   --paper3:#fcfaf3;
   --line:#e3ded0;
   --line2:#eeeeee;
+  --sumbg:#f8f6ee;     /* 合計列 */
+  --thbg:var(--paper); /* 表頭底色（外觀設定可改成上色） */
+  --rdbg:var(--paper); /* 紅字日整欄底色（外觀設定可開） */
+  --rdthbg:var(--thbg);
+  --tcol:var(--ink);   /* 班表上的上下班時間 */
   --field:#ffffff;
   --fade:#999999;
   --fade2:#666666;
@@ -286,7 +329,7 @@ body.print-sizing .btn.gold{animation:none}
 .mark-btn{border-color:#0d94a6;color:#0a6f7d;background:#eefafc;font-weight:700}
 .ot-table{width:max-content;min-width:100%;border-collapse:collapse;font-size:12px;margin-top:6px;table-layout:auto}
 .ot-table th,.ot-table td{border:1px solid #ddd;padding:3px 6px;text-align:center;white-space:nowrap}
-.ot-table th{background:#f2efe4;font-weight:700}
+.ot-table th{background:var(--paper2);font-weight:700}
 .ot-table td.d{cursor:pointer;color:var(--blue);font-weight:700}
 .ot-table tr.nat td{background:#fdeef0}
 .ot-table tr.otfull td{background:#fff6db}
@@ -318,7 +361,9 @@ th,td{
   border-right:1px solid var(--gridline);border-bottom:1px solid var(--gridline);
   padding:0;background:var(--paper);
 }
-thead th{position:sticky;z-index:5;background:var(--paper)}
+thead th{position:sticky;z-index:5;background:var(--thbg)}
+thead th.rd{background:var(--rdthbg)}
+td.rd{background-color:var(--rdbg);--cbg:var(--rdbg)} /* 紅字日整欄；劃假、標示等底色優先 */
 thead tr:nth-child(1) th{top:0;height:calc(26px*var(--uiFS));font-size:calc(13px*var(--uiFS));font-weight:700}
 thead tr:nth-child(2) th{top:var(--thH1,calc(26px*var(--uiFS)));height:calc(30px*var(--uiFS));font-size:calc(14px*var(--uiFS));border-bottom-width:2px}
 th.corner{position:sticky;left:0;z-index:8!important;font-size:calc(12px*var(--uiFS));color:var(--blue);font-weight:700;letter-spacing:1px}
@@ -362,10 +407,10 @@ th.corner{border-right-width:2px;min-width:92px;max-width:92px;width:92px}
   transition:background-color 1.8s ease;
 }
 .day-th{min-width:var(--cell);max-width:var(--cell);width:var(--cell)}
-tr.sum-row td.name-cell{background:#f2efe4;vertical-align:middle;height:34px}
+tr.sum-row td.name-cell{background:var(--paper2);vertical-align:middle;height:34px}
 tr.sum-row .sum-label{font-weight:700;font-size:calc(11px*var(--uiFS));line-height:1.3;cursor:pointer}
 .mtot{display:block;font-size:calc(12px*var(--uiFS));color:var(--blue);margin-bottom:1px}
-tr.sum-row .sum-cell{background:#f8f6ee;height:34px!important}
+tr.sum-row .sum-cell{background:var(--sumbg);height:34px!important}
 tr.sum-row .sum-cell::before{content:none}
 tr.sum-row .t-s,tr.sum-row .t-e{font-weight:700;color:#6b5a1e;font-size:10px}
 .day-cell::before{ /* 未排：底線／，任何班別都保留。用實心旋轉短條取代漸層，列印才不會糊邊 */
@@ -383,6 +428,7 @@ tr.sum-row .t-s,tr.sum-row .t-e{font-weight:700;color:#6b5a1e;font-size:10px}
 body.editing .day-cell{cursor:pointer}
 body.editing .day-cell:active{background-color:#fdf3d8}
 .t-s{position:absolute;top:1px;left:3px;font-weight:600}
+.t-s,.t-e{color:var(--tcol)}
 .day-cell.changed-mark{background-color:#e3edfa!important}
 .prev-value{position:absolute;bottom:1px;left:3px;font-size:7px;color:#8a8a8a;text-decoration:line-through;line-height:1;white-space:nowrap}
 .t-s.fs-warn,.t-e.fs-warn{color:#d6336c}
@@ -480,7 +526,7 @@ body.editing thead tr:nth-child(2) th:not(.corner){cursor:pointer}
 .lv-warn.late{border-color:#e0a05a;background:#fff4e6;color:#a85c07}
 /* 班表上的劃假提示（排班用，檢視代碼看不到別人劃了哪天） */
 .viewer-boot .day-cell.lv-all,.viewer-boot .day-cell.lv-only,
-.viewer-boot .day-cell.lv-part,.viewer-boot .day-cell.lv-late{background-color:transparent!important}
+.viewer-boot .day-cell.lv-part,.viewer-boot .day-cell.lv-late{background-color:var(--cbg,transparent)!important}
 .viewer-boot .lv-cell-tag{display:none!important}
 .viewer-boot .day-cell.lv-clash{box-shadow:none!important}
 .day-cell.lv-all {background-color:#dceffa;--lvink:#245f80}
@@ -573,7 +619,7 @@ body.editing thead tr:nth-child(2) th:not(.corner){cursor:pointer}
 .lv-note-new{color:var(--ink)}
 .lv-chg-n{font-size:11px;font-weight:700;color:var(--red)}
 .lv-chg-n.read{color:#aaa;font-weight:600}
-.lv-chg-box{max-height:210px;overflow-y:auto;border:1px solid #e3ded0;border-radius:6px;background:#fcfaf3;padding:4px 6px;margin-bottom:10px}
+.lv-chg-box{max-height:210px;overflow-y:auto;border:1px solid var(--line);border-radius:6px;background:var(--paper3);padding:4px 6px;margin-bottom:10px}
 .lv-chg{padding:5px 2px;border-bottom:1px dotted #e0dccf}
 .lv-chg:last-child{border-bottom:none}
 .lv-chg.new{background:#fffdf2}
@@ -585,7 +631,7 @@ body.editing thead tr:nth-child(2) th:not(.corner){cursor:pointer}
 .lv-caret{color:#aaa;font-size:11px;width:9px;flex-shrink:0;line-height:1.6}
 .lv-csum{font-size:12px;color:#666;line-height:1.6} /* 摘要固定第二行，列高才會一致 */
 .lv-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--red);margin-right:4px;vertical-align:middle}
-.lv-chg-detail{margin:3px 0 2px 14px;padding-left:8px;border-left:2px solid #e3ded0}
+.lv-chg-detail{margin:3px 0 2px 14px;padding-left:8px;border-left:2px solid var(--line)}
 .lv-chg-line{font-size:12px;line-height:1.7;margin-left:2px}
 .lv-sort{display:inline-flex;border:1px solid var(--grid);border-radius:5px;overflow:hidden;margin-left:auto}
 .lv-sbt{border:none;background:var(--paper);color:#666;font-size:11px;font-weight:700;padding:3px 8px;cursor:pointer}
@@ -619,7 +665,7 @@ body.editing thead tr:nth-child(2) th:not(.corner){cursor:pointer}
 .lv-d .lv-tag{font-size:9px;font-weight:700;color:var(--lvink,#555);margin-top:auto}
 .lv-d.late::after{content:'臨';position:absolute;top:1px;right:2px;font-size:8px;color:var(--lvink,#555);font-weight:700}
 .lv-d.locked{opacity:.55;cursor:not-allowed}
-.lv-sum{border:1px solid #e3ded0;border-radius:6px;padding:8px 10px;margin-top:8px;background:#fcfaf3}
+.lv-sum{border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin-top:8px;background:var(--paper3)}
 .lv-sum .who{font-weight:700;color:var(--blue);font-size:14px}
 .lv-line{font-size:13px;margin-top:3px;display:flex;gap:6px;align-items:center}
 .lv-late-tag{font-size:10px;font-weight:700;color:#a85c07;background:#ffe3c2;border:1px solid #e0a05a;border-radius:3px;padding:0 4px;flex-shrink:0}
@@ -756,11 +802,17 @@ html.dark .cal-tag.none{color:#7b7e86;border-color:#3a3e46}
   border-radius:6px;padding:7px 2px;font-size:13px;font-weight:600;cursor:pointer;
 }
 .lk-seg button.on{background:var(--blue);border-color:var(--blue);color:var(--onBlue)}
-.lk-sw{display:flex;gap:9px;flex-wrap:wrap}
+.lk-sw{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
 .lk-sw button{
-  position:relative;width:46px;height:38px;border-radius:9px;
+  position:relative;width:100%;height:38px;border-radius:9px;
   border:2px solid var(--line);cursor:pointer;padding:0;
 }
+/* 紙張色票：上半是紙、下半是背景，字直接寫在紙上 */
+.lk-sw.paper button{height:46px;overflow:hidden;border-color:var(--grid);border-width:1.5px}
+.lk-sw.paper button span{position:absolute;left:0;right:0;top:0;height:64%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--ink)}
+.lk-sw.paper button.on{box-shadow:0 0 0 2px var(--blue)}
+.lk-sw.paper button.on::after{content:none}
+.lk-sw.paper button.on span::after{content:' ✓';color:var(--blue)}
 .lk-sw button.on{border-color:var(--ink)}
 .lk-sw button.on::after{
   content:'✓';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
@@ -776,8 +828,9 @@ html.dark .lk-sw button.on::after{text-shadow:0 1px 2px rgba(255,255,255,.3)}
 .lk-prev th,.lk-prev td{border-right:1px solid var(--gridline);border-bottom:1px solid var(--gridline);background:var(--paper)}
 .lk-prev tr:last-child td{border-bottom:none}
 .lk-prev th:last-child,.lk-prev td:last-child{border-right:none}
-.lk-prev th{height:calc(24px*var(--uiFS));font-size:calc(12px*var(--uiFS));font-weight:700}
-.lk-prev th.r{color:var(--red)}
+.lk-prev th{height:calc(24px*var(--uiFS));font-size:calc(12px*var(--uiFS));font-weight:700;background:var(--thbg)}
+.lk-prev th.r{color:var(--red);background:var(--rdthbg)}
+.lk-prev td.c.r{background:var(--rdbg)}
 .lk-prev td.nm{
   width:70px;padding:2px 5px;border-right-width:2px;vertical-align:middle;
   color:var(--blue);font-weight:700;font-size:calc(14px*var(--uiFS));
@@ -831,6 +884,7 @@ html.dark{
   --paper3:#262930;
   --line:#3a3e46;
   --line2:#33363d;
+  --sumbg:#2b2e35;
   --field:#1d1f25;
   --fade:#9a9ba2;
   --fade2:#b3b4ba;
@@ -883,7 +937,6 @@ html.dark .mark.brown,html.dark .c-brown{color:#d6a273}
 html.dark .mark.sky,html.dark .c-sky,html.dark .typhoon-note{color:#62c1ef}
 /* 表格 */
 html.dark tr.sum-row td.name-cell{background:var(--paper2)}
-html.dark tr.sum-row .sum-cell{background:#2b2e35}
 html.dark tr.sum-row .t-s,html.dark tr.sum-row .t-e{color:#cbb478}
 html.dark body.editing .day-cell:active{background-color:#3b3520}
 html.dark .day-cell.changed-mark{background-color:#1f2c3f!important}
@@ -950,11 +1003,11 @@ html.dark .rp-bye-d{color:#9db8a2}
 body.print-sizing{--printScale:1;width:281mm;--uiFS:1;--uiFont:var(--fontSys)}
 body.print-sizing .notes-sec{break-inside:avoid;page-break-inside:avoid}
 body.print-sizing .cov-warn,body.print-sizing .warn-row{display:none!important}
-body.print-sizing .day-cell.marked,body.print-sizing .day-cell.flash{box-shadow:none!important;outline:none!important;background-color:transparent!important;animation:none!important}
+body.print-sizing .day-cell.marked,body.print-sizing .day-cell.flash{box-shadow:none!important;outline:none!important;background-color:var(--cbg,transparent)!important;animation:none!important}
 body.print-sizing .toolbar,body.print-sizing .legend,body.print-sizing .overlay,body.print-sizing .save-hint,body.print-sizing #btnAddNote{display:none!important}
 body.print-sizing .lv-cell-tag{display:none!important}
 body.print-sizing .day-cell.lv-all,body.print-sizing .day-cell.lv-only,
-body.print-sizing .day-cell.lv-part,body.print-sizing .day-cell.lv-late{background-color:transparent!important}
+body.print-sizing .day-cell.lv-part,body.print-sizing .day-cell.lv-late{background-color:var(--cbg,transparent)!important}
 body.print-sizing .day-cell.lv-clash{box-shadow:none!important}
 body.print-sizing .topbar{position:static;box-shadow:none;border-bottom:2px solid var(--grid);padding:4px 0 6px}
 body.print-sizing .store-name,body.print-sizing .ym-sel,body.print-sizing .sheet-title-input,body.print-sizing .corner-input{border:none;appearance:none;-webkit-appearance:none}
@@ -992,9 +1045,9 @@ body.print-sizing .name-sub{margin-top:0}
     --pencil:#9a9a9a;--blue:#1e4bb8;--red:#c92f2f;--accent:#1e4bb8;
     --paper2:#f2efe4;--paper3:#fcfaf3;--line:#e3ded0;--line2:#eeeeee;
     --field:#ffffff;--fade:#999999;--fade2:#666666;
+    --sumbg:#f8f6ee;--thbg:#fffdf7;--rdbg:#fffdf7;--rdthbg:#fffdf7;--tcol:#2b2b2b;
   }
   html.dark tr.sum-row td.name-cell{background:#f2efe4}
-  html.dark tr.sum-row .sum-cell{background:#f8f6ee}
   html.dark tr.sum-row .t-s,html.dark tr.sum-row .t-e{color:#6b5a1e}
   html.dark .hours-line{color:#8a7a4a}
   html.dark .rest-count{color:#555}
@@ -1749,7 +1802,30 @@ body.print-sizing .name-sub{margin-top:0}
     <div class="lk-row">
       <div class="lk-lab">重點色 <small id="lkAccName"></small></div>
       <div class="lk-sw" id="lkAccent"></div>
-      <div class="lv-hint" style="margin:6px 0 0">僅套用於人名、按鈕等重點文字。假別、劃假與衝突的顏色各具意義，不隨此設定變動。</div>
+      <div class="lv-hint" style="margin:6px 0 0">套用於人名、按鈕等重點文字。假別、劃假與衝突的顏色各具意義，不隨此設定變動。</div>
+    </div>
+    <div class="lk-row">
+      <div class="lk-lab">紙張顏色 <small id="lkPaperName"></small></div>
+      <div class="lk-sw paper" id="lkPaper"></div>
+    </div>
+    <div class="lk-row">
+      <div class="lk-lab">上下班時間的字</div>
+      <div class="lk-seg" data-k="tc">
+        <button data-v="ink">預設</button><button data-v="acc">跟重點色</button>
+      </div>
+    </div>
+    <div class="lk-row">
+      <div class="lk-lab">表頭（日期、星期）</div>
+      <div class="lk-seg" data-k="hd">
+        <button data-v="plain">同紙張</button><button data-v="tint">加底色</button>
+      </div>
+    </div>
+    <div class="lk-row">
+      <div class="lk-lab">紅字日整欄（週末、國定假日）</div>
+      <div class="lk-seg" data-k="rd">
+        <button data-v="off">不上色</button><button data-v="on">淡淡上色</button>
+      </div>
+      <div class="lv-hint" style="margin:6px 0 0">紙張、表頭與紅字日的底色只影響畫面，匯出與列印一律使用米白紙、不加底色。</div>
     </div>
     <div class="lk-row">
       <div class="lk-lab">深色模式</div>
@@ -1947,13 +2023,14 @@ body.print-sizing .name-sub{margin-top:0}
     <div class="sec-label">外觀設定</div>
     <ul class="hul">
       <li>位置：工具列最右邊、「？」左邊的 <b>🎨</b>。</li>
-      <li>可調整字體、字級、格子高度、格線深淺、重點色與深色模式。</li>
+      <li>可調整字體、字級、格子高度、格線深淺、重點色、紙張顏色、上下班時間的字色、表頭底色、紅字日整欄底色與深色模式。</li>
       <li><b>字體</b>　預設為裝置原有字體。另提供思源宋體、昭源圓體、芫荽三種免費商用字體（SIL OFL 1.1），選用時向 Google Fonts 下載字檔，該連線會使 Google 取得本次的連線資訊；未選用時不產生任何對外連線。</li>
       <li>芫荽僅有一個字重，粗體由系統合成，與其他字體略有差異。</li>
       <li>設定<b>僅儲存於本裝置</b>，不影響班表內容，亦不影響其他夥伴的畫面。</li>
-      <li>重點色僅套用於人名、按鈕等重點文字。假別、劃假與衝突的顏色各具意義，不隨此設定變動。</li>
+      <li>重點色套用於人名、按鈕等重點文字；上下班時間可選擇跟著重點色。假別、劃假與衝突的顏色各具意義，不隨此設定變動。</li>
+      <li><b>紅字日整欄</b>　週末與國定假日（表頭紅字的日子）整欄淡淡上色，方便一眼找到假日。格子有劃假、標示等底色時，以那些底色為優先。</li>
       <li>深色模式選擇「跟隨系統」時，依裝置的深色設定自動切換。</li>
-      <li>匯出與列印一律使用淺色與預設字體，不受深色模式與字體設定影響。</li>
+      <li>匯出與列印一律使用淺色、預設字體與米白紙，不加表頭與紅字日底色，不受這些設定影響。</li>
       <li>按「還原預設」恢復初始外觀。</li>
     </ul>
 
@@ -2966,9 +3043,10 @@ function syncYmSel(){ // 年月選單永遠跟著目前畫面上的月份（避�
 function renderAll(){syncYmSel();ensureRoster();fitCells();renderSheet();renderNotes();watchSticky();fitSheetHeight();updateReportBtn()}
 function renderSheet(){
   const md=monthData(),N=daysInMonth();
+  const RD=[];for(let d=1;d<=N;d++)RD[d]=isRed(d)?' rd':''; // 紅字日：外觀設定可讓整欄淡淡上色
   let h='<thead><tr><th class="corner" rowspan="2"><input id="cornerLabel" class="corner-input" value="'+esc(state.corner||'')+'" placeholder="標籤" aria-label="表格左上角標籤"></th>';
   for(let d=1;d<=N;d++){
-    h+='<th class="day-th '+(isNational(d)?'nat':'')+'" data-day="'+d+'"><span class="d-num">'+d+'</span></th>';
+    h+='<th class="day-th '+(isNational(d)?'nat':'')+RD[d]+'" data-day="'+d+'"><span class="d-num">'+d+'</span></th>';
   }
   h+='</tr><tr>';
   const streakMap=streakViolationsMap();
@@ -2984,7 +3062,7 @@ function renderSheet(){
         (stk.length?'<span class="cov-warn yellow" title="'+esc(stk.join('、'))+'">！</span>':'')+
         '</span>';
     }
-    h+='<th class="day-th" data-day="'+d+'"><span class="wd'+(red?' red':'')+'">'+WD[weekday(d)]+'</span>'+
+    h+='<th class="day-th'+RD[d]+'" data-day="'+d+'"><span class="wd'+(red?' red':'')+'">'+WD[weekday(d)]+'</span>'+
        (dispName?'<span class="hname '+(red?'red':'black')+'">'+esc(shortHoliday(dispName).slice(0,4))+'</span>':'')+
        mark+'</th>';
   }
@@ -2995,7 +3073,7 @@ function renderSheet(){
   for(const st of visible){
     if(prevType!==null&&st.type!==prevType){ // 群組之間空一行（如紙本）
       h+='<tr><td class="name-cell"></td>';
-      for(let d=1;d<=N;d++)h+='<td class="day-cell" data-day="'+d+'"></td>';
+      for(let d=1;d<=N;d++)h+='<td class="day-cell'+RD[d]+'" data-day="'+d+'"></td>';
       h+='</tr>';
     }
     prevType=st.type;
@@ -3011,7 +3089,7 @@ function renderSheet(){
        '</span>'+hoursLine+'</td>';
     for(let d=1;d<=N;d++){
       const e=entryOf(st.id,d);
-      let cls='day-cell',inner='';
+      let cls='day-cell'+RD[d],inner='';
       if(!e){
         if(st.type==='full'&&isNational(d))inner='<span class="nat-auto">國</span>';
       }else if(e.t==='shift'){
@@ -4764,13 +4842,15 @@ document.getElementById('btnCloseMore').addEventListener('click',()=>document.ge
 function renderLookPreview(){ // 迷你預覽：字級、格高、格線、重點色四項一次看到
   const box=document.getElementById('lkPrev');
   if(!box)return;
-  box.innerHTML='<table><tr><th>一</th><th>二</th><th class="r">六</th><th class="r">日</th></tr>'+
+  box.innerHTML='<table><tr><th></th><th>五</th><th class="r">六</th><th class="r">日</th></tr>'+
     '<tr><td class="nm">王小明<span class="lk-sub">正職 · 休 8</span></td>'+
     '<td class="c"><span class="t-s">09:00</span><span class="t-e">18:00</span></td>'+
-    '<td class="c"><span class="t-s">13:30</span><span class="t-e">22:00</span></td>'+
-    '<td class="c e"></td></tr></table>';
+    '<td class="c r"><span class="t-s">13:30</span><span class="t-e">22:00</span></td>'+
+    '<td class="c r e"></td></tr></table>';
   const a=UI.acc(),lab=document.getElementById('lkAccName');
   if(lab)lab.textContent='（'+a.n+'）';
+  const pp=UI.papers[UI.get().paper],plab=document.getElementById('lkPaperName');
+  if(plab&&pp)plab.textContent='（'+pp.n+'）';
 }
 window.renderLookPreview=renderLookPreview;
 function syncLookUI(){
@@ -4785,6 +4865,12 @@ function syncLookUI(){
     b.style.background=a?(dark?a.d:a.l):'';
     b.classList.toggle('on',s.accent===b.dataset.v);
   });
+  document.querySelectorAll('#lkPaper button').forEach(b=>{
+    const p=UI.papers[b.dataset.v];if(!p)return;
+    const t=p[dark?'d':'l'];
+    b.style.background='linear-gradient(to bottom,'+t.p+' 0 64%,'+t.b+' 64%)';
+    b.classList.toggle('on',s.paper===b.dataset.v);
+  });
   renderLookPreview();
 }
 (function buildLookUI(){
@@ -4795,6 +4881,13 @@ function syncLookUI(){
     const b=e.target.closest('button');
     if(!b)return;
     UI.set('accent',b.dataset.v);syncLookUI();
+  });
+  const pw=document.getElementById('lkPaper');
+  pw.innerHTML=Object.keys(UI.papers).map(k=>'<button type="button" data-v="'+k+'" aria-label="'+UI.papers[k].n+'"><span>'+UI.papers[k].n+'</span></button>').join('');
+  pw.addEventListener('click',e=>{
+    const b=e.target.closest('button');
+    if(!b)return;
+    UI.set('paper',b.dataset.v);syncLookUI();
   });
   document.querySelectorAll('#ovLook .lk-seg').forEach(seg=>{
     seg.addEventListener('click',e=>{
