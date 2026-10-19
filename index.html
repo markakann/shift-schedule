@@ -560,6 +560,17 @@ body.editing thead tr:nth-child(2) th:not(.corner){cursor:pointer}
   font-size:11px;font-weight:700;line-height:1;vertical-align:middle;
 }
 .lv-chg-head{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+#btnNotice{position:relative}
+#btnNotice .lv-badge{position:absolute;top:-7px;right:-8px;margin:0}
+.nt-head{display:flex;align-items:center;gap:8px;margin:6px 0 6px;font-size:14px}
+.nt-list{border:1px solid var(--line);border-radius:6px;background:var(--paper3);padding:4px 6px;max-height:44vh;overflow-y:auto}
+.nt-notes{display:flex;flex-direction:column;gap:8px}
+.nt-note{border:1px solid var(--line);border-radius:6px;padding:7px 10px;background:var(--paper3)}
+.nt-note .who{font-weight:700;font-size:13px;display:flex;gap:8px;align-items:baseline}
+.nt-nodays{font-size:11px;color:var(--fade);font-weight:400}
+.nt-text{font-size:13px;white-space:pre-wrap;margin-top:3px;line-height:1.6}
+.nt-empty{font-size:13px;color:var(--fade);padding:4px 2px}
+.lv-note-new{color:var(--ink)}
 .lv-chg-n{font-size:11px;font-weight:700;color:var(--red)}
 .lv-chg-n.read{color:#aaa;font-weight:600}
 .lv-chg-box{max-height:210px;overflow-y:auto;border:1px solid #e3ded0;border-radius:6px;background:#fcfaf3;padding:4px 6px;margin-bottom:10px}
@@ -1060,14 +1071,31 @@ body.print-sizing .name-sub{margin-top:0}
   </g></svg>
 </div>
 <script>
-(function(){ // 播完自動進入；點畫面可跳過
-  const sp=document.getElementById('splash');if(!sp)return;
-  if(navigator.webdriver){sp.remove();return}
-  let done=false;
-  const finish=()=>{if(done)return;done=true;sp.classList.add('out');setTimeout(()=>sp.remove(),700)};
+(function(){ // 開啟動畫：播完自動進入，點畫面可跳過；從背景切回 App（離開超過 30 秒）也再播一次
+  const first=document.getElementById('splash');if(!first)return;
+  const TPL=first.outerHTML;
+  if(navigator.webdriver){first.remove();return} // 自動化測試時不播
   const reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
-  setTimeout(finish,reduce?350:2400);
-  sp.addEventListener('click',finish);
+  const AWAY_MS=30000; // 只是切出去看一下訊息就回來，不重播
+  function run(sp){
+    let done=false;
+    const finish=()=>{if(done)return;done=true;sp.classList.add('out');setTimeout(()=>sp.remove(),700)};
+    setTimeout(finish,reduce?350:2400);
+    sp.addEventListener('click',finish);
+  }
+  function replay(){
+    const old=document.getElementById('splash');if(old)old.remove();
+    document.body.insertAdjacentHTML('afterbegin',TPL);
+    run(document.getElementById('splash'));
+  }
+  run(first);
+  let hiddenAt=0;
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden){hiddenAt=Date.now();return}
+    if(hiddenAt&&Date.now()-hiddenAt>=AWAY_MS)replay();
+    hiddenAt=0;
+  });
+  window.addEventListener('pageshow',e=>{if(e.persisted)replay()}); // 從瀏覽器的上一頁快取回來
 })();
 </script>
 
@@ -1085,6 +1113,7 @@ body.print-sizing .name-sub{margin-top:0}
   <button id="btnLeave" class="btn">🏖 劃假</button>
   <button id="btnReportTop" class="btn gold" style="display:none">🏆 戰績</button>
   <button id="btnFilter" class="btn">📅 篩選<span class="wide-only">日期</span></button>
+  <button id="btnNotice" class="btn help-btn" title="劃假通知">🔔</button>
   <button id="btnMore" class="btn">⋯</button>
   <button id="btnLook" class="btn help-btn" title="外觀設定">🎨</button>
   <button id="btnHelp" class="btn help-btn" title="如何使用">？</button>
@@ -1285,6 +1314,19 @@ body.print-sizing .name-sub{margin-top:0}
 </div>
 
 <!-- 劃假 -->
+<!-- 🔔 劃假通知：不用打開劃假，也能看最近異動與夥伴備註 -->
+<div class="overlay" id="ovNotice">
+  <div class="modal">
+    <div class="m-title">🔔 劃假通知</div>
+    <div class="m-sub" id="ntSub"></div>
+    <div id="ntBody"></div>
+    <div class="m-actions">
+      <button class="btn primary" id="btnNoticeLeave">打開劃假總覽</button>
+      <button class="btn" id="btnCloseNotice">關閉</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="ovLeave">
   <div class="modal" style="max-width:460px" id="lvModal">
     <div class="m-title" id="lvTitle">劃假</div>
@@ -1872,7 +1914,9 @@ body.print-sizing .name-sub{margin-top:0}
       <div class="sec-label">劃假　·　異動通知</div>
       <ul class="hul">
         <li>每次送出均留下紀錄，<b>取消劃假同樣記錄</b>。</li>
-        <li>有未讀異動時，工具列的「劃假」顯示<b style="color:var(--red)">紅點</b>。</li>
+        <li>有未讀異動時，工具列的 🔔 顯示<b style="color:var(--red)">紅點</b>。</li>
+        <li>點 🔔 不用打開劃假，就能看到最近異動（未讀的直接展開，改了備註會顯示新內容）與所有夥伴的備註；只寫備註、沒劃日期的夥伴也會列出。</li>
+        <li>🔔 只有店家代碼看得到，檢視代碼不顯示。</li>
         <li>「全員總覽」最上方的<b>最近異動</b>逐筆列出，點選單列可展開細項。</li>
       </ul>
       <div class="hsub">收合狀態下顯示的重點</div>
@@ -1882,7 +1926,7 @@ body.print-sizing .name-sub{margin-top:0}
       </dl>
       <ul class="hul">
         <li>排序可切換「時間」或「姓名」。依先後順序受理候補時，建議使用時間排序。</li>
-        <li>按「標示已讀」後紅點即消失。</li>
+        <li>按「標示已讀」後紅點即消失。已讀狀態每台裝置各自記錄，換一台裝置要再按一次。</li>
       </ul>
     </div>
 
@@ -2322,7 +2366,7 @@ async function connectViewer(code,silent){ // 以檢視代碼連線：唯讀，�
 function applyViewerUI(){ // 檢視模式下隱藏所有可編輯入口；回到編輯模式則還原
   const hide=viewerMode?'none':'';
   document.documentElement.classList.toggle('viewer-boot',viewerMode); // 與首次繪製前的身分判定保持一致
-  ['btnEdit','btnStaff','btnAddNote','btnFilter'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=hide});
+  ['btnEdit','btnStaff','btnAddNote','btnFilter','btnNotice'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=hide});
   document.getElementById('storeName').readOnly=viewerMode;
   document.getElementById('sheetTitle').readOnly=viewerMode;
   if(viewerMode&&editMode){editMode=false;document.body.classList.remove('editing')}
@@ -3238,7 +3282,9 @@ function buildLeaveLog(before,draft,late){ // 回傳要存的 log 陣列（最�
   const d=diffDays(before&&before.days,draft.days);
   const noteChanged=((before&&before.note)||'')!==(draft.note||'');
   if(!d.add.length&&!d.del.length&&!d.chg.length&&!noteChanged)return old;
-  return old.concat([{at:nowMs(),late:late?1:0,add:d.add,del:d.del,chg:d.chg,note:noteChanged?1:0}]).slice(-20);
+  const rec={at:nowMs(),late:late?1:0,add:d.add,del:d.del,chg:d.chg,note:noteChanged?1:0};
+  if(noteChanged)rec.nt=String(draft.note||'').slice(0,300); // 記下改成什麼，通知裡直接看得到
+  return old.concat([rec]).slice(-20);
 }
 function leaveChanges(ym){ // 全員的異動，新到舊
   const out=[];
@@ -3261,18 +3307,21 @@ function unseenLeaveChanges(){
   return leaveChanges(ym).filter(c=>(c.at||0)>seen);
 }
 let lastUnseenCount=null;
-function updateLeaveBadge(){ // 工具列的紅點：有幾筆還沒看過的劃假異動
-  const btn=document.getElementById('btnLeave');
+function updateLeaveBadge(){ // 工具列 🔔 的紅點：有幾筆還沒看過的劃假異動
+  const btn=document.getElementById('btnNotice');
   if(!btn)return;
+  const oldB=document.querySelector('#btnLeave .lv-badge');if(oldB)oldB.remove();
   const n=unseenLeaveChanges().length;
   let b=btn.querySelector('.lv-badge');
   if(n>0){
     if(!b){b=document.createElement('span');b.className='lv-badge';btn.appendChild(b)}
     b.textContent=n>99?'99+':n;
   }else if(b)b.remove();
-  if(lastUnseenCount!==null&&n>lastUnseenCount&&!document.getElementById('ovLeave').classList.contains('show')){
+  const ntOpenNow=document.getElementById('ovNotice').classList.contains('show');
+  if(ntOpenNow)renderNotice();
+  if(lastUnseenCount!==null&&n>lastUnseenCount&&!ntOpenNow&&!document.getElementById('ovLeave').classList.contains('show')){
     const latest=unseenLeaveChanges()[0];
-    if(latest)showToast(latest.name+' 剛剛調整了劃假，可到「劃假」查看',4000);
+    if(latest)showToast(latest.name+' 剛剛調整了劃假，可按 🔔 查看',4000);
   }
   lastUnseenCount=n;
 }
@@ -3304,7 +3353,7 @@ function changeSummary(ym,c){ // 收合時那一列的摘要
   if(c.add.length)parts.push('新增 '+c.add.length+' 天');
   if(c.chg.length)parts.push('修改 '+c.chg.length+' 天');
   if(c.del.length)parts.push('取消 '+c.del.length+' 天');
-  if(!parts.length&&c.note)parts.push('改了補充說明');
+  if(c.note)parts.push('改了補充說明');
   const bad=c.add.concat(c.chg).some(x=>dayClash(c.sid,ym,x.d,x.to));
   const freed=c.del.some(x=>!hasShift(c.sid,ym,x.d));
   return {text:parts.join('・'),bad,freed};
@@ -3326,7 +3375,12 @@ function changeLinesHtml(ym,c){ // 展開後的逐項明細
        '　<span class="lv-was">原本：'+esc(leaveDayText(x.from))+'</span>'+
        (dayClash(c.sid,ym,x.d,x.to)?'<span class="lv-bad">⚠ 與已排的班衝突</span>':'')+'</div>';
   });
-  if(c.note)h+='<div class="lv-chg-line"><span class="lv-op mod">修改</span>補充說明</div>';
+  if(c.note){ // 新紀錄存有改成的內容；舊紀錄只知道有改，就附上目前的內容
+    let tail='';
+    if(c.nt!=null)tail=c.nt?'：<span class="lv-note-new">「'+esc(c.nt)+'」</span>':'：已清空';
+    else{const o=leaveOf(ym,c.sid);if(o&&o.note)tail='<span class="lv-was">（目前內容：「'+esc(o.note)+'」）</span>'}
+    h+='<div class="lv-chg-line"><span class="lv-op mod">修改</span>補充說明'+tail+'</div>';
+  }
   return h;
 }
 function leaveChangeHtml(ym){ // 全員總覽最上面的「最近異動」：一列一筆，點開才看細項
@@ -3368,6 +3422,65 @@ function leaveChangeHtml(ym){ // 全員總覽最上面的「最近異動」：�
   });
   return h+'</div>';
 }
+
+/* ────────── 🔔 劃假通知 ────────── */
+let ntOpenMap={}; // 每筆異動的展開狀態；沒點過時，未讀的預設展開
+function noticeYm(){return leaveTargetYm()||ymOf(state.y,state.m)}
+function renderNotice(){
+  const ym=noticeYm(),p=parseYm(ym),w=leaveWindow(),L=w.L||{};
+  const stTxt={off:'目前沒有開放劃假',before:fmtMd(L.from)+' 開放',open:'開放中，'+fmtMd(L.to)+' 截止',
+    late:fmtMd(L.to)+' 已截止，之後劃的列為候補',closed:fmtMd(L.to)+' 已截止'}[w.state]||'';
+  document.getElementById('ntSub').textContent=p.m+' 月的劃假'+(stTxt?'　·　'+stTxt:'');
+  const seen=leaveSeenAt(),list=leaveChanges(ym);
+  const unseen=list.filter(c=>(c.at||0)>seen).length;
+  let h='<div class="nt-head"><b>最近異動</b>'+
+    (unseen?'<span class="lv-chg-n">'+unseen+' 筆未讀</span><button class="btn" id="btnNoticeSeen" style="padding:2px 9px;font-size:12px">標示已讀</button>'
+           :'<span class="lv-chg-n read">'+(list.length?'已全部看過':'還沒有異動')+'</span>')+'</div>';
+  if(list.length){
+    h+='<div class="nt-list">';
+    list.slice(0,30).forEach(c=>{
+      const isNew=(c.at||0)>seen,k=logKey(c),open=(k in ntOpenMap)?ntOpenMap[k]:isNew;
+      const sm=changeSummary(ym,c);
+      h+='<div class="lv-chg'+(isNew?' new':'')+(open?' open':'')+'">'+
+         '<div class="lv-chg-top" data-ntlog="'+esc(k)+'">'+
+           '<span class="lv-caret">'+(open?'▾':'▸')+'</span>'+
+           '<div class="lv-chg-main">'+
+             '<div class="lv-chg-r1"><b>'+(isNew?'<span class="lv-dot"></span>':'')+esc(c.name)+'</b>'+
+               '<span class="lv-chg-t">'+fmtLogTime(c.at)+'</span>'+(c.late?'<span class="lv-late-tag">臨時</span>':'')+'</div>'+
+             '<div class="lv-csum">'+esc(sm.text)+(sm.bad?'<span class="lv-bad">⚠ 有衝突</span>':'')+(sm.freed?'<span class="lv-free">有釋出</span>':'')+'</div>'+
+           '</div>'+
+         '</div>'+
+         (open?'<div class="lv-chg-detail">'+changeLinesHtml(ym,c)+'</div>':'')+
+       '</div>';
+    });
+    h+='</div>';
+  }
+  const notes=monthStaff().map(st=>({st,o:leaveOf(ym,st.id)})).filter(x=>x.o&&String(x.o.note||'').trim());
+  h+='<div class="nt-head" style="margin-top:16px"><b>夥伴備註</b><span class="lv-chg-n read">'+(notes.length?notes.length+' 位':'')+'</span></div>';
+  h+=notes.length
+    ?'<div class="nt-notes">'+notes.map(({st,o})=>'<div class="nt-note"><div class="who">'+esc(st.name)+
+       (Object.keys(o.days||{}).length?'':'<span class="nt-nodays">沒有劃日期</span>')+'</div>'+
+       '<div class="nt-text">'+esc(o.note)+'</div></div>').join('')+'</div>'
+    :'<div class="nt-empty">'+p.m+' 月還沒有人寫備註。</div>';
+  document.getElementById('ntBody').innerHTML=h;
+}
+function openNotice(){
+  if(needServerClock())syncServerClock();
+  renderNotice();
+  document.getElementById('ovNotice').classList.add('show');
+}
+document.getElementById('btnNotice').addEventListener('click',openNotice);
+document.getElementById('btnCloseNotice').addEventListener('click',()=>document.getElementById('ovNotice').classList.remove('show'));
+document.getElementById('btnNoticeLeave').addEventListener('click',()=>{document.getElementById('ovNotice').classList.remove('show');openLeave()});
+document.getElementById('ntBody').addEventListener('click',ev=>{
+  if(ev.target.closest('#btnNoticeSeen')){markLeaveSeen();renderNotice();return}
+  const lg=ev.target.closest('[data-ntlog]');
+  if(lg){
+    const k=lg.dataset.ntlog,el=lg.closest('.lv-chg');
+    ntOpenMap[k]=!(el&&el.classList.contains('open'));
+    renderNotice();
+  }
+});
 
 /* ────────── 劃假：視窗 ────────── */
 let lvTab='mine';            // mine=自己劃　all=全員總覽
@@ -3497,7 +3610,7 @@ function lvOneHtml(ym,sid,readonly){ // 單一個人的目前劃假（唯讀顯�
 }
 function lvAllHtml(ym){ // 全員總覽，臨時劃的另外標
   const roster=monthStaff();
-  const rows=roster.map(st=>({st,o:leaveOf(ym,st.id)})).filter(x=>x.o&&Object.keys(x.o.days).length);
+  const rows=roster.map(st=>({st,o:leaveOf(ym,st.id)})).filter(x=>x.o&&(Object.keys(x.o.days||{}).length||String(x.o.note||'').trim()));
   const p=parseYm(ym);
   let h=leaveChangeHtml(ym);
   const lateAll=rows.filter(x=>Object.keys(x.o.days).some(d=>x.o.days[d].late));
@@ -3508,6 +3621,7 @@ function lvAllHtml(ym){ // 全員總覽，臨時劃的另外標
   rows.forEach(({st,o})=>{
     const lines=summarizeLeave(ym,o);
     h+='<div class="lv-sum"><div class="who">'+esc(st.name)+'</div>'+
+      (lines.length?'':'<div class="lv-line"><span class="c-fade">沒有劃日期</span></div>')+
       lines.map(l=>'<div class="lv-line">'+(l.late?'<span class="lv-late-tag">臨時·候補</span>':'')+'<span>'+esc(l.text)+'</span></div>').join('')+
       (o.note?'<div class="lv-note-line">補充：'+esc(o.note)+'</div>':'')+
       '<button class="btn" data-lvedit="'+st.id+'" style="padding:3px 10px;font-size:12px;margin-top:6px">代為修改</button>'+
@@ -5817,7 +5931,7 @@ window.addEventListener('pageshow',syncYmSel);
 document.getElementById('storeName').addEventListener('input',scheduleSave);
 document.getElementById('sheetTitle').addEventListener('input',scheduleSave);
 /* 點空白處：純選單／說明類視窗＝按它的「關閉」鈕（走同一套流程）；其他有輸入或設定的視窗一律不關，避免誤觸放棄修改 */
-const BACKDROP_CLOSE={ovMore:'btnCloseMore',ovHelp:'btnCloseHelp',ovHidden:'btnCloseHidden',ovStaffList:'btnCloseStaffList',
+const BACKDROP_CLOSE={ovNotice:'btnCloseNotice',ovMore:'btnCloseMore',ovHelp:'btnCloseHelp',ovHidden:'btnCloseHidden',ovStaffList:'btnCloseStaffList',
   ovOT:'btnCloseOT',ovTotal:'btnCloseTotal',ovCoverage:'btnCloseCoverage',ovReport:'btnCloseReport',
   ovExportChoice:'btnCloseExportChoice',ovCopyChoice:'btnCloseCopyChoice',ovLook:'btnCloseLook'};
 document.querySelectorAll('.overlay').forEach(ov=>ov.addEventListener('click',ev=>{
