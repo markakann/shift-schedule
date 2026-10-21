@@ -637,6 +637,9 @@ body.editing thead tr:nth-child(2) th:not(.corner){cursor:pointer}
 .lv-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--red);margin-right:4px;vertical-align:middle}
 .lv-chg-detail{margin:3px 0 2px 14px;padding-left:8px;border-left:2px solid var(--line)}
 .lv-chg-line{font-size:12px;line-height:1.7;margin-left:2px}
+.lv-to-nt{display:flex;align-items:center;gap:6px;width:100%;margin:0 0 10px;padding:8px 10px;cursor:pointer;
+  border:1px solid var(--line);border-radius:6px;background:var(--paper3);color:var(--ink);font-size:13px;font-weight:700;text-align:left}
+.lv-to-nt span{margin-left:auto;color:var(--blue);font-size:12px}
 .lv-sort{display:inline-flex;border:1px solid var(--grid);border-radius:5px;overflow:hidden;margin-left:auto}
 .lv-sbt{border:none;background:var(--paper);color:#666;font-size:11px;font-weight:700;padding:3px 8px;cursor:pointer}
 .lv-sbt.on{background:var(--blue);color:var(--onBlue)}
@@ -1998,7 +2001,8 @@ body.print-sizing .name-sub{margin-top:0}
         <li>有未讀異動時，工具列的 🔔 顯示<b style="color:var(--red)">紅點</b>。</li>
         <li>點 🔔 不用打開劃假，就能看到最近異動（未讀的直接展開，改了備註會顯示新內容）與所有夥伴的備註；只寫備註、沒劃日期的夥伴也會列出。</li>
         <li>🔔 只有店家代碼看得到，檢視代碼不顯示。</li>
-        <li>「全員總覽」最上方的<b>最近異動</b>逐筆列出，點選單列可展開細項。</li>
+        <li><b>最近異動</b>統一在 🔔 查看，逐筆列出，點一下可展開細項；可依「時間」或「姓名」排序，依時間排時最下面那筆最早送出，候補可依此先到先受理。</li>
+        <li>「劃假 → 全員總覽」只列目前的劃假；有未讀異動時，最上方會出現一行提示，點了直接打開 🔔。</li>
       </ul>
       <div class="hsub">收合狀態下顯示的重點</div>
       <dl class="hdl">
@@ -3428,8 +3432,7 @@ function fmtLogTime(ms){
   const t=new Date(ms||0);
   return (t.getMonth()+1)+'/'+t.getDate()+' '+String(t.getHours()).padStart(2,'0')+':'+String(t.getMinutes()).padStart(2,'0');
 }
-let lvLogSort='time';        // time=依時間（先送先處理）／name=依姓名
-let lvLogOpen={};            // 展開了哪幾筆
+let lvLogSort='time';        // 🔔 最近異動的排序：time=依時間（先送先處理）／name=依姓名
 function logKey(c){return c.sid+':'+(c.at||0)}
 function changeSummary(ym,c){ // 收合時那一列的摘要
   const parts=[];
@@ -3466,46 +3469,6 @@ function changeLinesHtml(ym,c){ // 展開後的逐項明細
   }
   return h;
 }
-function leaveChangeHtml(ym){ // 全員總覽最上面的「最近異動」：一列一筆，點開才看細項
-  let list=leaveChanges(ym);
-  if(!list.length)return '';
-  const seen=leaveSeenAt();
-  const unseen=list.filter(c=>(c.at||0)>seen).length;
-  if(lvLogSort==='name')list=list.slice().sort((a,b)=>a.name.localeCompare(b.name,'zh-Hant')||(b.at||0)-(a.at||0));
-  let h='<div class="lv-chg-head"><b>最近異動</b>'+
-    (unseen?'<span class="lv-chg-n">'+unseen+' 筆未讀</span>':'<span class="lv-chg-n read">已全部看過</span>')+
-    '<span class="lv-sort">'+
-      '<button class="lv-sbt'+(lvLogSort==='time'?' on':'')+'" data-lvsort="time">時間</button>'+
-      '<button class="lv-sbt'+(lvLogSort==='name'?' on':'')+'" data-lvsort="name">姓名</button>'+
-    '</span>'+
-    (unseen?'<button class="btn" id="btnLeaveSeen" style="padding:2px 9px;font-size:12px">標示已讀</button>':'')+
-    '</div>'+
-    (lvLogSort==='time'?'<div class="small-note" style="margin:-2px 0 4px">由新到舊。候補先到先受理的話，看最下面那筆最早。</div>':'')+
-    '<div class="lv-chg-box">';
-  list.slice(0,30).forEach(c=>{
-    const isNew=(c.at||0)>seen, k=logKey(c), open=!!lvLogOpen[k];
-    const sm=changeSummary(ym,c);
-    h+='<div class="lv-chg'+(isNew?' new':'')+(open?' open':'')+'">'+
-       '<div class="lv-chg-top" data-lvlog="'+esc(k)+'">'+
-         '<span class="lv-caret">'+(open?'▾':'▸')+'</span>'+
-         '<div class="lv-chg-main">'+
-           '<div class="lv-chg-r1">'+
-             '<b>'+(isNew?'<span class="lv-dot"></span>':'')+esc(c.name)+'</b>'+
-             '<span class="lv-chg-t">'+fmtLogTime(c.at)+'</span>'+
-             (c.late?'<span class="lv-late-tag">臨時</span>':'')+
-           '</div>'+
-           '<div class="lv-csum">'+esc(sm.text)+
-             (sm.bad?'<span class="lv-bad">⚠ 有衝突</span>':'')+
-             (sm.freed?'<span class="lv-free">有釋出</span>':'')+
-           '</div>'+
-         '</div>'+
-       '</div>'+
-       (open?'<div class="lv-chg-detail">'+changeLinesHtml(ym,c)+'</div>':'')+
-     '</div>';
-  });
-  return h+'</div>';
-}
-
 /* ────────── 🔔 劃假通知 ────────── */
 let ntOpenMap={}; // 每筆異動的展開狀態；沒點過時，未讀的預設展開
 function noticeYm(){return leaveTargetYm()||ymOf(state.y,state.m)}
@@ -3514,12 +3477,19 @@ function renderNotice(){
   const stTxt={off:'目前沒有開放劃假',before:fmtMd(L.from)+' 開放',open:'開放中，'+fmtMd(L.to)+' 截止',
     late:fmtMd(L.to)+' 已截止，之後劃的列為候補',closed:fmtMd(L.to)+' 已截止'}[w.state]||'';
   document.getElementById('ntSub').textContent=p.m+' 月的劃假'+(stTxt?'　·　'+stTxt:'');
-  const seen=leaveSeenAt(),list=leaveChanges(ym);
+  const seen=leaveSeenAt();
+  let list=leaveChanges(ym);
   const unseen=list.filter(c=>(c.at||0)>seen).length;
+  if(lvLogSort==='name')list=list.slice().sort((a,b)=>a.name.localeCompare(b.name,'zh-Hant')||(b.at||0)-(a.at||0));
   let h='<div class="nt-head"><b>最近異動</b>'+
     (unseen?'<span class="lv-chg-n">'+unseen+' 筆未讀</span><button class="btn" id="btnNoticeSeen" style="padding:2px 9px;font-size:12px">標示已讀</button>'
-           :'<span class="lv-chg-n read">'+(list.length?'已全部看過':'還沒有異動')+'</span>')+'</div>';
+           :'<span class="lv-chg-n read">'+(list.length?'已全部看過':'還沒有異動')+'</span>')+
+    (list.length>1?'<span class="lv-sort">'+
+      '<button class="lv-sbt'+(lvLogSort==='time'?' on':'')+'" data-ntsort="time">時間</button>'+
+      '<button class="lv-sbt'+(lvLogSort==='name'?' on':'')+'" data-ntsort="name">姓名</button></span>':'')+
+    '</div>';
   if(list.length){
+    if(lvLogSort==='time'&&list.length>1)h+='<div class="small-note" style="margin:-2px 0 5px">由新到舊。候補先到先受理的話，看最下面那筆最早。</div>';
     h+='<div class="nt-list">';
     list.slice(0,30).forEach(c=>{
       const isNew=(c.at||0)>seen,k=logKey(c),open=(k in ntOpenMap)?ntOpenMap[k]:isNew;
@@ -3557,6 +3527,8 @@ document.getElementById('btnCloseNotice').addEventListener('click',()=>document.
 document.getElementById('btnNoticeLeave').addEventListener('click',()=>{document.getElementById('ovNotice').classList.remove('show');openLeave()});
 document.getElementById('ntBody').addEventListener('click',ev=>{
   if(ev.target.closest('#btnNoticeSeen')){markLeaveSeen();renderNotice();return}
+  const sb=ev.target.closest('[data-ntsort]');
+  if(sb){lvLogSort=sb.dataset.ntsort;renderNotice();return}
   const lg=ev.target.closest('[data-ntlog]');
   if(lg){
     const k=lg.dataset.ntlog,el=lg.closest('.lv-chg');
@@ -3695,7 +3667,9 @@ function lvAllHtml(ym){ // 全員總覽，臨時劃的另外標
   const roster=monthStaff();
   const rows=roster.map(st=>({st,o:leaveOf(ym,st.id)})).filter(x=>x.o&&(Object.keys(x.o.days||{}).length||String(x.o.note||'').trim()));
   const p=parseYm(ym);
-  let h=leaveChangeHtml(ym);
+  let h='';
+  const unseen=leaveChanges(ym).filter(c=>(c.at||0)>leaveSeenAt()).length; // 異動統一在 🔔 看，這裡只提醒一行
+  if(unseen)h+='<button type="button" class="lv-to-nt" id="btnLvToNotice">🔔 有 '+unseen+' 筆未讀異動<span>查看 ›</span></button>';
   const lateAll=rows.filter(x=>Object.keys(x.o.days).some(d=>x.o.days[d].late));
   if(lateAll.length)h+='<div class="small-note" class="c-orange" style="font-weight:700;margin-bottom:6px">⚑ 有 '+lateAll.length+
      ' 位夥伴在截止後才劃假，下方標「臨時」的日期請當候補處理。</div>';
@@ -3843,11 +3817,9 @@ document.getElementById('lvBody').addEventListener('click',ev=>{
   const wd=ev.target.closest('[data-lvwd]');
   if(wd){wd.classList.toggle('on');return}
   if(ev.target.closest('#btnLvApplyWd')){applyBrushToWeekdays();return}
-  if(ev.target.closest('#btnLeaveSeen')){markLeaveSeen();renderLeaveBody();return}
-  const sb=ev.target.closest('[data-lvsort]');
-  if(sb){lvLogSort=sb.dataset.lvsort;renderLeaveBody();return}
-  const lg=ev.target.closest('[data-lvlog]');
-  if(lg){const k=lg.dataset.lvlog;lvLogOpen[k]=!lvLogOpen[k];renderLeaveBody();return}
+  if(ev.target.closest('#btnLvToNotice')){
+    if(lvUnsent()&&!confirm('劃假還沒送出，離開會放棄這次的修改。確定要離開嗎？'))return;
+    document.getElementById('ovLeave').classList.remove('show');openNotice();return}
   const ed=ev.target.closest('[data-lvedit]');
   if(ed){
     if(ed.dataset.lvedit!==lvWho&&lvUnsent()&&!confirm('目前的劃假還沒送出，切換姓名會放棄這次的修改。確定要切換嗎？'))return;
