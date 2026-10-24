@@ -1132,6 +1132,11 @@ body.print-sizing .name-sub{margin-top:0}
 </div>
 <script>
 (function(){ // 開啟動畫：播完自動進入，點畫面可跳過；從背景切回 App（離開超過 30 秒）也再播一次
+  // 每次「打開」都從最上面開始：下拉重整時瀏覽器預設會回到上次捲到的位置，這裡關掉
+  try{if('scrollRestoration' in history)history.scrollRestoration='manual'}catch(e){}
+  function toTop(){ // 整頁與表格框的上下捲動都回到頂部（左右位置不動）
+    try{window.scrollTo(0,0);const w=document.querySelector('.sheet-wrap');if(w)w.scrollTop=0}catch(e){}
+  }
   const first=document.getElementById('splash');if(!first)return;
   const TPL=first.outerHTML;
   if(navigator.webdriver){first.remove();return} // 自動化測試時不播
@@ -1147,6 +1152,7 @@ body.print-sizing .name-sub{margin-top:0}
     const old=document.getElementById('splash');if(old)old.remove();
     document.body.insertAdjacentHTML('afterbegin',TPL);
     run(document.getElementById('splash'));
+    toTop(); // 動畫蓋著的時候順便捲回頂部，動畫結束就是從頭看的班表
   }
   run(first);
   let hiddenAt=0;
