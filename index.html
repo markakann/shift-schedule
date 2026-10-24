@@ -1221,19 +1221,19 @@ body.print-sizing .name-sub{margin-top:0}
     </div>
     <div class="sec-label" id="cmPresetLabel">班別（點選即排入）</div>
     <div class="chips" id="cmPresets"></div>
-    <div class="sec-label">自訂時間（可直接輸入，如 900、1330、1500、2400；或用±微調半小時）</div>
+    <div class="sec-label">自訂時間（可直接輸入，如 900、1315、1330、2400；或用±微調 15 分鐘）</div>
     <div class="stepper-row">
       <span style="font-size:13px;color:#888">上班</span>
       <div class="stepper">
-        <button data-t="s" data-d="-30">−</button>
+        <button data-t="s" data-d="-15">−</button>
         <input class="tval-input" id="tvS" inputmode="numeric" pattern="[0-9]*" maxlength="4" value="1330">
-        <button data-t="s" data-d="30">＋</button>
+        <button data-t="s" data-d="15">＋</button>
       </div>
       <span style="font-size:13px;color:#888">下班</span>
       <div class="stepper">
-        <button data-t="e" data-d="-30">−</button>
+        <button data-t="e" data-d="-15">−</button>
         <input class="tval-input" id="tvE" inputmode="numeric" pattern="[0-9]*" maxlength="4" value="2200">
-        <button data-t="e" data-d="30">＋</button>
+        <button data-t="e" data-d="15">＋</button>
       </div>
     </div>
     <div id="alRow" style="display:none">
@@ -1244,15 +1244,15 @@ body.print-sizing .name-sub{margin-top:0}
     <div class="stepper-row al-fields off" id="alFields">
       <span style="font-size:13px;color:#888">從</span>
       <div class="stepper">
-        <button data-t="as" data-d="-30">−</button>
+        <button data-t="as" data-d="-15">−</button>
         <input class="tval-input" id="alS" inputmode="numeric" pattern="[0-9]*" maxlength="4" disabled>
-        <button data-t="as" data-d="30">＋</button>
+        <button data-t="as" data-d="15">＋</button>
       </div>
       <span style="font-size:13px;color:#888">到</span>
       <div class="stepper">
-        <button data-t="ae" data-d="-30">−</button>
+        <button data-t="ae" data-d="-15">−</button>
         <input class="tval-input" id="alE" inputmode="numeric" pattern="[0-9]*" maxlength="4" disabled>
-        <button data-t="ae" data-d="30">＋</button>
+        <button data-t="ae" data-d="15">＋</button>
       </div>
     </div>
     <div class="al-note" id="alNote"></div>
@@ -1909,7 +1909,8 @@ body.print-sizing .name-sub{margin-top:0}
       <div class="sec-label">排班</div>
       <ul class="hul">
         <li>按「🔒 排班」解鎖後方可編輯，再按一次即鎖定。</li>
-        <li>自訂時間僅接受整點或半點（例如 900、1330）。</li>
+        <li>自訂時間以 15 分鐘為單位，分鐘可為 00、15、30、45（例如 900、1315、1345）；±按鈕每次調整 15 分鐘。</li>
+        <li>班表上以小時的小數顯示：13:15 寫成 13.25、13:30 寫成 13.5、13:45 寫成 13.75。</li>
         <li>休息時間依班段長度自動選：4 小時以內未休；超過 4 小時休 0.5 小時；扣掉 0.5 休息後仍超過 8 小時（班段超過 8.5 小時）休 1 小時。</li>
         <li>可逐班改成未休／0.5 小時／1 小時。休 1 小時，或與自動選的不同時，於格子右邊中間標示「休○」；只請其中一段假的格子，標在中間假別時數的後面（例如「公2 休1」）。</li>
         <li><b>特休、公差、事假、颱風假、職災</b>　同一套流程：先點假別（反白），再選班別或自訂時間，最後按「套用」。再點一次假別可取消。</li>
@@ -2734,7 +2735,8 @@ function partHours(sid){ // 本月計薪時數（已扣休息）：上班＋職�
   }
   return h;
 }
-function fmtH(h){h=(typeof h==='number'&&isFinite(h))?h:0;return (h%1===0)?String(h):h.toFixed(1)}
+const TSTEP=15; // 排班時間的最小間距（分鐘）：± 按鈕、直接輸入、劃假時間選單都用這個
+function fmtH(h){h=(typeof h==='number'&&isFinite(h))?h:0;return String(Math.round(h*100)/100)} // 7.75 照實顯示，不再變成 7.8
 function monthTotalHours(){ // 全店本月實際工時：每個人每一班扣掉休息後的時數，全部加總
   const per=monthStaff().map(st=>({st,h:partHours(st.id)}));
   const by={full:0,part:0,sup:0};
@@ -2816,7 +2818,7 @@ function overtimeStats(sid){ // 本月加班時數統計：國定假日出勤／
 }
 
 /* ────────── 工具 ────────── */
-function fmtDec(min){const h=min/60;return (h%1===0)?String(h):h.toFixed(1)}
+function fmtDec(min){return String(Math.round(min/60*100)/100)} // 13:15 → 13.25、13:45 → 13.75
 function entryShortLabel(e){ // 把任意班段/假別壓縮成一個簡短字串，供顯示「改動前」用
   if(!e)return '';
   if(e.t==='shift'){const r=fullRange(e),lt=leaveTypeOf(e);return fmtDec(r.s)+'-'+fmtDec(r.e)+(lt?LEAVE_MARK[lt][0]:'')}
@@ -3626,7 +3628,7 @@ function lvMonthNote(ym){ // 行事曆上方提示：正職看月休額度，計
 }
 function timeOptions(sel){ // 自己做選單，不用 type="time"：平板上的原生選擇器沒有確定鈕，而且會跟著系統變成 12 小時制
   let h='';
-  for(let v=0;v<=1440;v+=30)h+='<option value="'+v+'"'+(v===sel?' selected':'')+'>'+fmtHHMM(v)+'</option>';
+  for(let v=0;v<=1440;v+=TSTEP)h+='<option value="'+v+'"'+(v===sel?' selected':'')+'>'+fmtHHMM(v)+'</option>';
   return h;
 }
 function lvBtn(m,label){
@@ -3983,7 +3985,7 @@ function syncAl(){
 function commitAlInput(which){ // 特定時段「從／到」的直接輸入
   const el=document.getElementById(which==='s'?'alS':'alE');
   const v=parseTimeDigits(el.value);
-  if(v===null){alert('時間格式不正確，請輸入整點或半點，例如 1800、1930。');syncAl();return false}
+  if(v===null){alert('時間格式不正確，分鐘只能是 00、15、30、45，例如 1800、1845。');syncAl();return false}
   if(which==='s'){
     if(v<cur.s||v>=cur.ae){alert('開始時間需在班段 '+fmtHM(cur.s)+'～'+fmtHM(cur.e)+' 之內，且早於結束時間 '+fmtHM(cur.ae)+'。');syncAl();return false}
     cur.as=v;
@@ -4026,7 +4028,7 @@ function parseTimeDigits(str){ // 解析使用者輸入，回傳分鐘數；格�
   else return null;
   if(isNaN(h)||isNaN(m)||h<0||h>24)return null;
   if(h===24&&m!==0)return null;      // 24:xx 只有 24:00 有意義
-  if(m!==0&&m!==30)return null;      // 只允許整點或半點
+  if(m>=60||m%TSTEP!==0)return null; // 只允許 00／15／30／45 分
   return h*60+m;
 }
 function syncTv(){
@@ -4038,7 +4040,7 @@ function commitTimeInput(which){ // which: 's' 或 'e'；驗證通過回傳true�
   const el=document.getElementById(which==='s'?'tvS':'tvE');
   const parsed=parseTimeDigits(el.value);
   if(parsed===null){
-    alert('時間格式不正確，請輸入整點或半點，例如 900、1330、1500、2400。');
+    alert('時間格式不正確，分鐘只能是 00、15、30、45，例如 900、1315、1330、2400。');
     syncTv();return false;
   }
   const os=cur.s,oe=cur.e;
@@ -4142,11 +4144,11 @@ document.getElementById('ovCell').addEventListener('click',ev=>{
   const stp=ev.target.closest('.stepper button');
   if(stp){
     const d=+stp.dataset.d,t=stp.dataset.t;
-    if(t==='as'){cur.as=Math.min(Math.max(cur.as+d,cur.s),cur.ae-30);syncAl();return}
-    if(t==='ae'){cur.ae=Math.min(Math.max(cur.ae+d,cur.as+30),cur.e);syncAl();return}
+    if(t==='as'){cur.as=Math.min(Math.max(cur.as+d,cur.s),cur.ae-TSTEP);syncAl();return}
+    if(t==='ae'){cur.ae=Math.min(Math.max(cur.ae+d,cur.as+TSTEP),cur.e);syncAl();return}
     const os=cur.s,oe=cur.e;
-    if(t==='s')cur.s=Math.min(Math.max(cur.s+d,0),cur.e-30);
-    else cur.e=Math.min(Math.max(cur.e+d,cur.s+30),1440);
+    if(t==='s')cur.s=Math.min(Math.max(cur.s+d,0),cur.e-TSTEP);
+    else cur.e=Math.min(Math.max(cur.e+d,cur.s+TSTEP),1440);
     refitAl(os,oe);
     syncTv();return;
   }
