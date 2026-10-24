@@ -1134,7 +1134,7 @@ body.print-sizing .name-sub{margin-top:0}
 (function(){ // 開啟動畫：播完自動進入，點畫面可跳過；從背景切回 App（離開超過 30 秒）也再播一次
   // 每次「打開」都從最上面開始：下拉重整時瀏覽器預設會回到上次捲到的位置，這裡關掉
   try{if('scrollRestoration' in history)history.scrollRestoration='manual'}catch(e){}
-  function toTop(){ // 整頁與表格框的上下捲動都回到頂部（左右位置不動）
+  function toTop(){ // 整頁與表格框的上下捲動都回到頂部（左右由主程式捲到今天）
     try{window.scrollTo(0,0);const w=document.querySelector('.sheet-wrap');if(w)w.scrollTop=0}catch(e){}
   }
   const first=document.getElementById('splash');if(!first)return;
@@ -1153,6 +1153,7 @@ body.print-sizing .name-sub{margin-top:0}
     document.body.insertAdjacentHTML('afterbegin',TPL);
     run(document.getElementById('splash'));
     toTop(); // 動畫蓋著的時候順便捲回頂部，動畫結束就是從頭看的班表
+    if(window.markOpened)window.markOpened(); // 左右捲到今天
   }
   run(first);
   let hiddenAt=0;
@@ -1909,6 +1910,13 @@ body.print-sizing .name-sub{margin-top:0}
       <dt class="c-amber">黃色</dt><dd>出勤天數超標，含跨月。正職：連續出勤超過 6 天。計時／支援：任 7 天內休息不到 2 天。加班統計採用同一套判定。</dd>
     </dl>
     <ul class="hul"><li>點選驚嘆號可查看該日的詳細原因。</li></ul>
+
+    <div class="hr"></div>
+    <div class="sec-label">打開 App</div>
+    <ul class="hul">
+      <li>每次打開都會播開啟動畫，包含下拉重整，以及離開超過 30 秒後再切回來；點一下畫面可跳過。</li>
+      <li>打開時表格一律從最上面開始。看的是本月時，左右會自動捲到今天，今天排在名字右邊第一格；其他月份從 1 號開始。</li>
+    </ul>
 
     <div class="edit-only">
       <div class="hr"></div>
@@ -3057,7 +3065,29 @@ function syncYmSel(){ // 年月選單永遠跟著目前畫面上的月份（避�
   if(sy&&String(sy.value)!==String(state.y))sy.value=state.y;
   if(sm&&String(sm.value)!==String(state.m))sm.value=state.m;
 }
-function renderAll(){syncYmSel();ensureRoster();fitCells();renderSheet();renderNotes();watchSticky();fitSheetHeight();updateReportBtn()}
+function renderAll(){syncYmSel();ensureRoster();fitCells();renderSheet();renderNotes();watchSticky();fitSheetHeight();updateReportBtn();
+  if(Date.now()<todayScrollUntil)scrollSheetToToday()}
+/* 打開 App 時左右自動捲到「今天」：看的是本月就把今天排在名字欄右邊第一格，其他月份從 1 號開始。
+   剛打開的幾秒內資料還在陸續載入、會重畫好幾次，這段時間每次重畫都對齊一次；一碰到表格就停，不跟使用者搶。 */
+let todayScrollUntil=Date.now()+4000;
+function scrollSheetToToday(){
+  const wrap=document.querySelector('.sheet-wrap');if(!wrap)return;
+  const now=new Date();let left=0;
+  if(state.y===now.getFullYear()&&state.m===now.getMonth()+1){
+    const th=document.querySelector('#sheet thead tr:nth-child(1) th[data-day="'+now.getDate()+'"]');
+    const corner=document.querySelector('#sheet th.corner');
+    if(th&&corner&&th.offsetWidth){
+      const wr=wrap.getBoundingClientRect(),tr=th.getBoundingClientRect();
+      left=wrap.scrollLeft+(tr.left-wr.left-wrap.clientLeft)-corner.getBoundingClientRect().width;
+    }
+  }
+  wrap.scrollLeft=Math.max(0,Math.round(left));
+}
+function markOpened(){todayScrollUntil=Date.now()+4000;scrollSheetToToday()} // 從背景切回、重播開啟動畫時也算「打開」
+window.markOpened=markOpened;
+(function(){const w=document.querySelector('.sheet-wrap');if(!w)return;
+  const stop=()=>{todayScrollUntil=0};
+  ['pointerdown','touchstart','wheel'].forEach(ev=>w.addEventListener(ev,stop,{passive:true}));})();
 function renderSheet(){
   const md=monthData(),N=daysInMonth();
   const RD=[];for(let d=1;d<=N;d++)RD[d]=isRed(d)?' rd':''; // 紅字日：外觀設定可讓整欄淡淡上色
