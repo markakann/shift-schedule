@@ -512,6 +512,7 @@ body.editing thead tr:nth-child(2) th:not(.corner){cursor:pointer}
   display:none;align-items:flex-end;justify-content:center;
 }
 .overlay.show{display:flex}
+#ovResign{z-index:95} /* 從人員視窗裡打開的，要疊在它上面 */
 .modal{
   background:var(--paper);width:100%;max-width:560px;
   border-radius:14px 14px 0 0;padding:16px 16px calc(26px + env(safe-area-inset-bottom,0px));
@@ -1315,6 +1316,21 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
   </div>
 </div>
 
+<!-- 離職：可填最後上班日（之後自動畫紅線），不填就從這個月起直接離職 -->
+<div class="overlay" id="ovResign">
+  <div class="modal">
+    <div class="m-title" id="rsTitle">離職</div>
+    <div class="sec-label">最後上班日（選填）</div>
+    <input class="txt" type="date" id="rsDate">
+    <div class="small-note" id="rsHint" style="margin-top:6px;line-height:1.7"></div>
+    <div class="m-actions" style="flex-direction:column">
+      <button class="btn primary" id="btnRsOk">確定</button>
+      <button class="btn" id="btnRsCancelPlan" style="display:none">取消預定離職</button>
+      <button class="btn" id="btnRsClose">返回</button>
+    </div>
+  </div>
+</div>
+
 <!-- 人員彈窗 -->
 <div class="overlay" id="ovStaff">
   <div class="modal">
@@ -1970,7 +1986,8 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
       <div class="hr"></div>
       <div class="sec-label">人員</div>
       <ul class="hul">
-        <li><b>離職</b>　自操作當下所在的月份起生效。該月之前的班表與姓名均不受影響。</li>
+        <li><b>離職</b>　點名字 →「離職」。可先填<b>最後上班日</b>：那天之後自動畫紅線（紅線同樣優先算成月休），下個月起不再出現在班表，該月戰績附上道別卡；日期可隨時修改或取消。自動畫的紅線不能直接清除，要改請回到「離職」修改日期。</li>
+        <li>不填日期則自操作當下所在的月份起直接離職，該月之前的班表與姓名均不受影響。</li>
         <li>離職後移出該月名單，可於「⋯」選單的「已隱藏人員」查看離職月份、復原或完全刪除。</li>
         <li><b>刪除</b>　清除所有紀錄，僅適用於輸入錯誤的情況。</li>
         <li>開關用於決定該員本月是否列入排班。</li>
@@ -2074,7 +2091,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
       <li>期間內首次開啟班表時，另跳出視窗詢問一次；同一個月只詢問一次。</li>
       <li>內容全部由既有的班表與劃假紀錄計算，不另外收集任何資料。</li>
       <li>每個稱號下方以小字說明該項統計的內容。</li>
-      <li>下月班表已建立且名單中無某位夥伴時，末尾附上該員的道別卡。</li>
+      <li>夥伴離職的那個月，戰績末尾附上該員的道別卡：在「離職」填了最後上班日的，就是那天所在的月份；沒填日期、在下個月直接按「離職」的，就是前一個月。只是下個月沒排（人員清單的開關關掉，例如請長假、支援結束）不算離職，不會出現道別卡。</li>
     </ul>
 
     <div class="hr"></div>
@@ -2548,9 +2565,9 @@ function monthData(){
   if(md.roster===undefined)md.roster=state.staff.map(s=>s.id); // 舊版資料相容：預設全員
   return md;
 }
-function monthStaff(){ // 本月名單（人員本體永久保留在 state.staff，僅名單決定顯示）
+function monthStaff(){ // 本月名單（人員本體永久保留在 state.staff，僅名單決定顯示）；已離職的月份自動不列
   const r=monthData().roster||[];
-  return state.staff.filter(s=>r.includes(s.id));
+  return state.staff.filter(s=>r.includes(s.id)&&!staffGoneIn(s,state.y,state.m));
 }
 function ensureRoster(){ // 首次開啟某月時，詢問是否帶入最近月份的名單
   const md=monthData();
@@ -2563,7 +2580,7 @@ function ensureRoster(){ // 首次開啟某月時，詢問是否帶入最近月�
   }
   if(src){
     if(confirm('本月尚無人員名單，是否帶入 '+label+' 的人員？\n（不帶入亦可稍後手動加入，過去月份的班表均完整保留）')){
-      md.roster=src.filter(id=>state.staff.some(s=>s.id===id));
+      md.roster=src.filter(id=>state.staff.some(s=>s.id===id)); // 已離職的照樣帶入名單，畫面上自動不顯示；取消預定離職就會回來
     }else md.roster=[];
   }else{
     md.roster=state.staff.map(s=>s.id);
@@ -2623,7 +2640,16 @@ function quota(){ // 月休額度＝紅字天數，扣掉「落在平日」的�
   }
   return n;
 }
-function entryOf(sid,d){const s=monthData().sched[sid];return s?s[d]:undefined}
+function dayKey(y,m,d){return y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0')}
+function staffGoneIn(st,y,m){ // 這個月已經不在職：預定離職日的下個月起，或按了「離職」的那個月起
+  return !!(st&&st.leftYm&&(y*12+m)>=ymNum(st.leftYm));
+}
+const AUTO_RED=Object.freeze({t:'redline',auto:1});
+function autoRedline(sid,d){ // 預定離職：最後上班日之後自動是紅線（照樣優先算成月休）；有排東西的格子以排的為準
+  const st=state.staff.find(x=>x.id===sid);
+  return !!(st&&st.leaveDate&&dayKey(state.y,state.m,d)>st.leaveDate);
+}
+function entryOf(sid,d){const s=monthData().sched[sid];const e=s?s[d]:undefined;if(e!==undefined)return e;return autoRedline(sid,d)?AUTO_RED:undefined}
 /* 每日班次覆蓋規則：開店、午班、下午班、晚班收店人力 */
 function coverageIssues(d){ // 回傳該日缺少的覆蓋項目；排班模式中或該日尚未排完所有人（不含支援）時回傳null(不檢查)
   if(editMode)return null; // 排班鈕還開著（正在排班）先不檢查，鎖定後才檢查
@@ -4091,7 +4117,7 @@ function openCell(sid,day){
         :fmtHM(e.s)+'～'+fmtHM(e.e)+'（休 '+brkH+'h，計 '+fmtH(shiftHours(e))+'h）';
     }
     else if(TIMED_LEAVES.includes(e.t))curText=LEAVE_SHORT[e.t]+(hasTime?'（'+fmtHM(e.s)+'～'+fmtHM(e.e)+'，計 '+fmtH(leaveRawHours(e))+'h）':'（整天，計 8h）');
-    else curText=LEAVE_LABEL[e.t];
+    else curText=e.auto?'紅線（預定 '+fmtMd(st.leaveDate)+' 離職，之後自動畫上）':LEAVE_LABEL[e.t];
   }
   document.getElementById('cmSub').innerHTML=state.m+'/'+day+'（'+WD[weekday(day)]+'）'+
     (hn?' <span class="red">'+esc(hn)+'</span>':'')+
@@ -4381,6 +4407,11 @@ function applyRedline(){ // 從此格畫一段連續紅線（到職前／離職�
 }
 function clearCell(){ // 清除此格；若為紅線，可選擇清除整段
   const e=entryOf(cur.sid,cur.day);
+  if(e&&e.auto){
+    const st=state.staff.find(x=>x.id===cur.sid);
+    alert('這是預定離職自動畫的紅線（'+fmtMd(st.leaveDate)+' 之後）。\n要改日期或取消，請到「＋ 人員」點 '+st.name+' →「離職」。');
+    return;
+  }
   if(e&&e.t==='redline'){
     const md=monthData(),N=daysInMonth();
     let a=cur.day,b=cur.day;
@@ -4446,13 +4477,14 @@ function openStaff(id){
   const show=st?'':'none';
   document.getElementById('btnDelStaff').style.display=show;
   document.getElementById('btnRemoveMonth').style.display=show;
+  document.getElementById('btnRemoveMonth').textContent=st&&st.leaveDate?'離職（'+fmtMd(st.leaveDate)+'）':'離職';
   document.getElementById('btnMoveUp').style.display=show;
   document.getElementById('btnMoveDown').style.display=show;
   // 新增模式：列出不在本月名單中的過往人員
   const wrap=document.getElementById('smArchivedWrap');
   if(!st){
     const roster=monthData().roster||[];
-    const archived=state.staff.filter(s=>!roster.includes(s.id)&&!s.hidden);
+    const archived=state.staff.filter(s=>!roster.includes(s.id)&&!s.hidden&&!staffGoneIn(s,state.y,state.m));
     if(archived.length){
       document.getElementById('smArchived').innerHTML=archived.map(s=>
         '<button class="chip" data-readd="'+s.id+'">'+esc(s.name)+'（'+TYPE_LABEL[s.type]+'）</button>').join('');
@@ -4474,7 +4506,7 @@ document.getElementById('btnStaff').addEventListener('click',()=>{
 });
 function renderStaffList(){
   const box=document.getElementById('staffListBody');
-  const visible=state.staff.filter(s=>!s.hidden);
+  const visible=state.staff.filter(s=>!s.hidden&&!staffGoneIn(s,state.y,state.m));
   if(!visible.length){box.innerHTML='<div class="small-note">還沒有任何人員，按下方「新增人員」開始。</div>';return}
   const roster=monthData().roster||[];
   let html='',prevType=null;
@@ -4483,7 +4515,7 @@ function renderStaffList(){
     prevType=st.type;
     const inMonth=roster.includes(st.id);
     html+='<div class="staff-row" data-sid="'+st.id+'">'+
-      '<span class="name-txt">'+esc(staffName(st))+'</span>'+
+      '<span class="name-txt">'+esc(staffName(st))+(st.leaveDate?'<small class="c-fade" style="font-weight:400"> · '+fmtMd(st.leaveDate)+' 離職</small>':'')+'</span>'+
       '<span class="badge '+st.type+'">'+TYPE_LABEL[st.type][0]+'</span>'+
       '<label class="mtoggle" title="是否列入本月班表" onclick="event.stopPropagation()">'+
         '<input type="checkbox" data-inmonth="'+st.id+'" '+(inMonth?'checked':'')+'><span class="mtoggle-track"></span>'+
@@ -4520,11 +4552,12 @@ document.getElementById('btnHiddenStaff').addEventListener('click',()=>{
 document.getElementById('btnCloseHidden').addEventListener('click',()=>document.getElementById('ovHidden').classList.remove('show'));
 function renderHiddenList(){
   const box=document.getElementById('hiddenListBody');
-  const hidden=state.staff.filter(s=>s.hidden);
+  const hidden=state.staff.filter(s=>s.hidden||(s.leaveDate&&todayStr()>s.leaveDate));
   if(!hidden.length){box.innerHTML='<div class="small-note">目前沒有已隱藏（離職）的人員。</div>';return}
   box.innerHTML=hidden.map(st=>
     '<div class="hidden-row" data-sid="'+st.id+'">'+
-    '<span class="name-txt">'+esc(st.name)+(st.leftYm?'<small class="c-fade" style="font-weight:400"> · '+esc(st.leftYm.replace("-","/"))+' 起</small>':'')+'</span>'+
+    '<span class="name-txt">'+esc(st.name)+(st.leaveDate?'<small class="c-fade" style="font-weight:400"> · '+esc(st.leaveDate.replace(/-/g,'/'))+' 離職</small>'
+      :st.leftYm?'<small class="c-fade" style="font-weight:400"> · '+esc(st.leftYm.replace("-","/"))+' 起</small>':'')+'</span>'+
     '<span class="badge '+st.type+'">'+TYPE_LABEL[st.type][0]+'</span>'+
     '<button class="btn" data-restore="'+st.id+'">回歸</button>'+
     '<button class="btn danger" data-purge="'+st.id+'">刪除</button>'+
@@ -4537,7 +4570,7 @@ document.getElementById('hiddenListBody').addEventListener('click',ev=>{
     if(!st)return;
     if(!confirm('將 '+st.name+' 復原至人員清單？\n離職註記將取消，並加回本月名單。'))return;
     st.hidden=false;
-    delete st.leftYm;
+    delete st.leftYm;delete st.leaveDate;
     st.name=st.name.replace(/（離\d*）$/,''); // 舊資料是直接寫進姓名的，一併清掉
     const md=monthData();
     if(!md.roster.includes(st.id))md.roster.push(st.id);
@@ -4899,19 +4932,64 @@ document.getElementById('btnSaveStaff').addEventListener('click',()=>{
   scheduleSave();renderSheet();
   document.getElementById('ovStaff').classList.remove('show');
 });
+function syncResignHint(){
+  const v=document.getElementById('rsDate').value,m=state.m;
+  let t;
+  if(v){
+    const p=v.split('-').map(Number),nm=p[1]===12?1:p[1]+1;
+    t='<b>'+fmtMd(v)+'</b> 是最後上班日：之後的日子<b>自動畫紅線</b>（照樣優先算成月休），'+nm+' 月起不再出現在班表；'+p[1]+' 月的戰績會附上道別卡。<br>'+
+      fmtMd(v)+' 之前照常排班，日期之後也可以再改或取消。';
+  }else{
+    t='沒填日期：從目前看的這個月（'+m+' 月）起<b>直接離職</b>，移出 '+m+' 月名單、姓名加註「（離）」；'+m+' 月之前的班表不受影響。';
+  }
+  document.getElementById('rsHint').innerHTML=t;
+}
+document.getElementById('rsDate').addEventListener('input',syncResignHint);
+document.getElementById('rsDate').addEventListener('change',syncResignHint);
 document.getElementById('btnRemoveMonth').addEventListener('click',()=>{
-  const st=state.staff.find(s=>s.id===curStaffId);
+  const st=state.staff.find(s=>s.id===curStaffId);if(!st)return;
+  document.getElementById('rsTitle').textContent='離職：'+st.name;
+  document.getElementById('rsDate').value=st.leaveDate||'';
+  document.getElementById('btnRsCancelPlan').style.display=st.leaveDate?'':'none';
+  syncResignHint();
+  document.getElementById('ovResign').classList.add('show');
+});
+document.getElementById('btnRsClose').addEventListener('click',()=>document.getElementById('ovResign').classList.remove('show'));
+document.getElementById('btnRsCancelPlan').addEventListener('click',()=>{
+  const st=state.staff.find(s=>s.id===curStaffId);if(!st)return;
+  delete st.leaveDate;delete st.leftYm;
+  scheduleSave();renderSheet();
+  document.getElementById('ovResign').classList.remove('show');
+  document.getElementById('ovStaff').classList.remove('show');
+  showToast('已取消 '+st.name+' 的預定離職',2600);
+});
+document.getElementById('btnRsOk').addEventListener('click',()=>{
+  const st=state.staff.find(s=>s.id===curStaffId);if(!st)return;
+  const v=document.getElementById('rsDate').value;
+  if(v){ // 預定離職：記最後上班日；下個月起算離職（姓名註記、道別卡都照這個月份）
+    const p=v.split('-').map(Number);let ny=p[0],nm=p[1]+1;if(nm>12){nm=1;ny++}
+    st.leaveDate=v;st.leftYm=ny+'-'+nm;st.hidden=false;
+    scheduleSave();renderSheet();
+    document.getElementById('ovResign').classList.remove('show');
+    document.getElementById('ovStaff').classList.remove('show');
+    showToast(st.name+' 預定 '+fmtMd(v)+' 離職，之後自動畫紅線 ✓',3000);
+    return;
+  }
+  if(resignNow(st)){document.getElementById('ovResign').classList.remove('show');document.getElementById('ovStaff').classList.remove('show')}
+});
+function resignNow(st){ // 沒填日期：從目前這個月起直接離職（原本的做法）
   if(!confirm('將 '+st.name+' 從 '+state.y+' 年 '+state.m+' 月起設為離職？\n\n'+
       '· '+state.m+' 月之前的班表與姓名均不受影響\n'+
       '· 自 '+state.m+' 月起，姓名加註「（離）」\n'+
-      '· 同時移出本月名單，日後可於「⋯」選單的「已隱藏人員」復原'))return;
+      '· 同時移出本月名單，日後可於「⋯」選單的「已隱藏人員」復原'))return false;
   const md=monthData();
-  md.roster=md.roster.filter(id=>id!==curStaffId);
+  md.roster=md.roster.filter(id=>id!==st.id);
   st.leftYm=ym();   // 只記「從哪個月起離職」，姓名保持原樣，過去月份才不會被追溯標記
+  delete st.leaveDate;
   st.hidden=true;
   scheduleSave();renderSheet();
-  document.getElementById('ovStaff').classList.remove('show');
-});
+  return true;
+}
 document.getElementById('btnDelStaff').addEventListener('click',()=>{
   const st=state.staff.find(s=>s.id===curStaffId);
   if(!confirm('刪除 '+st.name+'？\n所有月份的排班紀錄將一併刪除，無法復原。\n若為離職，請改用「離職」以保留歷史班表。'))return;
@@ -5174,9 +5252,9 @@ function tourSteps(role){
     {el:()=>tourShown($('#btnEdit')),h:'開始排班',b:'按這裡<b>解鎖</b>，點格子選班別、自訂時間或請假；排完再按一次<b>鎖定</b>。<br>鎖定後才會檢查人力，紅色「！」也是這時才出現。'},
     {el:()=>tourShown($('#btnStaff')),h:'＋ 人員',b:'<b>新增</b>：按「＋ 新增人員」，填姓名、選正職／計時／支援；回鍋的舊夥伴可以從「過往人員」加回來，以前的班都還在。<br>'+
       '<b>這個月不排</b>（請長假、留停）：在人員清單把他右邊的開關關掉，只影響這個月。<br>'+
-      '<b>離職</b>：點名字 →「離職」，從這個月起移出，以前的班表不變；之後可在 ⋯ 的「已隱藏人員」復原。<br>'+
+      '<b>離職</b>：點名字 →「離職」，可以先填<b>最後上班日</b>，那天之後自動畫紅線、下個月起自動移出；不填就從這個月起直接移出。之後可在 ⋯ 的「已隱藏人員」復原。<br>'+
       '<b>打錯要刪</b>：點名字 →「刪除」，<b>所有月份的班會一起刪掉</b>，離職請不要用刪除。<br>'+
-      '月中才到職或離職的，在排班格子選「紅線」標出不在職的日子。'},
+      '月中才到職的，在排班格子選「紅線」標出還沒到職的日子；離職填了最後上班日就會自動畫。'},
     {el:()=>tourShown($('#btnLeave')),h:'劃假管理',b:'看大家劃了哪些日子，也可以<b>代為修改</b>。<br>下方的「⚙ 開放設定」可以設定劃哪個月、截止日，以及截止後的候補。<br>'+
       '想看夥伴是怎麼劃的？按「？」裡的<b>「🏖 劃假教學」</b>，用練習畫面跟著做一次；開放設定也有<b>「⚙ 開放劃假教學」</b>。'},
     {el:()=>tourShown($('#btnNotice')),h:'劃假通知',b:'有人劃假或改假時，🔔 會出現<b style="color:var(--red)">紅點</b>；點開可以看最近異動和每位夥伴的備註。'},
@@ -5186,6 +5264,9 @@ function tourSteps(role){
       '<b>後台設定</b>：班段、人力規則、劃假、行事曆（要登入）。<br><b>已隱藏人員</b>：找回之前隱藏的人。<br>'+
       '<b>加入現有代碼</b>、<b>建立新店家</b>：換店，或開一份新的班表。'},
     {el:()=>tourShown(tourOtBtn()),h:'加班時數',b:'點名字旁的 <b>⋯</b>，看這個人這個月的<b>加班時數</b>：國定假日有上班、月休沒休滿、單天超過 8 小時、上班天數超標，都會算進來。<br>下面會列出是哪幾天，點日期就會跳到班表那一格。'},
+    {opt:1,el:()=>tourShown($('#btnReportTop')),h:'🏆 每月戰績',b:t=>(t?'<b>現在剛好看得到！</b>':'')+
+      '每個月<b>倒數第二天到下個月 3 號</b>，工具列會出現金色的<b>「🏆 ○月戰績」</b>按鈕，主管和夥伴都看得到，平常不會出現。<br>'+
+      '內容全部由班表和劃假紀錄算出來：開店王、收班王、最佳拍檔、最忙的一天……夥伴在那個月離職的話，最後還會附上道別卡。'},
     {el:()=>tourShown($('#btnHelp')),h:'看不懂就按這裡',b:'符號、顏色和各種規則都寫在這裡。<br>最上方還有這些教學可以隨時看：<b>重看新手教學</b>、<b>預覽夥伴版</b>、<b>🏖 劃假教學</b>、<b>📝 排班教學</b>、<b>⚙ 開放劃假教學</b>。<br>新手教學到這裡結束，按「開始使用」就可以開始了 🎉'}
   ];
   return [
@@ -5203,6 +5284,9 @@ function tourSteps(role){
     {el:()=>tourShown($('#btnLeave')),h:'劃假',b:'開放期間點這裡，標出不能上班的日子，最後按「送出」。<br>不知道怎麼劃？按「？」裡的<b>「🏖 劃假教學」</b>，用練習畫面跟著做一次，劃的不會送出。'},
     {el:()=>tourShown($('#btnMore')),h:'更多 ⋯',b:'<b>匯出或備份</b>：把班表存成 PDF 或印出來。<br><b>複製代碼</b>：複製夥伴代碼，傳給新來的同事。<br><b>加入現有代碼</b>：換成別的代碼，例如去支援別家店。'},
     {el:()=>tourShown($('#btnLook')),h:'調整外觀',b:'字的大小、顏色、深色模式都可以調，只會改你自己的手機。'},
+    {opt:1,el:()=>tourShown($('#btnReportTop')),h:'🏆 每月戰績',b:t=>(t?'<b>現在剛好看得到！</b>':'')+
+      '每個月<b>倒數第二天到下個月 3 號</b>，工具列會出現金色的<b>「🏆 ○月戰績」</b>按鈕，平常不會出現。<br>'+
+      '點開可以看這個月的小統計：誰最常開店、誰最常收班、哪兩個人最常同班、哪天店裡最擠……那幾天第一次打開 App 也會問你要不要看。'},
     {el:()=>tourShown($('#btnHelp')),h:'看不懂就按這裡',b:'每個符號和顏色是什麼意思都寫在這裡。<br>最上方還有<b>「▶ 重看新手教學」</b>和<b>「🏖 劃假教學」</b>，劃假教學用練習畫面跟著做，劃的不會送出。<br>新手教學到這裡結束，按「開始使用」就可以開始了 🎉'}
   ];
 }
@@ -5224,7 +5308,7 @@ function startTour(role){
   if(tourRole==='sched'){tourHoldSave=true;tourSnapCells=new Map()}
   tourList=tourSteps(tourRole);
   // 主畫面的教學：這支手機上看不到的項目先拿掉。劃假教學的目標要等操作後才出現（例如選了名字才有日曆），走到那一步再判斷
-  if(tourRole==='view'||tourRole==='edit')tourList=tourList.filter(st=>!st.el||tourTarget(st));
+  if(tourRole==='view'||tourRole==='edit')tourList=tourList.filter(st=>!st.el||st.opt||tourTarget(st));
   if(!tourList.length)return;
   const root=document.createElement('div');
   root.id='tour';root.className='tour';root.setAttribute('role','dialog');root.setAttribute('aria-modal','true');root.setAttribute('aria-label','新手教學');
@@ -5256,7 +5340,7 @@ function tourGo(i,dir){
   const root=document.getElementById('tour');if(!root)return;
   const was=tourList[tourIdx];
   if(was&&was.leave&&was._in){was._in=false;was.leave()} // 離開這一步：把示範換回來
-  while(i>=0&&i<tourList.length&&tourList[i].el&&!tourList[i].enter&&!tourTarget(tourList[i]))i+=dir||1; // 目標還沒出現就往同方向跳過
+  while(i>=0&&i<tourList.length&&tourList[i].el&&!tourList[i].enter&&!tourList[i].opt&&!tourTarget(tourList[i]))i+=dir||1; // 目標還沒出現就往同方向跳過
   if(i<0){i=tourIdx}
   if(i>=tourList.length){endTour();return}
   tourIdx=i;
@@ -5315,7 +5399,7 @@ function tourRefresh(){
      (tourRole==='lcfg'&&!document.getElementById('ovLeaveCfg').classList.contains('show')))){tourEnding();return} // 視窗關掉了：接結尾卡
   if(tourRole==='sched'&&!editMode&&!st.fin){tourEnding();return} // 按了鎖定：接結尾卡
   if(st.need&&st.auto&&!st._was&&st.need()){st._was=true;setTimeout(()=>tourGo(tourIdx+1,1),350);return} // 做到了，自動下一步
-  if(st.el&&!tourTarget(st)){tourGo(tourIdx+1,1);return}
+  if(st.el&&!st.opt&&!tourTarget(st)){tourGo(tourIdx+1,1);return}
   tourText();tourPlace();
 }
 function tourPlace(){
@@ -6800,13 +6884,11 @@ function battleReport(ym){
       roster.forEach(st=>{const e=entryOf(st.id,d);if(e&&(e.t==='shift'||e.t==='injury'))head++});
       dayStat.push({d,total:(sp.morning+sp.evening)/60,head});
     }
-    // 下個月的班表已經建立、但名單裡沒有這個人 → 視為離開（本月要有實際出勤才算，避免誤判）
+    // 只有在「人員」按了「離職」、而且是從下個月起離職的人，才附上道別卡（本月要有實際出勤）。
+    // 只是下個月沒排（人員清單的開關關掉，例如請長假、支援結束）不算離職。
     function departedList(per){
-      let ny=state.y,nmo=state.m+1;
-      if(nmo>12){nmo=1;ny++}
-      const next=state.months[ny+'-'+nmo];
-      if(!next||!Array.isArray(next.roster))return [];
-      return per.filter(x=>x.days>0&&next.roster.indexOf(x.st.id)<0)
+      const cur=state.y*12+state.m;
+      return per.filter(x=>x.days>0&&x.st.leftYm&&ymNum(x.st.leftYm)===cur+1)
                 .map(x=>{const t=tenure(x.st,ym);return {st:x.st,months:t.n,exactMonths:t.exact}});
     }
     const worked=dayStat.filter(x=>x.head>0);
