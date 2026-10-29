@@ -528,7 +528,7 @@ body.editing thead tr:nth-child(2) th:not(.corner){cursor:pointer}
   margin:0 0 10px;border:1.5px solid #c9a3e0;background:#f6effb;color:#6b3a8a;
 }
 .lv-warn.late{border-color:#e0a05a;background:#fff4e6;color:#a85c07}
-/* 班表上的劃假提示（排班用，檢視代碼看不到別人劃了哪天） */
+/* 班表上的劃假提示（排班用，夥伴代碼看不到別人劃了哪天） */
 .viewer-boot .day-cell.lv-all,.viewer-boot .day-cell.lv-only,
 .viewer-boot .day-cell.lv-part,.viewer-boot .day-cell.lv-late{background-color:var(--cbg,transparent)!important}
 .viewer-boot .lv-cell-tag{display:none!important}
@@ -663,7 +663,7 @@ body.editing thead tr:nth-child(2) th:not(.corner){cursor:pointer}
 }
 .lv-d.pad{border:none;background:transparent;cursor:default}
 .lv-d.red-day{color:var(--red)}
-/* 劃假配色：整天=藍、只能上這段=綠、之前／之後=粉；店家代碼看臨時劃假一律橘
+/* 劃假配色：整天=藍、只能上這段=綠、之前／之後=粉；主管代碼看臨時劃假一律橘
    底色壓到跟其他假別同一個亮度，靠同色系的深色字去分辨，才不會蓋掉紙本的味道 */
 .lv-d.m-all {background:#dceffa;border-color:#8fc0d8;--lvink:#245f80}
 .lv-d.m-only{background:#dcf3da;border-color:#8cc487;--lvink:#2b6b30}
@@ -1099,6 +1099,32 @@ body.print-sizing .name-sub{margin-top:0}
   .splash .sp-in{animation:none}
 }
 @media print{.splash{display:none!important}}
+/* ── 新手教學（聚光燈）：畫面變暗，挖一個洞圈出要介紹的地方 ── */
+.tour{position:fixed;inset:0;z-index:9000;pointer-events:none;-webkit-tap-highlight-color:transparent}
+.tour-shield,.tour-blk{position:fixed;pointer-events:auto;touch-action:none}
+.tour-shield{inset:0}
+.tour-blk{display:none}
+.tour.act .tour-shield{display:none}   /* 跟著做的步驟：只擋洞的外面，洞裡可以直接點 */
+.tour.act .tour-blk{display:block}
+.tour-hole{position:fixed;left:50%;top:50%;width:0;height:0;border-radius:10px;pointer-events:none;
+  box-shadow:0 0 0 200vmax rgba(0,0,0,.62);outline:2px solid rgba(255,255,255,.9);
+  transition:left .32s ease,top .32s ease,width .32s ease,height .32s ease}
+.tour-hole.none{outline-color:transparent}
+.tour-tip{position:fixed;left:12px;top:40%;pointer-events:auto;width:min(340px,calc(100vw - 24px));box-sizing:border-box;
+  background:var(--paper);color:var(--ink);border-radius:14px;padding:14px 16px 12px;
+  box-shadow:0 10px 30px rgba(0,0,0,.4);transition:left .32s ease,top .32s ease}
+.tour-tip .tt-n{font-size:12px;color:var(--fade);font-weight:700;letter-spacing:1px;min-height:1em}
+.tour-tip .tt-h{font-size:calc(17px*var(--uiFS));font-weight:700;margin:2px 0 6px}
+.tour-tip .tt-b{font-size:calc(14px*var(--uiFS));line-height:1.7}
+.tour-tip .tt-b b:not([class]){color:var(--blue)} /* 有指定顏色（紅、黃）的照原色 */
+.tour-tip .tt-act{display:flex;gap:8px;align-items:center;margin-top:12px}
+.tour-tip .btn:disabled{opacity:.4;cursor:default}
+.tour-tip .tt-b .lgc{margin-left:2px}
+.tour-tip .tt-skip{border:none;background:none;color:var(--fade);font-size:13px;padding:6px 2px;margin-right:auto;cursor:pointer;font-family:inherit}
+html.dark .tour-hole{box-shadow:0 0 0 200vmax rgba(0,0,0,.74)}
+html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
+@media (prefers-reduced-motion:reduce){.tour-hole,.tour-tip{transition:none}}
+@media print{.tour{display:none!important}}
 </style>
 </head>
 <body>
@@ -1137,38 +1163,16 @@ body.print-sizing .name-sub{margin-top:0}
   </g></svg>
 </div>
 <script>
-(function(){ // 開啟動畫：播完自動進入，點畫面可跳過；從背景切回 App（離開超過 30 秒）也再播一次
-  // 每次「打開」都從最上面開始：下拉重整時瀏覽器預設會回到上次捲到的位置，這裡關掉
+(function(){ // 開啟動畫：只在 App 真正啟動、或下拉重整時播一次；從背景切回來不重播，畫面維持原樣。播完自動進入，點畫面可跳過
+  // 打開時從最上面開始：下拉重整時瀏覽器預設會回到上次捲到的位置，這裡關掉（左右由主程式捲到今天）
   try{if('scrollRestoration' in history)history.scrollRestoration='manual'}catch(e){}
-  function toTop(){ // 整頁與表格框的上下捲動都回到頂部（左右由主程式捲到今天）
-    try{window.scrollTo(0,0);const w=document.querySelector('.sheet-wrap');if(w)w.scrollTop=0}catch(e){}
-  }
-  const first=document.getElementById('splash');if(!first)return;
-  const TPL=first.outerHTML;
-  if(navigator.webdriver){first.remove();return} // 自動化測試時不播
+  const sp=document.getElementById('splash');if(!sp)return;
+  if(navigator.webdriver){sp.remove();return} // 自動化測試時不播
   const reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const AWAY_MS=30000; // 只是切出去看一下訊息就回來，不重播
-  function run(sp){
-    let done=false;
-    const finish=()=>{if(done)return;done=true;sp.classList.add('out');setTimeout(()=>sp.remove(),700)};
-    setTimeout(finish,reduce?350:2400);
-    sp.addEventListener('click',finish);
-  }
-  function replay(){
-    const old=document.getElementById('splash');if(old)old.remove();
-    document.body.insertAdjacentHTML('afterbegin',TPL);
-    run(document.getElementById('splash'));
-    toTop(); // 動畫蓋著的時候順便捲回頂部，動畫結束就是從頭看的班表
-    if(window.markOpened)window.markOpened(); // 左右捲到今天
-  }
-  run(first);
-  let hiddenAt=0;
-  document.addEventListener('visibilitychange',()=>{
-    if(document.hidden){hiddenAt=Date.now();return}
-    if(hiddenAt&&Date.now()-hiddenAt>=AWAY_MS)replay();
-    hiddenAt=0;
-  });
-  window.addEventListener('pageshow',e=>{if(e.persisted)replay()}); // 從瀏覽器的上一頁快取回來
+  let done=false;
+  const finish=()=>{if(done)return;done=true;sp.classList.add('out');setTimeout(()=>sp.remove(),700)};
+  setTimeout(finish,reduce?350:2400);
+  sp.addEventListener('click',finish);
 })();
 </script>
 
@@ -1417,7 +1421,7 @@ body.print-sizing .name-sub{margin-top:0}
   </div>
 </div>
 
-<!-- 劃假開放設定（店家代碼就能改，不用後台登入） -->
+<!-- 劃假開放設定（主管代碼就能改，不用後台登入） -->
 <div class="overlay" id="ovLeaveCfg">
   <div class="modal">
     <div class="m-title">劃假開放設定</div>
@@ -1549,7 +1553,7 @@ body.print-sizing .name-sub{margin-top:0}
   </div>
 </div>
 
-<!-- 店家代碼設定 -->
+<!-- 主管代碼設定 -->
 <!-- 首次使用選擇器 -->
 <div class="overlay" id="ovFirstSetup">
   <div class="modal">
@@ -1577,7 +1581,7 @@ body.print-sizing .name-sub{margin-top:0}
 <div class="overlay" id="ovJoinStore">
   <div class="modal">
     <div class="m-title">加入現有代碼</div>
-    <input class="txt" id="joinCode" placeholder="輸入店家代碼或檢視代碼" autocapitalize="off" autocorrect="off">
+    <input class="txt" id="joinCode" placeholder="輸入主管代碼或夥伴代碼" autocapitalize="off" autocorrect="off">
     <div class="m-actions" style="flex-direction:column">
       <button class="btn primary" id="btnJoinStore">加入</button>
       <button class="btn" id="btnCloseJoin">取消</button>
@@ -1585,7 +1589,7 @@ body.print-sizing .name-sub{margin-top:0}
   </div>
 </div>
 
-<!-- 建立／管理店家代碼 選擇器 -->
+<!-- 建立／管理主管代碼 選擇器 -->
 
 
 <!-- 複製代碼 選擇器 -->
@@ -1593,21 +1597,21 @@ body.print-sizing .name-sub{margin-top:0}
   <div class="modal">
     <div class="m-title">複製代碼</div>
     <div class="m-actions" style="flex-direction:column">
-      <button class="btn primary" id="btnCopyChoiceStore">複製店家代碼</button>
-      <button class="btn" id="btnCopyChoiceView">複製檢視代碼</button>
+      <button class="btn primary" id="btnCopyChoiceStore">複製主管代碼</button>
+      <button class="btn" id="btnCopyChoiceView">複製夥伴代碼</button>
       <button class="btn" id="btnCloseCopyChoice">取消</button>
     </div>
   </div>
 </div>
 
-<!-- 店家代碼管理面板 -->
+<!-- 主管代碼管理面板 -->
 <div class="overlay" id="ovMgrPanel">
   <div class="modal">
-    <div class="m-title">店家代碼管理</div>
+    <div class="m-title">主管代碼管理</div>
     <div id="mgrList" class="chips" style="flex-direction:column;align-items:stretch"></div>
     <div id="mgrViewSection" style="display:none">
       <div class="hr"></div>
-      <div class="sec-label">目前店家的檢視代碼（唯讀分享用）</div>
+      <div class="sec-label">目前店家的夥伴代碼（唯讀分享用）</div>
       <div style="display:flex;gap:8px;align-items:center">
         <span id="mgrViewCode" style="flex:1;font-weight:700;word-break:break-all"></span>
         <button class="btn" id="btnMgrRenameView" style="padding:6px 10px">更改</button>
@@ -1644,7 +1648,7 @@ body.print-sizing .name-sub{margin-top:0}
     <div class="m-title">後台設定</div>
     <div class="small-note" id="adminWho" style="margin-bottom:8px"></div>
 
-    <div class="sec-label">設定套用到哪個店家代碼</div>
+    <div class="sec-label">設定套用到哪個主管代碼</div>
     <select class="txt" id="cfgTarget"></select>
     <div style="display:flex;gap:8px;margin-top:6px">
       <input class="txt" id="cfgTargetOther" placeholder="或直接輸入其他代碼" autocapitalize="off" autocorrect="off" style="flex:1">
@@ -1663,7 +1667,7 @@ body.print-sizing .name-sub{margin-top:0}
 
     <div class="m-actions" style="flex-direction:column">
       <button class="btn primary" id="btnAdminSave">儲存設定</button>
-      <button class="btn" id="btnAdminMgrCodes">管理店家代碼</button>
+      <button class="btn" id="btnAdminMgrCodes">管理主管代碼</button>
       <button class="btn" id="btnAdminReset">全部回復預設值</button>
       <button class="btn" id="btnCloseAdmin">關閉</button>
     </div>
@@ -1735,12 +1739,12 @@ body.print-sizing .name-sub{margin-top:0}
 <div class="overlay" id="ovCal">
   <div class="modal">
     <div class="m-title">行事曆</div>
-    <div class="m-sub">所有店家代碼共用同一份行事曆。手動匯入的年份優先使用；沒有匯入的年份照常每天自動取得線上資料。</div>
+    <div class="m-sub">所有主管代碼共用同一份行事曆。手動匯入的年份優先使用；沒有匯入的年份照常每天自動取得線上資料。</div>
     <div class="cal-sync" id="calSyncNote"></div>
     <div id="calList"></div>
     <button class="btn primary" id="btnCalImport" style="width:100%;margin-top:12px">匯入行事曆檔案</button>
     <input type="file" id="fileCal" accept=".csv,.json,text/csv,application/json" style="display:none">
-    <div class="lv-hint" style="margin:8px 0 0">支援政府資料開放平臺「中華民國政府行政機關辦公日曆表」CSV、Google 行事曆格式 CSV、TaiwanCalendar JSON。一個檔案含多個年份也可以。匯入或移除後按「儲存設定」，即套用到<b>所有店家代碼</b>。</div>
+    <div class="lv-hint" style="margin:8px 0 0">支援政府資料開放平臺「中華民國政府行政機關辦公日曆表」CSV、Google 行事曆格式 CSV、TaiwanCalendar JSON。一個檔案含多個年份也可以。匯入或移除後按「儲存設定」，即套用到<b>所有主管代碼</b>。</div>
     <div class="hr"></div>
     <button class="btn cfg-item" id="btnOpenCalUrl"><span>進階：線上來源網址</span><small>非必要請勿更動</small></button>
     <div class="m-actions"><button class="btn" id="btnCloseCal">完成</button></div>
@@ -1751,7 +1755,7 @@ body.print-sizing .name-sub{margin-top:0}
 <div class="overlay" id="ovCalUrl">
   <div class="modal">
     <div class="m-title">行事曆來源網址</div>
-    <div class="small-note">{year} 自動替換為年份。網址失效時改用內建資料；國定假日仍可於排班模式點選日期手動調整。按「儲存設定」後套用到所有店家代碼。<br><b>非必要請勿更動。</b></div>
+    <div class="small-note">{year} 自動替換為年份。網址失效時改用內建資料；國定假日仍可於排班模式點選日期手動調整。按「儲存設定」後套用到所有主管代碼。<br><b>非必要請勿更動。</b></div>
     <input class="txt" id="cfgCalUrl" autocapitalize="off" autocorrect="off" style="font-size:12px">
     <div class="m-actions">
       <button class="btn primary" id="btnCalUrlOk">確定</button>
@@ -1761,13 +1765,13 @@ body.print-sizing .name-sub{margin-top:0}
   </div>
 </div>
 
-<!-- 刪除店家代碼確認 -->
+<!-- 刪除主管代碼確認 -->
 <div class="overlay" id="ovConfirmDelCode">
   <div class="modal">
-    <div class="m-title">刪除店家代碼</div>
+    <div class="m-title">刪除主管代碼</div>
     <div class="m-sub">即將刪除代碼：</div>
     <div id="delCodeName" style="color:var(--red);font-weight:700;font-size:18px;word-break:break-all;margin:4px 0 10px"></div>
-    <div class="small-note" style="color:var(--red)">此操作無法復原：雲端上該代碼的班表資料與對應的檢視代碼將一併永久刪除。</div>
+    <div class="small-note" style="color:var(--red)">此操作無法復原：雲端上該代碼的班表資料與對應的夥伴代碼將一併永久刪除。</div>
     <div class="m-actions">
       <button class="btn danger" id="btnConfirmDelCode">確定刪除</button>
       <button class="btn" id="btnCancelDelCode">取消</button>
@@ -1887,6 +1891,11 @@ body.print-sizing .name-sub{margin-top:0}
 <div class="overlay" id="ovHelp">
   <div class="modal">
     <div class="m-title">如何使用</div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 4px">
+      <button class="btn" id="btnTourReplay" style="flex:1 1 40%">▶ 重看新手教學</button>
+      <button class="btn edit-only" id="btnTourMate" style="flex:1 1 40%">👀 預覽夥伴版</button>
+      <button class="btn" id="btnTourLeave" style="flex:1 1 40%">🏖 劃假教學</button>
+    </div>
     <div class="sec-label">表格符號</div>
     <div class="legend">
       <span>╱ 未排</span>
@@ -1928,8 +1937,10 @@ body.print-sizing .name-sub{margin-top:0}
     <div class="hr"></div>
     <div class="sec-label">打開 App</div>
     <ul class="hul">
-      <li>每次打開都會播開啟動畫，包含下拉重整，以及離開超過 30 秒後再切回來；點一下畫面可跳過。</li>
-      <li>打開時表格一律從最上面開始。看的是本月時，左右會自動捲到今天，今天排在名字右邊第一格；其他月份從 1 號開始。</li>
+      <li>第一次用夥伴代碼或主管代碼打開時，會有一段對應的新手教學；每支手機各只出現一次，可從本頁最上方重看。主管可另外預覽夥伴看到的版本。</li>
+      <li>夥伴第一次在開放期間打開「劃假」時，會一步步帶著實際劃一次（選名字、選種類、點日期、送出）；本頁最上方的「劃假教學」可以重看。</li>
+      <li>App 啟動或下拉重整時會播開啟動畫，點一下畫面可跳過。從其他 App 切回來不會重播，畫面維持在原本的位置。</li>
+      <li>啟動或下拉重整時，表格從最上面開始。看的是本月時，左右會自動捲到今天，今天排在名字右邊第一格；其他月份從 1 號開始。</li>
     </ul>
 
     <div class="edit-only">
@@ -2007,7 +2018,7 @@ body.print-sizing .name-sub{margin-top:0}
     </ul>
     <ul class="hul view-only">
       <li>補充說明僅排班人員可見。</li>
-      <li>檢視代碼僅能查看與修改本人的劃假，其他人的內容不會顯示。</li>
+      <li>夥伴代碼僅能查看與修改本人的劃假，其他人的內容不會顯示。</li>
     </ul>
     <div class="edit-only">
       <ul class="hul">
@@ -2031,7 +2042,7 @@ body.print-sizing .name-sub{margin-top:0}
         <li>每次送出均留下紀錄，<b>取消劃假同樣記錄</b>。</li>
         <li>有未讀異動時，工具列的 🔔 顯示<b style="color:var(--red)">紅點</b>。</li>
         <li>點 🔔 不用打開劃假，就能看到最近異動（未讀的直接展開，改了備註會顯示新內容）與所有夥伴的備註；只寫備註、沒劃日期的夥伴也會列出。</li>
-        <li>🔔 只有店家代碼看得到，檢視代碼不顯示。</li>
+        <li>🔔 只有主管代碼看得到，夥伴代碼不顯示。</li>
         <li><b>最近異動</b>統一在 🔔 查看，逐筆列出，點一下可展開細項；可依「時間」或「姓名」排序，依時間排時最下面那筆最早送出，候補可依此先到先受理。</li>
         <li>「劃假 → 全員總覽」只列目前的劃假；有未讀異動時，最上方會出現一行提示，點了直接打開 🔔。</li>
       </ul>
@@ -2099,8 +2110,8 @@ body.print-sizing .name-sub{margin-top:0}
     <div class="edit-only">
       <div class="sec-label">雲端同步</div>
       <ul class="hul">
-        <li>同一組店家代碼共用一份班表並即時同步。</li>
-        <li>檢視代碼僅可查看、無法修改，供夥伴端使用。</li>
+        <li>同一組主管代碼共用一份班表並即時同步。</li>
+        <li>夥伴代碼僅可查看、無法修改，供夥伴端使用。</li>
       </ul>
 
       <div class="hr"></div>
@@ -2109,8 +2120,8 @@ body.print-sizing .name-sub{margin-top:0}
       <ul class="hul">
         <li>自動取得政府公告資料；離線時改用內建資料。</li>
         <li>編輯端每台裝置<b>每天自動重新檢查一次</b>；內容有變動才會更新，並同步給所有人。</li>
-        <li><b>所有店家代碼共用同一份行事曆。</b></li>
-        <li><b>手動匯入</b>　位置：後台設定的「行事曆」。可匯入政府資料開放平臺下載的「中華民國政府行政機關辦公日曆表」CSV，<b>手動匯入的年份優先使用</b>，按「儲存設定」後套用到所有店家代碼。</li>
+        <li><b>所有主管代碼共用同一份行事曆。</b></li>
+        <li><b>手動匯入</b>　位置：後台設定的「行事曆」。可匯入政府資料開放平臺下載的「中華民國政府行政機關辦公日曆表」CSV，<b>手動匯入的年份優先使用</b>，按「儲存設定」後套用到所有主管代碼。</li>
         <li>同一視窗可查看每個年份目前使用的來源；移除手動匯入後即改回線上資料。</li>
         <li><b>國定假日以原日期計算</b>，落在週末也一樣；政府公告的補假日視為一般日（黑字）。正職於國定假日當天休假不計入月休，當天上班列為國定假日出勤；補假日休假計入一般月休。</li>
         <li>亦可於排班模式點選日期，手動調整紅黑字。</li>
@@ -2122,7 +2133,7 @@ body.print-sizing .name-sub{margin-top:0}
         <li>需管理者帳號登入。</li>
         <li>採選單形式，各項分別設定，右側顯示目前內容：班段、覆蓋檢查規則、時段提醒、劃假、行事曆。</li>
         <li>修改後需按「儲存設定」。有未儲存的變更時按鈕顯示 ●；未儲存即關閉將出現確認提示。</li>
-        <li>每組店家代碼各有獨立設定，亦可於此設定其他代碼。行事曆例外：所有代碼共用，儲存後套用到全部代碼。</li>
+        <li>每組主管代碼各有獨立設定，亦可於此設定其他代碼。行事曆例外：所有代碼共用，儲存後套用到全部代碼。</li>
       </ul>
     </div>
 
@@ -2138,7 +2149,7 @@ body.print-sizing .name-sub{margin-top:0}
 const WD = ['日','一','二','三','四','五','六'];
 const PRESETS_COMMON = [[540,1050],[630,1140],[660,1170],[720,1230],[750,1260],[810,1320],[840,1350]];
 const PRESETS_PART   = [[540,960],[720,960],[960,1320],[1080,1320],[1110,1350]];
-/* 後台可調整的設定；預設值等同上面的原始設計，實際值存在 state.config 隨店家代碼同步 */
+/* 後台可調整的設定；預設值等同上面的原始設計，實際值存在 state.config 隨主管代碼同步 */
 /* 規則類型：start=在這些時間上班的人數／endAfter=下班到某時間之後的人數／cover=涵蓋某時刻在班的人數／redMin=紅字日總人數 */
 const DEFAULT_RULES = [
   {id:'open',   on:true, name:'開店班',    kind:'start',    times:[540],         min:1},
@@ -2346,7 +2357,7 @@ async function initFirebase(){
     refreshCalendarDaily();
   }
 }
-function recordCodeHistory(code){ // 記錄「這台裝置」用過的店家代碼，僅存本機，不是全系統清單
+function recordCodeHistory(code){ // 記錄「這台裝置」用過的主管代碼，僅存本機，不是全系統清單
   try{
     let hist=JSON.parse(localStorage.getItem('paiban-code-history')||'[]');
     hist=hist.filter(h=>h.code!==code);
@@ -2367,7 +2378,7 @@ function removeCodeHistory(code){
 async function connectStore(code,isNew,silent){
   code=code.trim();
   if(!code)return false;
-  if(isReservedCode(code)){if(!silent)alert('此名稱為系統保留，無法作為店家代碼。');return false}
+  if(isReservedCode(code)){if(!silent)alert('此名稱為系統保留，無法作為主管代碼。');return false}
   const ref=FB.doc(FB.db,'stores',code);
   try{
     const snap=await FB.getDoc(ref);
@@ -2384,10 +2395,10 @@ async function connectStore(code,isNew,silent){
       document.getElementById('sheetTitle').value='排班表';
       lastWritten=payloadStr();
       await FB.setDoc(ref,{data:lastWritten,updatedAt:FB.serverTimestamp()});
-      await FB.setDoc(FB.doc(FB.db,'views',state.viewCode),{data:lastWritten,updatedAt:FB.serverTimestamp()}); // 檢視代碼跟店家代碼一起建立，不用等到下次存檔才補上
+      await FB.setDoc(FB.doc(FB.db,'views',state.viewCode),{data:lastWritten,updatedAt:FB.serverTimestamp()}); // 夥伴代碼跟主管代碼一起建立，不用等到下次存檔才補上
       renderAll();
     }else{
-      // 找不到編輯代碼 → 試試是不是檢視代碼（唯讀鏡像）
+      // 找不到主管代碼 → 試試是不是夥伴代碼（唯讀鏡像）
       const ok=await connectViewer(code,silent);
       return ok;
     }
@@ -2404,7 +2415,7 @@ async function connectStore(code,isNew,silent){
   if(unsubCloud)unsubCloud();
   unsubCloud=FB.onSnapshot(ref,s=>{
     if(!s.exists()){
-      // 這個店家代碼在雲端被刪除了（可能在別的分頁/裝置操作），這個視窗也要立即反應，不能停留在已失效的舊畫面
+      // 這個主管代碼在雲端被刪除了（可能在別的分頁/裝置操作），這個視窗也要立即反應，不能停留在已失效的舊畫面
       if(storeCode!==code)return; // 已經切換到別的店家了，跟這個舊監聽無關
       storeCode=null;
       try{localStorage.removeItem('paiban-store-code');localStorage.removeItem('paiban-mode')}catch(e){}
@@ -2416,9 +2427,9 @@ async function connectStore(code,isNew,silent){
       document.getElementById('storeName').value='';
       document.getElementById('sheetTitle').value='排班表';
       renderAll();
-      cloudStatus='雲端已連線（尚未選擇店家代碼）';
-      setHint('請重新選擇店家代碼');
-      alert('店家代碼「'+code+'」已被刪除（可能在其他裝置操作），畫面已清空。\n請重新建立或加入店家代碼。');
+      cloudStatus='雲端已連線（尚未選擇主管代碼）';
+      setHint('請重新選擇主管代碼');
+      alert('主管代碼「'+code+'」已被刪除（可能在其他裝置操作），畫面已清空。\n請重新建立或加入主管代碼。');
       openFirstSetup();
       return;
     }
@@ -2430,11 +2441,11 @@ async function connectStore(code,isNew,silent){
       setHint('已同步其他裝置的更新 ✓');
     }
   },()=>{cloudStatus='雲端監聽中斷';setHint('雲端監聽中斷')});
-  if(!state.viewCode){ // 舊資料尚無檢視代碼：自動補產生並上傳
+  if(!state.viewCode){ // 舊資料尚無夥伴代碼：自動補產生並上傳
     state.viewCode='view-'+genCodeSuffix();
     pushCloud();
   }
-  cloudStatus='雲端已連線｜店家代碼：'+code+'｜檢視代碼：'+state.viewCode;
+  cloudStatus='雲端已連線｜主管代碼：'+code+'｜夥伴代碼：'+state.viewCode;
   setHint('雲端已連線 ✓');
   applyViewerUI();
   watchLeave();
@@ -2442,9 +2453,10 @@ async function connectStore(code,isNew,silent){
   refreshCalendarDaily(); // 每天自動確認一次行事曆有沒有更新
   migrateLegacyCal();
   setTimeout(maybeAskReport,1200);
+  maybeStartTour(); // 主管版新手教學：每支手機一次
   return true;
 }
-async function connectViewer(code,silent){ // 以檢視代碼連線：唯讀，只讀鏡像文件，接觸不到編輯代碼
+async function connectViewer(code,silent){ // 以夥伴代碼連線：唯讀，只讀鏡像文件，接觸不到主管代碼
   const vref=FB.doc(FB.db,'views',code);
   try{
     const vsnap=await FB.getDoc(vref);
@@ -2473,12 +2485,13 @@ async function connectViewer(code,silent){ // 以檢視代碼連線：唯讀，�
       setHint('檢視模式｜已更新');
     }
   },()=>{setHint('雲端監聽中斷')});
-  cloudStatus='檢視模式｜檢視代碼：'+code;
+  cloudStatus='檢視模式｜夥伴代碼：'+code;
   setHint('檢視模式');
   applyViewerUI();
   watchLeave();
   renderAll();  // 同上：代碼設定完成後再畫一次
   setTimeout(maybeAskReport,1200);
+  maybeStartTour(); // 夥伴的新手教學：每支手機一次
   return true;
 }
 function applyViewerUI(){ // 檢視模式下隱藏所有可編輯入口；回到編輯模式則還原
@@ -2496,7 +2509,7 @@ async function pushCloud(){
   try{
     lastWritten=p;
     await FB.setDoc(FB.doc(FB.db,'stores',storeCode),{data:p,updatedAt:FB.serverTimestamp()});
-    if(state.viewCode){ // 同步唯讀鏡像，供檢視代碼讀取
+    if(state.viewCode){ // 同步唯讀鏡像，供夥伴代碼讀取
       await FB.setDoc(FB.doc(FB.db,'views',state.viewCode),{data:p,updatedAt:FB.serverTimestamp()});
     }
     return true;
@@ -2896,9 +2909,9 @@ function scheduleSave(){
   },400);
 }
 
-/* ────────── 共用行事曆：所有店家代碼共用一份（手動匯入＋線上來源網址） ──────────
-   存在 stores 集合的保留文件，沿用店家代碼的讀寫權限，不需另外改安全規則。
-   店家代碼只能用 a-z 0-9 -，但這個名稱已列為保留字，不會被建立成店家。 */
+/* ────────── 共用行事曆：所有主管代碼共用一份（手動匯入＋線上來源網址） ──────────
+   存在 stores 集合的保留文件，沿用主管代碼的讀寫權限，不需另外改安全規則。
+   主管代碼只能用 a-z 0-9 -，但這個名稱已列為保留字，不會被建立成店家。 */
 const CAL_SHARED_ID='shared-calendar';
 const CAL_SHARED_KEY='paiban-cal-shared'; // 本機快取：開啟時先顯示，離線／本機模式也能用
 let calShared=(()=>{
@@ -3100,8 +3113,6 @@ function scrollSheetToToday(){
   }
   wrap.scrollLeft=Math.max(0,Math.round(left));
 }
-function markOpened(){todayScrollUntil=Date.now()+4000;scrollSheetToToday()} // 從背景切回、重播開啟動畫時也算「打開」
-window.markOpened=markOpened;
 (function(){const w=document.querySelector('.sheet-wrap');if(!w)return;
   const stop=()=>{todayScrollUntil=0};
   ['pointerdown','touchstart','wheel'].forEach(ev=>w.addEventListener(ev,stop,{passive:true}));})();
@@ -3232,7 +3243,7 @@ function renderNotes(){
 
 
 /* ────────── 劃假：資料層 ────────── */
-/* 劃假存在雲端 leaves/{檢視代碼}，跟班表本體分開，夥伴用檢視代碼寫入也不會被店長存檔蓋掉。
+/* 劃假存在雲端 leaves/{夥伴代碼}，跟班表本體分開，夥伴用夥伴代碼寫入也不會被店長存檔蓋掉。
    結構：{ "2026-11": { 人員id: {name, json, at} } }，json 內是 {days:{日:{m,t,late}}, note} */
 let leaveData={};          // 目前這個代碼的全部劃假資料
 let unsubLeave=null;
@@ -3245,7 +3256,7 @@ const LEAVE_MODE_HINT={
   before:'這個時間之後才能上，之前不能排。例如選 15:00，代表 15:00 起的班才行。',
   clear: '點日期可以把已經劃的假取消掉。'
 };
-function leaveDocCode(){ // 劃假掛在檢視代碼底下：檢視端就是自己，編輯端用自己的檢視代碼
+function leaveDocCode(){ // 劃假掛在夥伴代碼底下：檢視端就是自己，編輯端用自己的夥伴代碼
   return viewerMode?(storeCode||''):(state.viewCode||'');
 }
 function ymOf(y,m){return y+'-'+String(m).padStart(2,'0')}
@@ -3604,7 +3615,7 @@ let lvDraft=null;            // 編輯中的劃假內容（按送出才寫雲端
 let lvOriginal=null;         // 選到這個人時的原始內容，送出時用來比對差異
 let lvBrush={m:'all',t:540,t2:1320};// 目前的筆刷：點日期要套用什麼（only 模式用 t～t2）
 function lvCanEdit(){ // 現在能不能改；回傳 {ok, late, msg}
-  if(!FB||!leaveDocCode())return {ok:false,msg:'劃假需要連上雲端（本機模式或尚未設定檢視代碼時無法使用）。'};
+  if(!FB||!leaveDocCode())return {ok:false,msg:'劃假需要連上雲端（本機模式或尚未設定夥伴代碼時無法使用）。'};
   if(srvState==='wait')return {ok:false,wait:true,msg:'正在跟雲端對時間…'};
   const w=leaveWindow();
   if(w.state==='off')return {ok:false,msg:'目前沒有開放劃假。'};
@@ -3617,12 +3628,13 @@ function lvCanEdit(){ // 現在能不能改；回傳 {ok, late, msg}
 }
 function openLeave(){
   if(needServerClock())syncServerClock(); // 用不到伺服器時間的日子就不校時，省下一次寫入
-  lvTab=viewerMode?'mine':'all'; // 檢視代碼只有「我要劃假」，看不到別人劃了什麼
+  lvTab=viewerMode?'mine':'all'; // 夥伴代碼只有「我要劃假」，看不到別人劃了什麼
   lvWho=null;lvDraft=null;lvOriginal=null;
   lvBrush={m:'all',t:540,t2:1320};
   renderLeaveBody();
   document.getElementById('ovLeave').classList.add('show');
   updateLeaveBadge();
+  if(viewerMode&&!tourSeen('leave')&&lvCanEdit().ok&&!document.getElementById('tour'))setTimeout(()=>startTour('leave'),400);
 }
 function renderLeaveBody(){
   const w=leaveWindow(),ce=lvCanEdit();
@@ -3708,7 +3720,7 @@ function lvCalHtml(ym,obj,locked){ // 目標月份的日曆
     const nat=natMap[d];
     if(nat)cls+=' red-day';
     if(x){
-      // 檢視代碼照各自的模式配色；店家代碼把臨時劃假統一成橘色，一眼看出哪些是後來才加的
+      // 夥伴代碼照各自的模式配色；主管代碼把臨時劃假統一成橘色，一眼看出哪些是後來才加的
       cls+=(x.late&&!viewerMode)?' m-late':(x.m==='all'?' m-all':x.m==='only'?' m-only':' m-part');
     }
     if(x&&x.late)cls+=' late';
@@ -3747,7 +3759,7 @@ function lvAllHtml(ym){ // 全員總覽，臨時劃的另外標
   });
   return h;
 }
-/* 開放設定：店家代碼就能改，跟後台的那份是同一筆設定 */
+/* 開放設定：主管代碼就能改，跟後台的那份是同一筆設定 */
 function openLeaveCfg(){
   const L=cfg().leave;
   document.getElementById('lcOn').checked=!!L.on;
@@ -4889,6 +4901,222 @@ document.getElementById('btnMore').addEventListener('click',()=>{
   document.getElementById('btnHiddenStaff').style.display=viewerMode?'none':'';
   document.getElementById('ovMore').classList.add('show');
 });
+/* ────────── 新手教學（聚光燈）：夥伴版、主管版各一套 ──────────
+   用夥伴代碼／主管代碼打開、而且這支手機還沒看過那一版就會出現（這次更新前就在用的手機也會看到一次）。
+   看完或略過就記在這支手機上；想重看從「？」。版本號改掉，大家就會再看到一次。 */
+const TOUR_KEYS={view:'paiban-tour-v1',edit:'paiban-tour-mgr-v1',leave:'paiban-tour-leave-v1'};
+function tourSeen(role){try{return !!localStorage.getItem(TOUR_KEYS[role])}catch(e){return true}} // 讀不到就當看過，免得每次都跳
+function tourMark(role){try{localStorage.setItem(TOUR_KEYS[role],String(Date.now()))}catch(e){}}
+function tourShown(el){return el&&el.getClientRects().length&&el.getBoundingClientRect().width>0?el:null}
+function tourCell(){ // 挑一格有排班的來講解：優先今天那一欄，其次畫面上看得到的
+  const now=new Date(),wrap=document.querySelector('.sheet-wrap');
+  const today=(state.y===now.getFullYear()&&state.m===now.getMonth()+1)?now.getDate():0;
+  const cells=[...document.querySelectorAll('#sheet td.day-cell.filled')].filter(td=>td.querySelector('.t-s')&&td.querySelector('.t-e')&&!td.querySelector('.mark'));
+  const wr=wrap?wrap.getBoundingClientRect():null;
+  const inView=td=>{const r=td.getBoundingClientRect();return wr&&r.left>=wr.left+90&&r.right<=wr.right&&r.top>=wr.top&&r.bottom<=wr.bottom};
+  return cells.find(td=>+td.dataset.day===today&&inView(td))||cells.find(inView)||null;
+}
+function tourHM(t){const v=parseFloat(t);if(isNaN(v))return t;const h=Math.floor(v),m=Math.round((v-h)*60);return h+':'+String(m).padStart(2,'0')}
+function tourSteps(role){
+  const $=q=>document.querySelector(q);
+  if(role==='leave'){ // 在「我要劃假」裡一步步跟著做；②③④ 可以直接點
+    const brush=()=>{const b=$('#lvBody .lv-brush');return b?b.parentElement:null}; // 按鈕＋說明＋時間選單
+    const who=()=>{const st=state.staff.find(x=>x.id===lvWho);return st?esc(staffName(st)):''};
+    return [
+      {el:()=>tourShown($('#lvSub')),h:'劃假教學',b:'跟著做一次，大約 1 分鐘。<br>上面這行寫著現在劃<b>幾月</b>的假、<b>什麼時候截止</b>。'},
+      {el:()=>tourShown($('#lvWhoSel')),act:1,need:()=>!!lvWho,auto:1,h:'① 先選你的名字',
+        b:()=>lvWho?'選好了：<b>'+who()+'</b>。<br>記得選的是<b>自己</b>，劃的假才會算在你身上。':'點這裡選<b>自己的名字</b>，選好會自動到下一步。'},
+      {el:()=>tourShown(brush()),act:1,h:'② 選要填什麼',
+        b:'<b>整天不能上</b>：那天完全不能排。<br><b>只能上這段</b>：例如只能 10:00～17:00。<br><b>只能上到</b>：例如 15:00 前可以，之後不行。<br><b>幾點後才能上</b>：例如 15:00 以後才行。<br><b>清除</b>：把劃錯的取消。<br>選了要時間的，下面會出現時間選單。可以點點看。'},
+      {el:()=>tourShown($('#lvBody .lv-cal')),act:1,h:'③ 點日期',
+        b:()=>'點一下日期，就會套用②選的那種，<b>直接點點看</b>！<br>'+
+          '<i class="lgc sw-all"></i>整天不能上　<i class="lgc sw-only"></i>只能上這段　<i class="lgc sw-part"></i>之前／之後<br>'+
+          '劃錯了，選「清除」再點那天就好。日期上的「國」是國定假日。'+
+          (lvCanEdit().late?'<br>現在已過截止日，劃的會標「臨」，列為候補。':'')},
+      {el:()=>tourShown($('#lvWdRow')),act:1,h:'④ 每週固定的，一次劃好',
+        b:'例如每週二都不行：點「二」，再按<b>套用</b>，整個月的星期二就一次劃好，用的是②選的那種。'},
+      {el:()=>tourShown($('#lvNote')),h:'⑤ 補充說明（選填）',b:'日曆寫不下的事寫這裡，例如「缺人的話這天可以支援」。只有主管看得到。'},
+      {el:()=>tourShown($('#btnLeaveSave')),h:'⑥ 最後一定要按「送出」',
+        b:'<b>沒按送出不會存</b>。送出後主管就會收到通知。<br>之後想改，截止前打開劃假、選名字，改完再送出一次就好。'}
+    ];
+  }
+  if(role==='edit')return [
+    {h:'歡迎使用我的班表 👋',b:'這是主管版的快速導覽，帶你認識排班、人員和劃假管理。<br>之後想再看，按右上角的「？」就能重看。'},
+    {el:()=>tourShown($('.sheet-wrap')),h:'這是班表',b:'一列一個人，<b>左右滑</b>可以看其他天，打開時會先停在今天。<br>表頭的「！」：<b style="color:var(--red)">紅色</b>是當天人力不符規則，<b class="c-amber">黃色</b>是有人出勤天數超標，點一下看原因。'},
+    {el:()=>tourShown($('#btnEdit')),h:'開始排班',b:'按這裡<b>解鎖</b>，點格子選班別、自訂時間或請假；排完再按一次<b>鎖定</b>。<br>鎖定後才會檢查人力，紅色「！」也是這時才出現。'},
+    {el:()=>tourShown($('#btnStaff')),h:'人員',b:'新增或編輯夥伴，設定正職、計時或支援，也可以調整這個月要排哪些人。'},
+    {el:()=>tourShown($('#btnLeave')),h:'劃假管理',b:'看大家劃了哪些日子，也可以<b>代為修改</b>。<br>下方的「⚙ 開放設定」可以設定劃哪個月、截止日，以及截止後的候補。'},
+    {el:()=>tourShown($('#btnNotice')),h:'劃假通知',b:'有人劃假或改假時，🔔 會出現<b style="color:var(--red)">紅點</b>；點開可以看最近異動和每位夥伴的備註。'},
+    {el:()=>tourShown($('#btnFilter')),h:'篩選日期',b:'只顯示某幾天，例如 1～15 號；也可以把這段日期存成<b>圖片</b>，方便傳到群組。'},
+    {el:()=>tourShown($('#btnMore')),h:'更多',b:'<b>複製代碼</b>：把夥伴代碼傳給大家，他們就能看班表、劃假。<br>匯出、備份和後台設定也都在這裡。'},
+    {el:()=>tourShown($('#sheet .ot-btn')),h:'加班時數',b:'點名字旁的 <b>⋯</b>，看這個人這個月的加班時數，以及月休有沒有休滿。'},
+    {el:()=>tourShown($('#btnHelp')),h:'看不懂就按這裡',b:'符號、顏色和各種規則都寫在這裡；也可以重看這份教學，或預覽夥伴看到的版本。'}
+  ];
+  return [
+    {h:'歡迎使用我的班表 👋',b:'花 30 秒帶你認識一下怎麼看班表、怎麼劃假。<br>之後想再看，按右上角的「？」就能重看。'},
+    {el:()=>tourShown($('.sheet-wrap')),h:'這是班表',b:'一列一個人，<b>左右滑</b>可以看其他天，打開時會先停在今天。<br>表頭的紅字是週末和國定假日。'},
+    {el:()=>tourShown(tourCell()),h:'看懂一格班',b:td=>{
+      const s=td.querySelector('.t-s').textContent,e=td.querySelector('.t-e').textContent;
+      const ex=[s,e].find(x=>x.includes('.'))||'13.5'; // 拿有小數的當例子，看得出 .5 是半小時
+      const bk=td.querySelector('.brk-tag');
+      return '這格是 <b>'+tourHM(s)+' 上班、'+tourHM(e)+' 下班</b>。左上是上班、右下是下班，用小時寫：'+ex+' 就是 '+tourHM(ex)+'。'+
+        (bk?'右邊的「'+esc(bk.textContent)+'」是休息時間。':'')+
+        '<br>╱ 是沒排班，✕ 是排休；格子中間寫「特」「事」這類字是請假。'}},
+    {el:()=>tourShown($('#sheet .ot-btn')),h:'看加班時數',b:'點名字旁的 <b>⋯</b>，可以看這個人這個月的加班時數。'},
+    {el:()=>[tourShown($('#selYear')),tourShown($('#selMonth'))].filter(Boolean),h:'切換月份',b:'點這裡可以看上個月、下個月的班表。'},
+    {el:()=>tourShown($('#btnLeave')),h:'劃假',b:'開放期間點這裡，標出不能上班的日子。<br><b>第一次打開時，會一步步帶你劃一次。</b>'},
+    {el:()=>tourShown($('#btnLook')),h:'調整外觀',b:'字的大小、顏色、深色模式都可以調，只會改你自己的手機。'},
+    {el:()=>tourShown($('#btnHelp')),h:'看不懂就按這裡',b:'每個符號和顏色是什麼意思都寫在這裡，也可以重看這份教學。'}
+  ];
+}
+let tourList=null,tourIdx=0,tourRole='view',tourMO=null,tourRaf=0;
+function tourTarget(st){
+  if(!st.el)return null;
+  const t=st.el();
+  if(Array.isArray(t))return t.length?t:null;
+  return t||null;
+}
+function tourRect(t){ // 單一元素或多個元素合併成一個框
+  const rs=(Array.isArray(t)?t:[t]).map(el=>el.getBoundingClientRect());
+  return {left:Math.min(...rs.map(r=>r.left)),top:Math.min(...rs.map(r=>r.top)),right:Math.max(...rs.map(r=>r.right)),bottom:Math.max(...rs.map(r=>r.bottom))};
+}
+function startTour(role){
+  if(document.getElementById('tour'))return;
+  tourRole=role||(viewerMode?'view':'edit');
+  tourList=tourSteps(tourRole);
+  // 主畫面的教學：這支手機上看不到的項目先拿掉。劃假教學的目標要等操作後才出現（例如選了名字才有日曆），走到那一步再判斷
+  if(tourRole!=='leave')tourList=tourList.filter(st=>!st.el||tourTarget(st));
+  if(!tourList.length)return;
+  const root=document.createElement('div');
+  root.id='tour';root.className='tour';root.setAttribute('role','dialog');root.setAttribute('aria-modal','true');root.setAttribute('aria-label','新手教學');
+  root.innerHTML='<div class="tour-shield"></div><div class="tour-blk"></div><div class="tour-blk"></div><div class="tour-blk"></div><div class="tour-blk"></div>'+
+    '<div class="tour-hole none"></div>'+
+    '<div class="tour-tip" aria-live="polite"><div class="tt-n"></div><div class="tt-h"></div><div class="tt-b"></div>'+
+    '<div class="tt-act"><button type="button" class="tt-skip" data-t="skip">略過教學</button>'+
+    '<button type="button" class="btn" data-t="prev">上一步</button><button type="button" class="btn primary" data-t="next">下一步</button></div></div>';
+  document.body.appendChild(root);
+  root.addEventListener('click',ev=>{
+    const b=ev.target.closest('[data-t]');if(!b||b.disabled)return;
+    if(b.dataset.t==='skip')endTour();
+    else if(b.dataset.t==='prev')tourGo(tourIdx-1,-1);
+    else tourGo(tourIdx+1,1);
+  });
+  const stop=e=>e.preventDefault(); // 洞外面不讓底下的畫面被滑動
+  root.addEventListener('wheel',stop,{passive:false});
+  root.addEventListener('touchmove',stop,{passive:false});
+  window.addEventListener('resize',tourSchedule);
+  document.addEventListener('scroll',tourSchedule,true); // 視窗裡面捲動時，洞要跟著移
+  document.addEventListener('keydown',tourKey);
+  tourMO=new MutationObserver(ms=>{if(ms.every(m=>root.contains(m.target)))return;tourSchedule()}); // 畫面重畫（選了名字、點了日期）就重新對位
+  tourMO.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['class','style']});
+  tourGo(0,1);
+}
+function tourKey(e){if(e.key==='Escape')endTour();else if(e.key==='ArrowRight')document.querySelector('#tour [data-t="next"]').click();else if(e.key==='ArrowLeft')tourGo(tourIdx-1,-1)}
+function tourSchedule(){cancelAnimationFrame(tourRaf);tourRaf=requestAnimationFrame(tourRefresh)}
+function tourGo(i,dir){
+  const root=document.getElementById('tour');if(!root)return;
+  while(i>=0&&i<tourList.length&&tourList[i].el&&!tourTarget(tourList[i]))i+=dir||1; // 目標還沒出現就往同方向跳過
+  if(i<0)return;
+  if(i>=tourList.length){endTour();return}
+  tourIdx=i;
+  const st=tourList[i],t=tourTarget(st);
+  st._was=st.need?!!st.need():true; // 進來時還沒做到，之後做到了才自動往下
+  if(t&&!Array.isArray(t)&&(t.closest('#sheet')||t.closest('.modal')))t.scrollIntoView({block:'nearest',inline:'nearest'});
+  tourText();tourPlace();
+}
+function tourText(){
+  const root=document.getElementById('tour');if(!root)return;
+  const st=tourList[tourIdx],t=tourTarget(st),n=tourList.length,i=tourIdx;
+  root.querySelector('.tt-n').textContent=i?(i+' / '+(n-1)):'';
+  root.querySelector('.tt-h').textContent=st.h;
+  const html=typeof st.b==='function'?st.b(t):st.b,bx=root.querySelector('.tt-b');
+  if(bx.innerHTML!==html)bx.innerHTML=html;
+  const prev=root.querySelector('[data-t="prev"]'),next=root.querySelector('[data-t="next"]');
+  prev.style.display=i?'':'none';
+  next.textContent=i===0?'開始':(i===n-1?(tourRole==='leave'?'我知道了':'開始使用'):'下一步');
+  next.disabled=!!(st.need&&!st.need());
+  root.querySelector('.tt-skip').style.visibility=i===n-1?'hidden':'';
+  root.classList.toggle('act',!!st.act);
+}
+function tourRefresh(){
+  const root=document.getElementById('tour');if(!root||!tourList)return;
+  if(tourRole==='leave'&&!document.getElementById('ovLeave').classList.contains('show')){endTour();return} // 劃假視窗被關掉了
+  const st=tourList[tourIdx];
+  if(st.need&&st.auto&&!st._was&&st.need()){st._was=true;setTimeout(()=>tourGo(tourIdx+1,1),350);return} // 做到了，自動下一步
+  if(st.el&&!tourTarget(st)){tourGo(tourIdx+1,1);return}
+  tourText();tourPlace();
+}
+function tourPlace(){
+  const root=document.getElementById('tour');if(!root||!tourList)return;
+  const hole=root.querySelector('.tour-hole'),tip=root.querySelector('.tour-tip'),blk=root.querySelectorAll('.tour-blk');
+  const vw=window.innerWidth,vh=window.innerHeight,t=tourTarget(tourList[tourIdx]);
+  let r=null;
+  if(t){
+    const b=tourRect(t),pad=6;
+    r={left:Math.max(4,b.left-pad),top:Math.max(4,b.top-pad),right:Math.min(vw-4,b.right+pad),bottom:Math.min(vh-4,b.bottom+pad)};
+    if(r.bottom<r.top)r.bottom=r.top;
+    hole.classList.remove('none');
+    hole.style.left=r.left+'px';hole.style.top=r.top+'px';
+    hole.style.width=(r.right-r.left)+'px';hole.style.height=(r.bottom-r.top)+'px';
+    const box=(el,x,y,w,h)=>{el.style.left=x+'px';el.style.top=y+'px';el.style.width=Math.max(0,w)+'px';el.style.height=Math.max(0,h)+'px'};
+    box(blk[0],0,0,vw,r.top);box(blk[1],0,r.bottom,vw,vh-r.bottom);
+    box(blk[2],0,r.top,r.left,r.bottom-r.top);box(blk[3],r.right,r.top,vw-r.right,r.bottom-r.top);
+  }else{
+    hole.classList.add('none');
+    hole.style.left=(vw/2)+'px';hole.style.top=(vh/2)+'px';hole.style.width='0px';hole.style.height='0px';
+  }
+  const tw=tip.offsetWidth,th=tip.offsetHeight;
+  let top,left;
+  if(!r){top=(vh-th)/2;left=(vw-tw)/2}
+  else{
+    if(vh-r.bottom>=th+24)top=r.bottom+12;          // 下面放得下就放下面
+    else if(r.top>=th+24)top=r.top-th-12;           // 不然放上面
+    else top=r.top>vh-r.bottom?12:vh-th-16;         // 都放不下（例如整張班表、日曆）就放空間大的那一頭
+    left=Math.min(Math.max(12,(r.left+r.right)/2-tw/2),vw-tw-12);
+  }
+  tip.style.top=Math.round(top)+'px';tip.style.left=Math.round(left)+'px';
+}
+function endTour(){
+  const root=document.getElementById('tour');if(root)root.remove();
+  if(tourMO){tourMO.disconnect();tourMO=null}
+  cancelAnimationFrame(tourRaf);
+  window.removeEventListener('resize',tourSchedule);
+  document.removeEventListener('scroll',tourSchedule,true);
+  document.removeEventListener('keydown',tourKey);
+  // 只記「本人身分」看過的那一版；主管預覽夥伴版、劃假教學，不算夥伴看過
+  if(tourRole==='view'&&viewerMode)tourMark('view');
+  else if(tourRole==='edit'&&!viewerMode)tourMark('edit');
+  else if(tourRole==='leave'&&viewerMode)tourMark('leave');
+}
+function maybeStartTour(){ // 等開啟動畫結束、其他視窗（例如剛建立代碼的說明）都關掉，再開始
+  const role=viewerMode?'view':'edit';
+  if(!storeCode||tourSeen(role))return;
+  let tries=0;
+  const tick=()=>{
+    if((viewerMode?'view':'edit')!==role||tourSeen(role)||document.getElementById('tour'))return; // 中途換了代碼就不開
+    if(document.getElementById('splash')||document.querySelector('.overlay.show')){if(++tries<240)setTimeout(tick,500);return}
+    setTimeout(()=>{
+      if(document.getElementById('splash')||document.querySelector('.overlay.show')){tick();return}
+      startTour(role);
+    },400);
+  };
+  tick();
+}
+document.getElementById('btnTourReplay').addEventListener('click',()=>{
+  document.getElementById('ovHelp').classList.remove('show');
+  setTimeout(()=>startTour(viewerMode?'view':'edit'),250);
+});
+document.getElementById('btnTourLeave').addEventListener('click',()=>{ // 打開劃假，在「我要劃假」裡跟著做
+  document.getElementById('ovHelp').classList.remove('show');
+  openLeave();
+  if(!viewerMode){lvTab='mine';renderLeaveBody()}
+  if(!lvCanEdit().ok){showToast('劃假目前沒有開放；開放期間打開「劃假」，就能跟著做一次',3500);return}
+  setTimeout(()=>startTour('leave'),400);
+});
+document.getElementById('btnTourMate').addEventListener('click',()=>{ // 主管預覽夥伴看到的版本
+  document.getElementById('ovHelp').classList.remove('show');
+  setTimeout(()=>startTour('view'),250);
+});
 document.getElementById('btnHelp').addEventListener('click',()=>{
   const src='行事曆來源：'+calSourceText();
   document.getElementById('calStatus').textContent=src;
@@ -4900,16 +5128,16 @@ document.getElementById('btnHelp').addEventListener('click',()=>{
 });
 document.getElementById('btnCloseHelp').addEventListener('click',()=>document.getElementById('ovHelp').classList.remove('show'));
 async function copyStoreCode(){
-  try{await navigator.clipboard.writeText(storeCode);alert('已複製店家代碼：'+storeCode)}
-  catch(e){prompt('請手動複製店家代碼：',storeCode)}
+  try{await navigator.clipboard.writeText(storeCode);alert('已複製主管代碼：'+storeCode)}
+  catch(e){prompt('請手動複製主管代碼：',storeCode)}
 }
 async function copyViewCode(){
-  try{await navigator.clipboard.writeText(state.viewCode);alert('已複製檢視代碼：'+state.viewCode+'\n\n拿到這組代碼的人只能查看班表，無法修改。')}
-  catch(e){prompt('請手動複製檢視代碼：',state.viewCode)}
+  try{await navigator.clipboard.writeText(state.viewCode);alert('已複製夥伴代碼：'+state.viewCode+'\n\n拿到這組代碼的人只能查看班表，無法修改。')}
+  catch(e){prompt('請手動複製夥伴代碼：',state.viewCode)}
 }
 document.getElementById('btnCopyMenu').addEventListener('click',()=>{
   document.getElementById('ovMore').classList.remove('show');
-  if(viewerMode){copyViewCode();return} // 檢視模式手上只有檢視代碼，直接複製不用選
+  if(viewerMode){copyViewCode();return} // 檢視模式手上只有夥伴代碼，直接複製不用選
   document.getElementById('ovCopyChoice').classList.add('show');
 });
 document.getElementById('btnCopyChoiceStore').addEventListener('click',()=>{
@@ -5199,7 +5427,7 @@ document.getElementById('btnCalUrlOk').addEventListener('click',()=>{
 document.getElementById('btnCalUrlReset').addEventListener('click',()=>{
   document.getElementById('cfgCalUrl').value=DEFAULT_CONFIG.calUrl;
 });
-let cfgTargetCode=null;      // 後台目前正在編輯哪個店家代碼的設定
+let cfgTargetCode=null;      // 後台目前正在編輯哪個主管代碼的設定
 let cfgTargetPayload=null;   // 非目前店家時，暫存該代碼的完整資料以便寫回
 function fillCfgFields(c){
   document.getElementById('cfgPresetsCommon').value=fmtPairList(c.presetsCommon);
@@ -5304,7 +5532,7 @@ function openAdminPanel(){
 document.getElementById('cfgTarget').addEventListener('change',ev=>loadCfgTarget(ev.target.value));
 document.getElementById('btnCfgLoadOther').addEventListener('click',()=>{
   const code=document.getElementById('cfgTargetOther').value.trim().toLowerCase();
-  if(!code){alert('請輸入要載入的店家代碼。');return}
+  if(!code){alert('請輸入要載入的主管代碼。');return}
   loadCfgTarget(code);
 });
 /* 子面板：疊在選單上開，關掉就回到選單；每次回來重算摘要 */
@@ -5421,7 +5649,7 @@ document.getElementById('btnAdminSave').addEventListener('click',async()=>{
     cfgLeaveLoaded=Object.assign({},DEFAULT_LEAVE,newCfg.leave||{}); // 存好了，之後以這份為準
     if(calDraftChanged()){
       writeCalShared(calDraft).catch(()=>{}); // 失敗會自動提示並還原
-      showToast('已儲存設定，行事曆已套用到所有店家代碼 ✓',2800);
+      showToast('已儲存設定，行事曆已套用到所有主管代碼 ✓',2800);
     }
     endCalDraft();
     markCfgSaved();
@@ -5449,18 +5677,18 @@ function openMgrPanel(){
   document.getElementById('ovMgrPanel').classList.add('show');
 }
 document.getElementById('btnMgrRenameView').addEventListener('click',async()=>{
-  let newCode=prompt('將檢視代碼「'+state.viewCode+'」改成什麼？\n（英文小寫、數字、"-"，4～30字；留空按確定＝自動產生隨機代碼）','');
+  let newCode=prompt('將夥伴代碼「'+state.viewCode+'」改成什麼？\n（英文小寫、數字、"-"，4～30字；留空按確定＝自動產生隨機代碼）','');
   if(newCode===null)return;
   newCode=newCode.trim().toLowerCase();
   if(!newCode)newCode='view-'+genCodeSuffix();
   if(!/^[a-z0-9-]{4,30}$/.test(newCode)||isReservedCode(newCode)){alert('格式不正確。');return}
   if(newCode===state.viewCode)return;
   try{
-    // 不能跟任何現有的店家代碼或檢視代碼重複，避免誤連到別人的資料
+    // 不能跟任何現有的主管代碼或夥伴代碼重複，避免誤連到別人的資料
     const sSnap=await FB.getDoc(FB.doc(FB.db,'stores',newCode));
-    if(sSnap.exists()){alert('此代碼已被店家代碼使用，請換一個。');return}
+    if(sSnap.exists()){alert('此代碼已被主管代碼使用，請換一個。');return}
     const vSnap=await FB.getDoc(FB.doc(FB.db,'views',newCode));
-    if(vSnap.exists()){alert('此代碼已被其他檢視代碼使用，請換一個。');return}
+    if(vSnap.exists()){alert('此代碼已被其他夥伴代碼使用，請換一個。');return}
     const oldCode=state.viewCode;
     state.viewCode=newCode;
     const p=payloadStr();
@@ -5468,9 +5696,9 @@ document.getElementById('btnMgrRenameView').addEventListener('click',async()=>{
     await FB.setDoc(FB.doc(FB.db,'views',newCode),{data:p,updatedAt:FB.serverTimestamp()});
     await FB.deleteDoc(FB.doc(FB.db,'views',oldCode));
     lastWritten=p;
-    cloudStatus='雲端已連線｜店家代碼：'+storeCode+'｜檢視代碼：'+state.viewCode;
+    cloudStatus='雲端已連線｜主管代碼：'+storeCode+'｜夥伴代碼：'+state.viewCode;
     document.getElementById('mgrViewCode').textContent=state.viewCode;
-    alert('檢視代碼已改為「'+newCode+'」。\n舊代碼已失效，請把新代碼重新發給店員。');
+    alert('夥伴代碼已改為「'+newCode+'」。\n舊代碼已失效，請把新代碼重新發給店員。');
   }catch(e){
     alert('更改失敗，請確認網路連線與 Firestore 設定。');
   }
@@ -5534,7 +5762,7 @@ document.getElementById('btnConfirmDelCode').addEventListener('click',async()=>{
   const code=document.getElementById('ovConfirmDelCode').dataset.pendingCode;
   document.getElementById('ovConfirmDelCode').classList.remove('show');
   try{
-    // 檢視代碼跟店家代碼是綁在一起的一組，刪除前先讀出對應的檢視代碼一併清除
+    // 夥伴代碼跟主管代碼是綁在一起的一組，刪除前先讀出對應的夥伴代碼一併清除
     const snap=await FB.getDoc(FB.doc(FB.db,'stores',code));
     let pairedView=null;
     if(snap.exists()&&snap.data().data){
@@ -5552,8 +5780,8 @@ document.getElementById('btnConfirmDelCode').addEventListener('click',async()=>{
       if(unsubCloud){unsubCloud();unsubCloud=null}
       if(unsubLeave){unsubLeave();unsubLeave=null}
       leaveData={};
-      cloudStatus='雲端已連線（尚未選擇店家代碼）';
-      setHint('請重新選擇店家代碼');
+      cloudStatus='雲端已連線（尚未選擇主管代碼）';
+      setHint('請重新選擇主管代碼');
       // 正在瀏覽的店家被刪除了，畫面上的班表已經是無效資料，立即清空並請使用者重新連線
       state.store='';state.title='排班表';state.corner='';state.viewCode='';
       state.staff=[];state.months={};state.calCache={};state.config={};
@@ -5562,7 +5790,7 @@ document.getElementById('btnConfirmDelCode').addEventListener('click',async()=>{
       renderAll();
       document.getElementById('ovMgrPanel').classList.remove('show');
       document.getElementById('ovMore').classList.remove('show');
-      alert('目前正在瀏覽的店家代碼「'+code+'」已被刪除，畫面已清空。\n請重新建立或加入店家代碼。');
+      alert('目前正在瀏覽的主管代碼「'+code+'」已被刪除，畫面已清空。\n請重新建立或加入主管代碼。');
       openFirstSetup();
       return;
     }
@@ -5582,12 +5810,12 @@ document.getElementById('btnMgrCreate').addEventListener('click',async()=>{
   }
   document.getElementById('ovMgrPanel').classList.remove('show');
   if(await connectStore(code,true,false)){
-    alert('已建立店家代碼：'+code);
+    alert('已建立主管代碼：'+code);
   }
 });
 document.getElementById('btnMgrClose').addEventListener('click',()=>document.getElementById('ovMgrPanel').classList.remove('show'));
-/* 店家代碼設定 */
-function openFirstSetup(){ // 首次使用（尚未有任何店家代碼）時顯示的選擇器：建立／加入／僅本機
+/* 主管代碼設定 */
+function openFirstSetup(){ // 首次使用（尚未有任何主管代碼）時顯示的選擇器：建立／加入／僅本機
   if(!FB){alert('目前雲端無法載入（可能離線或在預覽環境），僅本機模式可用。');return}
   document.getElementById('ovFirstSetup').classList.add('show');
 }
@@ -5640,12 +5868,12 @@ document.getElementById('btnNewStore').addEventListener('click',async()=>{
   }
   if(await connectStore(code,true,false)){
     document.getElementById('ovSetup').classList.remove('show');
-    alert('已建立店家代碼：'+code+'\n\n其他裝置輸入這組代碼即可看到同一份班表（「⋯」選單可隨時複製）。');
+    alert('已建立主管代碼：'+code+'\n\n其他裝置輸入這組代碼即可看到同一份班表（「⋯」選單可隨時複製）。');
   }
 });
 document.getElementById('btnJoinStore').addEventListener('click',async()=>{
   const code=document.getElementById('joinCode').value;
-  if(!code.trim()){alert('請輸入店家代碼');return}
+  if(!code.trim()){alert('請輸入主管代碼');return}
   if(await connectStore(code,false,false)){
     document.getElementById('ovJoinStore').classList.remove('show');
   }
@@ -6063,7 +6291,7 @@ document.getElementById('fileCal').addEventListener('change',async ev=>{
   const replace=ys.filter(y=>calDraft.manual[y]);
   if(!confirm('讀到以下行事曆（'+res.fmt+'）：\n\n'+lines.join('\n\n')+
     (replace.length?'\n\n將取代先前手動匯入的 '+replace.join('、')+' 年。':'')+
-    '\n\n確定匯入？（按「儲存設定」後套用到所有店家代碼）'))return;
+    '\n\n確定匯入？（按「儲存設定」後套用到所有主管代碼）'))return;
   ys.forEach(y=>{calDraft.manual[y]={map:res.years[y],name:f.name,at:nowMs(),fmt:res.fmt}});
   renderCalList();renderCfgSummary();syncCfgSaveBtn();
   showToast('已讀取 '+ys.map(y=>'民國'+(y-1911)+'年').join('、')+'，按「儲存設定」後套用',2800);
@@ -6071,7 +6299,7 @@ document.getElementById('fileCal').addEventListener('change',async ev=>{
 document.getElementById('calList').addEventListener('click',ev=>{
   const b=ev.target.closest('[data-calrm]');if(!b)return;
   const y=+b.dataset.calrm;
-  if(!confirm('移除民國'+(y-1911)+'年手動匯入的行事曆？\n按「儲存設定」後，所有店家代碼改回使用線上資料。'))return;
+  if(!confirm('移除民國'+(y-1911)+'年手動匯入的行事曆？\n按「儲存設定」後，所有主管代碼改回使用線上資料。'))return;
   if(!calDraft)startCalDraft();
   delete calDraft.manual[y];
   renderCalList();renderCfgSummary();syncCfgSaveBtn();
