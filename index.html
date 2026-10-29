@@ -3299,7 +3299,7 @@ function refreshLeaveIfOpen(){
 function fmtMd(ds){const p=String(ds||'').split('-');return p.length===3?(+p[1])+'/'+(+p[2]):''}
 /* 劃假練習畫面：假的名單、下個月的日曆，不連雲端、按送出也不會存。只在劃假視窗開著時有效，關掉就回到真的 */
 let lvDemo=false;
-const LV_DEMO_STAFF=[{id:'demo-part',name:'練習用・計時',type:'part'},{id:'demo-full',name:'練習用・正職',type:'full'}]; // 不用班表上真的名字
+const LV_DEMO_STAFF=[{id:'demo',name:'練習用',type:'part'}]; // 不用班表上真的名字
 function lvIsDemo(){return lvDemo&&document.getElementById('ovLeave').classList.contains('show')}
 function lvRoster(){return lvIsDemo()?LV_DEMO_STAFF:monthStaff()}
 function lvStaffOf(id){return (lvIsDemo()?LV_DEMO_STAFF:state.staff).find(x=>x.id===id)}
@@ -4940,6 +4940,15 @@ function tourCell(){ // 挑一格有排班的來講解：優先今天那一欄�
   const inView=td=>{const r=td.getBoundingClientRect();return wr&&r.left>=wr.left+90&&r.right<=wr.right&&r.top>=wr.top&&r.bottom<=wr.bottom};
   return cells.find(td=>+td.dataset.day===today&&inView(td))||cells.find(inView)||null;
 }
+function tourLvCell(){ // 畫面上看得到的一格劃假（優先撞到的、再來候補）
+  const wrap=document.querySelector('.sheet-wrap');if(!wrap)return null;
+  const wr=wrap.getBoundingClientRect();
+  const ok=td=>{const r=td.getBoundingClientRect();return r.left>=wr.left+90&&r.right<=wr.right&&r.top>=wr.top&&r.bottom<=wr.bottom};
+  for(const c of ['lv-clash','lv-late','lv-all','lv-only','lv-part']){
+    const td=[...document.querySelectorAll('#sheet td.day-cell.'+c)].find(ok);if(td)return td;
+  }
+  return null;
+}
 function tourHM(t){const v=parseFloat(t);if(isNaN(v))return t;const h=Math.floor(v),m=Math.round((v-h)*60);return h+':'+String(m).padStart(2,'0')}
 function tourSteps(role){
   const $=q=>document.querySelector(q);
@@ -4986,7 +4995,7 @@ function tourSteps(role){
         :'跟著做一次，大約 1 分鐘。<br>上面這行寫著現在劃<b>幾月</b>的假、<b>什麼時候截止</b>。'},
       {el:()=>tourShown($('#lvWhoSel')),act:1,need:()=>!!lvWho,auto:1,h:'① 先選你的名字',
         b:()=>demo()
-          ?(lvWho?'選好了：<b>'+who()+'</b>。<br>真正劃假時，這裡要選<b>自己的名字</b>。':'練習時選<b>「練習用」</b>的任一個就好；真正劃假時要選<b>自己的名字</b>。選好會自動到下一步。')
+          ?(lvWho?'選好了：<b>'+who()+'</b>。<br>真正劃假時，這裡要選<b>自己的名字</b>。':'練習時選<b>「練習用」</b>就好；真正劃假時要選<b>自己的名字</b>。選好會自動到下一步。')
           :(lvWho?'選好了：<b>'+who()+'</b>。<br>記得選的是<b>自己</b>，劃的假才會算在你身上。':'點這裡選<b>自己的名字</b>，選好會自動到下一步。')},
       {el:()=>tourShown(brush()),act:1,h:'② 選要填什麼',
         b:'<b>整天不能上</b>：那天完全不能排。<br><b>只能上這段</b>：例如只能 10:00～17:00。<br><b>只能上到</b>：例如 15:00 前可以，之後不行。<br><b>幾點後才能上</b>：例如 15:00 以後才行。<br><b>清除</b>：把劃錯的取消。<br>選了要時間的，下面會出現時間選單。可以點點看。'},
@@ -5006,13 +5015,25 @@ function tourSteps(role){
   if(role==='edit')return [
     {h:'歡迎使用我的班表 👋',b:'這是主管版的快速導覽，帶你認識排班、人員和劃假管理。<br>之後想再看，按右上角的「？」就能重看。'},
     {el:()=>tourShown($('.sheet-wrap')),h:'這是班表',b:'一列一個人，<b>左右滑</b>可以看其他天，打開時會先停在今天。<br>表頭的「！」：<b style="color:var(--red)">紅色</b>是當天人力不符規則，<b class="c-amber">黃色</b>是有人出勤天數超標，點一下看原因。'},
+    {el:()=>tourShown(tourLvCell())||tourShown($('.sheet-wrap')),h:'班表上的劃假',b:t=>
+      (!(t&&t.classList&&t.classList.contains('day-cell'))?'夥伴劃的假會直接顯示在班表上。'
+        :t.classList.contains('lv-clash')?'圈起來的這格有<b>紅框和「!」</b>：排的班撞到夥伴劃的假，要再確認。'
+        :t.classList.contains('lv-late')?'圈起來的這格是截止後才劃的<b>候補</b>。'
+        :'圈起來的這格，就是夥伴劃的假。')+'只有主管看得到，夥伴看不到別人劃了什麼。<br>'+
+      '<i class="lgc sw-all"></i>「假」整天不能上<br><i class="lgc sw-only"></i>「限」只能上這段<br>'+
+      '<i class="lgc sw-part"></i>「~18」只能上到 18:00，「15~」15:00 後才能上<br>'+
+      '<i class="lgc sw-late"></i>截止後才劃的<b>臨時（候補）</b><br>'+
+      '<i class="lgc sw-clash"></i>紅框加「!」：排的班撞到劃假<br>已經排了班、又沒撞到的格子，不會顯示底色。'},
     {el:()=>tourShown($('#btnEdit')),h:'開始排班',b:'按這裡<b>解鎖</b>，點格子選班別、自訂時間或請假；排完再按一次<b>鎖定</b>。<br>鎖定後才會檢查人力，紅色「！」也是這時才出現。'},
     {el:()=>tourShown($('#btnStaff')),h:'人員',b:'新增或編輯夥伴，設定正職、計時或支援，也可以調整這個月要排哪些人。'},
     {el:()=>tourShown($('#btnLeave')),h:'劃假管理',b:'看大家劃了哪些日子，也可以<b>代為修改</b>。<br>下方的「⚙ 開放設定」可以設定劃哪個月、截止日，以及截止後的候補。'},
     {el:()=>tourShown($('#btnNotice')),h:'劃假通知',b:'有人劃假或改假時，🔔 會出現<b style="color:var(--red)">紅點</b>；點開可以看最近異動和每位夥伴的備註。'},
     {el:()=>tourShown($('#btnFilter')),h:'篩選日期',b:'只顯示某幾天，例如 1～15 號；也可以把這段日期存成<b>圖片</b>，方便傳到群組。'},
-    {el:()=>tourShown($('#btnMore')),h:'更多',b:'<b>複製代碼</b>：把夥伴代碼傳給大家，他們就能看班表、劃假。<br>匯出、備份和後台設定也都在這裡。'},
-    {el:()=>tourShown($('#sheet .ot-btn')),h:'加班時數',b:'點名字旁的 <b>⋯</b>，看這個人這個月的加班時數，以及月休有沒有休滿。'},
+    {el:()=>tourShown($('#btnMore')),h:'更多 ⋯',b:'<b>複製代碼</b>：把<b>夥伴代碼</b>傳給大家，他們就能看班表、劃假；主管代碼只給要一起排班的人。<br>'+
+      '<b>匯出或備份</b>：匯出 PDF／列印，或存成備份檔。<br><b>載入備份</b>：從備份檔還原。<br>'+
+      '<b>後台設定</b>：班段、人力規則、劃假、行事曆（要登入）。<br><b>已隱藏人員</b>：找回之前隱藏的人。<br>'+
+      '<b>加入現有代碼</b>、<b>建立新店家</b>：換店，或開一份新的班表。'},
+    {el:()=>tourShown($('#sheet .ot-btn')),h:'加班時數',b:'點名字旁的 <b>⋯</b>，看這個人這個月的<b>加班時數</b>：國定假日有上班、月休沒休滿、單天超過 8 小時、上班天數超標，都會算進來。<br>下面會列出是哪幾天，點日期就會跳到班表那一格。'},
     {el:()=>tourShown($('#btnHelp')),h:'看不懂就按這裡',b:'符號、顏色和各種規則都寫在這裡；也可以重看這份教學，或預覽夥伴看到的版本。'}
   ];
   return [
@@ -5025,9 +5046,10 @@ function tourSteps(role){
       return '這格是 <b>'+tourHM(s)+' 上班、'+tourHM(e)+' 下班</b>。左上是上班、右下是下班，用小時寫：'+ex+' 就是 '+tourHM(ex)+'。'+
         (bk?'右邊的「'+esc(bk.textContent)+'」是休息時間。':'')+
         '<br>╱ 是沒排班，✕ 是排休；格子中間寫「特」「事」這類字是請假。'}},
-    {el:()=>tourShown($('#sheet .ot-btn')),h:'看加班時數',b:'點名字旁的 <b>⋯</b>，可以看這個人這個月的加班時數。'},
+    {el:()=>tourShown($('#sheet .ot-btn')),h:'看加班時數',b:'點名字旁的 <b>⋯</b>，看這個人這個月的<b>加班時數</b>：國定假日有上班、月休沒休滿、單天超過 8 小時、上班天數超標，都會算進來。<br>下面會列出是哪幾天，點日期就會跳到班表那一格。'},
     {el:()=>[tourShown($('#selYear')),tourShown($('#selMonth'))].filter(Boolean),h:'切換月份',b:'點這裡可以看上個月、下個月的班表。'},
     {el:()=>tourShown($('#btnLeave')),h:'劃假',b:'開放期間點這裡，標出不能上班的日子；第一次打開時，會一步步帶你劃一次。<br>想先練習？按「？」裡的<b>「🏖 劃假教學」</b>，用練習畫面跟著做。'},
+    {el:()=>tourShown($('#btnMore')),h:'更多 ⋯',b:'<b>匯出或備份</b>：把班表存成 PDF 或印出來。<br><b>複製代碼</b>：複製夥伴代碼，傳給新來的同事。<br><b>加入現有代碼</b>：換成別的代碼，例如去支援別家店。'},
     {el:()=>tourShown($('#btnLook')),h:'調整外觀',b:'字的大小、顏色、深色模式都可以調，只會改你自己的手機。'},
     {el:()=>tourShown($('#btnHelp')),h:'看不懂就按這裡',b:'每個符號和顏色是什麼意思都寫在這裡，也可以重看這份教學。'}
   ];
