@@ -1899,6 +1899,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
       <button class="btn edit-only" id="btnTourMate" style="flex:1 1 40%">👀 預覽夥伴版</button>
       <button class="btn" id="btnTourLeave" style="flex:1 1 40%">🏖 劃假教學</button>
       <button class="btn edit-only" id="btnTourSched" style="flex:1 1 40%">📝 排班教學</button>
+      <button class="btn edit-only" id="btnTourLcfg" style="flex:1 1 40%">⚙ 開放劃假教學</button>
     </div>
     <div class="sec-label">表格符號</div>
     <div class="legend">
@@ -1944,6 +1945,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
       <li>第一次用夥伴代碼或主管代碼打開時，會有一段對應的新手教學；每支手機各只出現一次，可從本頁最上方重看。主管可另外預覽夥伴看到的版本。</li>
       <li>本頁最上方的「🏖 劃假教學」會開<b>練習畫面</b>，一步步帶著劃一次（選名字、選種類、點日期、送出）：名單是「練習用」的假名字，劃假沒開放也能練，劃的假不會送出、也不會存。</li>
       <li class="edit-only">主管第一次按「🔒 排班」解鎖時，會帶著排一格，介紹排班視窗的每一區；本頁最上方的「排班教學」可以重看。</li>
+      <li class="edit-only">主管第一次打開劃假的「⚙ 開放設定」時，會逐欄介紹怎麼開放劃假（月份、期間、候補、紀錄保留）；本頁最上方的「開放劃假教學」可以重看。教學中沒按「儲存」都不會生效。</li>
       <li>App 啟動或下拉重整時會播開啟動畫，點一下畫面可跳過。從其他 App 切回來不會重播，畫面維持在原本的位置。</li>
       <li>啟動或下拉重整時，表格從最上面開始。看的是本月時，左右會自動捲到今天，今天排在名字右邊第一格；其他月份從 1 號開始。</li>
     </ul>
@@ -3790,6 +3792,7 @@ function openLeaveCfg(){
   syncLcBox();
   renderPurgeInfo();
   document.getElementById('ovLeaveCfg').classList.add('show');
+  if(!viewerMode&&!tourSeen('lcfg')&&!document.getElementById('tour'))setTimeout(()=>startTour('lcfg'),350); // 第一次：帶著看一遍
 }
 function leaveMonths(){ // 雲端目前留著哪幾個月的劃假
   return Object.keys(leaveData||{}).filter(k=>/^\d{4}-\d{2}$/.test(k)).sort();
@@ -4926,7 +4929,7 @@ document.getElementById('btnMore').addEventListener('click',()=>{
 /* ────────── 新手教學（聚光燈）：夥伴版、主管版各一套 ──────────
    用夥伴代碼／主管代碼打開、而且這支手機還沒看過那一版就會出現（這次更新前就在用的手機也會看到一次）。
    看完或略過就記在這支手機上；想重看從「？」。版本號改掉，大家就會再看到一次。 */
-const TOUR_KEYS={view:'paiban-tour-v1',edit:'paiban-tour-mgr-v1',leave:'paiban-tour-leave-v1',sched:'paiban-tour-sched-v1'};
+const TOUR_KEYS={view:'paiban-tour-v1',edit:'paiban-tour-mgr-v1',leave:'paiban-tour-leave-v1',sched:'paiban-tour-sched-v1',lcfg:'paiban-tour-lcfg-v1'};
 function tourSeen(role){try{return !!localStorage.getItem(TOUR_KEYS[role])}catch(e){return true}} // 讀不到就當看過，免得每次都跳
 function tourMark(role){try{localStorage.setItem(TOUR_KEYS[role],String(Date.now()))}catch(e){}}
 function tourShown(el){return el&&el.getClientRects().length&&el.getBoundingClientRect().width>0?el:null}
@@ -4987,6 +4990,28 @@ function tourLvCell(){ // 畫面上看得到的一格劃假（優先撞到的、
 function tourHM(t){const v=parseFloat(t);if(isNaN(v))return t;const h=Math.floor(v),m=Math.round((v-h)*60);return h+':'+String(m).padStart(2,'0')}
 function tourSteps(role){
   const $=q=>document.querySelector(q);
+  if(role==='lcfg'){ // 主管第一次打開「⚙ 開放設定」：每個欄位是什麼、怎麼設；沒按儲存都不會生效
+    const on=()=>document.getElementById('lcOn').checked;
+    const lab=id=>{const e=$('#'+id);return e?e.closest('label'):null};
+    const shown=a=>a.map(tourShown).filter(Boolean);
+    return [
+      {el:()=>tourShown($('#ovLeaveCfg .m-title')),h:'開放劃假教學',
+        b:'每個月要讓夥伴劃假前，在這裡設定一次。跟著看一遍，大約 1 分鐘。<br>教學中改的設定，<b>沒按「儲存」都不會生效</b>，可以放心點。'},
+      {el:()=>tourShown(lab('lcOn')),act:1,need:on,auto:1,h:'① 打開「開放夥伴劃假」',
+        b:()=>on()?'已經打開了，下面的設定都出現了。':'<b>勾起來</b>，下面才會出現設定。勾好會自動到下一步。'},
+      {el:()=>tourShown(lab('lcYm')),act:1,h:'② 劃哪個月',
+        b:'通常選<b>下個月</b>。<br>一次只能開一個月；換月份時，原本那個月的劃假和候補會一起結束，存檔前會提醒你。'},
+      {el:()=>shown([lab('lcFrom'),lab('lcTo')]),act:1,h:'③ 開放期間',
+        b:'夥伴從<b>開放起日</b>到<b>截止日</b>都能自由劃假，兩天都含當天。<br>以雲端時間為準，夥伴改手機時間也沒用。'},
+      {el:()=>shown([lab('lcLate'),$('#lcLateLimBox'),$('#lcHint')]),act:1,h:'④ 截止後的候補',
+        b:'勾<b>「截止後仍可臨時劃假」</b>：截止後還能劃，但會標成「臨時」列為候補，可以在 🔔 依送出先後處理。<br>'+
+          '再勾<b>「候補也要限時」</b>，填候補截止日，過了就鎖定；不勾就一直開到你關閉或換月份。'},
+      {el:()=>shown([$('#lcPurgeInfo'),($('#lcKeep')||{}).parentElement]),h:'⑤ 劃假紀錄',
+        b:'雲端會留著每個月的劃假。這裡可以只保留最近幾個月，按「清除其餘」刪掉更早的；<b>正在開放的月份不會被刪</b>，班表本身也不受影響。'},
+      {el:()=>tourShown($('#btnLeaveCfgSave')),h:'⑥ 最後按「儲存」',
+        b:'設定好按<b>「儲存」</b>才會生效，夥伴打開劃假就看得到。<br>不想改就按「取消」。'}
+    ];
+  }
   if(role==='sched'){ // 主管第一次解鎖排班：點一格、認識排班視窗的每一區，跟著做
     const cellOpen=()=>document.getElementById('ovCell').classList.contains('show');
     const now=new Date(),today=(state.y===now.getFullYear()&&state.m===now.getMonth()+1)?now.getDate():0;
@@ -5157,7 +5182,7 @@ function tourText(){
   if(bx.innerHTML!==html)bx.innerHTML=html;
   const prev=root.querySelector('[data-t="prev"]'),next=root.querySelector('[data-t="next"]');
   prev.style.display=i?'':'none';
-  next.textContent=i===0?'開始':(i===n-1?(tourRole==='leave'||tourRole==='sched'?'我知道了':'開始使用'):'下一步');
+  next.textContent=i===0?'開始':(i===n-1?(tourRole==='view'||tourRole==='edit'?'開始使用':'我知道了'):'下一步');
   next.disabled=!!(st.need&&!st.need());
   root.querySelector('.tt-skip').style.visibility=i===n-1?'hidden':'';
   root.classList.toggle('act',!!st.act);
@@ -5166,6 +5191,7 @@ function tourRefresh(){
   const root=document.getElementById('tour');if(!root||!tourList)return;
   if(tourRole==='leave'&&!document.getElementById('ovLeave').classList.contains('show')){endTour();return} // 劃假視窗被關掉了
   if(tourRole==='sched'&&!editMode){endTour();return} // 排班已鎖定
+  if(tourRole==='lcfg'&&!document.getElementById('ovLeaveCfg').classList.contains('show')){endTour();return} // 設定視窗關掉了
   const st=tourList[tourIdx];
   if(st.need&&st.auto&&!st._was&&st.need()){st._was=true;setTimeout(()=>tourGo(tourIdx+1,1),350);return} // 做到了，自動下一步
   if(st.el&&!tourTarget(st)){tourGo(tourIdx+1,1);return}
@@ -5213,6 +5239,7 @@ function endTour(){
   else if(tourRole==='edit'&&!viewerMode)tourMark('edit');
   else if(tourRole==='leave'&&viewerMode)tourMark('leave');
   else if(tourRole==='sched'&&!viewerMode)tourMark('sched');
+  else if(tourRole==='lcfg'&&!viewerMode)tourMark('lcfg');
 }
 function maybeStartTour(){ // 等開啟動畫結束、其他視窗（例如剛建立代碼的說明）都關掉，再開始
   const role=viewerMode?'view':'edit';
@@ -5231,6 +5258,11 @@ function maybeStartTour(){ // 等開啟動畫結束、其他視窗（例如剛�
 document.getElementById('btnTourReplay').addEventListener('click',()=>{
   document.getElementById('ovHelp').classList.remove('show');
   setTimeout(()=>startTour(viewerMode?'view':'edit'),250);
+});
+document.getElementById('btnTourLcfg').addEventListener('click',()=>{ // 打開劃假的開放設定，逐欄介紹
+  document.getElementById('ovHelp').classList.remove('show');
+  openLeave();openLeaveCfg(); // 第一次的話，打開時就會自己開始
+  setTimeout(()=>{if(!document.getElementById('tour'))startTour('lcfg')},400);
 });
 document.getElementById('btnTourSched').addEventListener('click',()=>{ // 解鎖排班，帶著排一格
   document.getElementById('ovHelp').classList.remove('show');
