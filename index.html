@@ -5030,6 +5030,44 @@ function tourLvCell(){ // 畫面上看得到的一格劃假（優先撞到的、
   }
   return null;
 }
+/* 「班表上的劃假」示範：挑畫面上一列連續幾格，暫時畫成五種劃假的樣子；只改畫面，離開這一步就換回來 */
+const LV_DEMO_KINDS=[
+  {c:'lv-all', h:'<span class="lv-cell-tag">假</span>'},
+  {c:'lv-only',h:'<span class="lv-cell-tag">限</span>'},
+  {c:'lv-part',h:'<span class="lv-cell-tag">~18</span>'},
+  {c:'lv-late',h:'<span class="lv-cell-tag">假</span>'},
+  {c:'filled lv-clash',h:'<span class="t-s">9</span><span class="t-e">18</span><span class="lv-cell-tag bad">!</span>'}
+];
+let tourLvDemo=null;
+function tourLvDemoPick(){ // 第一列整排看得到的人，從最左邊看得到的那天開始取 5 格
+  for(const tr of document.querySelectorAll('#sheet tbody tr')){
+    if(!tr.querySelector('td.name-cell[data-sid]'))continue;
+    const cells=[...tr.querySelectorAll('td.day-cell[data-sid]')].filter(td=>tourInView(td));
+    if(cells.length>=3)return cells.slice(0,LV_DEMO_KINDS.length);
+  }
+  return null;
+}
+function tourLvDemoApply(){
+  tourLvDemoRestore();
+  const cells=tourLvDemoPick();if(!cells)return false;
+  tourLvDemo={cells:cells.map((td,i)=>{
+    const k=LV_DEMO_KINDS[i],saved={cls:td.className,html:td.innerHTML,st:td.getAttribute('style')||null};
+    td.style.transition='none'; // 不要慢慢變色，一進來就看得到
+    td.className=td.className.split(' ').filter(c=>c==='day-cell'||c==='rd').join(' ')+' '+k.c;
+    td.innerHTML=k.h;
+    return {el:td,saved};
+  })};
+  return true;
+}
+function tourLvDemoRestore(){
+  if(!tourLvDemo)return;
+  tourLvDemo.cells.forEach(({el,saved})=>{if(el.isConnected){
+    el.className=saved.cls;el.innerHTML=saved.html;
+    if(saved.st==null)el.removeAttribute('style');else el.setAttribute('style',saved.st); // 原本有沒有 style 都照原樣
+    if(el.getAttribute('style')==='')el.removeAttribute('style');
+  }});
+  tourLvDemo=null;
+}
 function tourHM(t){const v=parseFloat(t);if(isNaN(v))return t;const h=Math.floor(v),m=Math.round((v-h)*60);return h+':'+String(m).padStart(2,'0')}
 function tourSteps(role){
   const $=q=>document.querySelector(q);
@@ -5118,15 +5156,21 @@ function tourSteps(role){
   if(role==='edit')return [
     {h:'歡迎使用我的班表 👋',b:'這是主管版的快速導覽，帶你認識排班、人員和劃假管理。<br>之後想再看，按右上角的「？」就能重看。'},
     {el:()=>tourShown($('.sheet-wrap')),h:'這是班表',b:'一列一個人，<b>左右滑</b>可以看其他天，打開時會先停在今天。<br>表頭的「！」：<b style="color:var(--red)">紅色</b>是當天人力不符規則，<b class="c-amber">黃色</b>是有人出勤天數超標，點一下看原因。'},
-    {el:()=>tourShown(tourLvCell())||tourShown($('.sheet-wrap')),h:'班表上的劃假',b:t=>
-      (!(t&&t.classList&&t.classList.contains('day-cell'))?'夥伴劃的假會直接顯示在班表上。'
-        :t.classList.contains('lv-clash')?'圈起來的這格有<b>紅框和「!」</b>：排的班撞到夥伴劃的假，要再確認。'
-        :t.classList.contains('lv-late')?'圈起來的這格是截止後才劃的<b>候補</b>。'
-        :'圈起來的這格，就是夥伴劃的假。')+'只有主管看得到，夥伴看不到別人劃了什麼。<br>'+
-      '<i class="lgc sw-all"></i>「假」整天不能上<br><i class="lgc sw-only"></i>「限」只能上這段<br>'+
-      '<i class="lgc sw-part"></i>「~18」只能上到 18:00，「15~」15:00 後才能上<br>'+
-      '<i class="lgc sw-late"></i>截止後才劃的<b>臨時（候補）</b><br>'+
-      '<i class="lgc sw-clash"></i>紅框加「!」：排的班撞到劃假<br>已經排了班、又沒撞到的格子，不會顯示底色。'},
+    {enter:()=>tourLvDemoApply(),leave:()=>tourLvDemoRestore(),
+      el:()=>{
+        if(tourLvDemo&&!tourLvDemo.cells.every(c=>c.el.isConnected))tourLvDemoApply(); // 班表剛好重畫了，再畫一次示範
+        const cs=tourLvDemo?tourLvDemo.cells.map(c=>tourShown(c.el)).filter(Boolean):[];
+        return cs.length?cs:tourShown($('.sheet-wrap'));
+      },h:'班表上的劃假',b:t=>{
+        const n=Array.isArray(t)?t.length:0;
+        const rows=[['sw-all','「假」整天不能上'],['sw-only','「限」只能上這段'],['sw-part','「~18」只能上到 18:00（「15~」是 15:00 後才能上）'],
+          ['sw-late','截止後才劃的<b>臨時（候補）</b>'],['sw-clash','紅框加「!」：排的班撞到劃假']];
+        return (n?'圈起來的這幾格是<b>示範</b>，讓你看看夥伴劃假後，班表上會長什麼樣子。從左到右：':'夥伴劃的假會直接顯示在班表上：')+'<br>'+
+          rows.slice(0,n||rows.length).map(r=>'<i class="lgc '+r[0]+'"></i>'+r[1]).join('<br>')+
+          (n&&n<rows.length?'<br>'+rows.slice(n).map(r=>'<i class="lgc '+r[0]+'"></i>'+r[1]).join('<br>'):'')+
+          '<br>只有主管看得到，夥伴看不到別人劃了什麼。已經排了班、又沒撞到的格子，不會顯示底色。'+
+          (n?'<br><b>示範而已，班表沒有動</b>，下一步就會恢復原樣。':'');
+      }},
     {el:()=>tourShown($('#btnEdit')),h:'開始排班',b:'按這裡<b>解鎖</b>，點格子選班別、自訂時間或請假；排完再按一次<b>鎖定</b>。<br>鎖定後才會檢查人力，紅色「！」也是這時才出現。'},
     {el:()=>tourShown($('#btnStaff')),h:'＋ 人員',b:'<b>新增</b>：按「＋ 新增人員」，填姓名、選正職／計時／支援；回鍋的舊夥伴可以從「過往人員」加回來，以前的班都還在。<br>'+
       '<b>這個月不排</b>（請長假、留停）：在人員清單把他右邊的開關關掉，只影響這個月。<br>'+
@@ -5210,11 +5254,15 @@ function tourKey(e){if(e.key==='Escape')endTour(!(tourList&&tourList[tourIdx]&&t
 function tourSchedule(){cancelAnimationFrame(tourRaf);tourRaf=requestAnimationFrame(tourRefresh)}
 function tourGo(i,dir){
   const root=document.getElementById('tour');if(!root)return;
-  while(i>=0&&i<tourList.length&&tourList[i].el&&!tourTarget(tourList[i]))i+=dir||1; // 目標還沒出現就往同方向跳過
-  if(i<0)return;
+  const was=tourList[tourIdx];
+  if(was&&was.leave&&was._in){was._in=false;was.leave()} // 離開這一步：把示範換回來
+  while(i>=0&&i<tourList.length&&tourList[i].el&&!tourList[i].enter&&!tourTarget(tourList[i]))i+=dir||1; // 目標還沒出現就往同方向跳過
+  if(i<0){i=tourIdx}
   if(i>=tourList.length){endTour();return}
   tourIdx=i;
-  const st=tourList[i],t=tourTarget(st);
+  const st0=tourList[i];
+  if(st0.enter&&!st0._in){st0._in=true;st0.enter()}
+  const st=st0,t=tourTarget(st);
   st._was=st.need?!!st.need():true; // 進來時還沒做到，之後做到了才自動往下
   if(t)tourEnsureVisible(t);
   tourText();tourPlace();
@@ -5301,6 +5349,8 @@ function tourPlace(){
   tip.style.top=Math.round(top)+'px';tip.style.left=Math.round(left)+'px';
 }
 function endTour(skipped){
+  const cur=tourList&&tourList[tourIdx];
+  if(cur&&cur.leave&&cur._in){cur._in=false;cur.leave()}
   const root=document.getElementById('tour');if(root)root.remove();
   if(tourRole==='sched')tourRestoreCells();
   if(skipped===true)showToast('已略過教學，之後可以在「？」重看',2800);
