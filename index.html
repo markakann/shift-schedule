@@ -739,6 +739,7 @@ html.dark .late-to{color:var(--fade2)}
 .chip.leave.purple.active{background:#8a4fb0;border-color:#8a4fb0;color:#fff}
 .chip.leave.brown.active{background:#8d5a2b;border-color:#8d5a2b;color:#fff}
 .chip.leave.sky.active{background:#1b8bc4;border-color:#1b8bc4;color:#fff}
+.chip.leave.green.active{background:#2a8a4a;border-color:#2a8a4a;color:#fff} /* 職災：選取後也要反白 */
 .leave-hint{color:var(--ink);margin-top:8px}
 .cm-leave-box{border:1px solid var(--pencil);border-radius:10px;padding:0 10px 10px;margin:8px 0 4px}
 .cm-leave-box>.sec-label:first-child{margin-top:8px}
@@ -925,6 +926,7 @@ html.dark .chip.leave.brown{background:#33291f;color:#d6a273;border-color:#d6a27
 html.dark .chip.leave.sky{background:#1c2f3b;color:#62c1ef;border-color:#62c1ef}
 html.dark .chip.leave.brown.active{background:#d6a273;color:#1b1b1b}
 html.dark .chip.leave.sky.active{background:#62c1ef;color:#1b1b1b}
+html.dark .chip.leave.green.active{background:#5fc47f;border-color:#5fc47f;color:#1b1b1b}
 html.dark .mtoggle-track{background:#4a4e56}
 html.dark .mtoggle-track::before{background:#d8d6cf}
 html.dark .save-hint,html.dark .sec-label,html.dark .m-sub,html.dark .small-note,
@@ -1968,7 +1970,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
       <li>第一次以夥伴代碼或主管代碼開啟時，播放對應的完整新手教學，每支裝置各播放一次：主管版包含排班、開放劃假設定與劃假的實際操作，夥伴版包含劃假練習。</li>
       <li>本頁最上方可重看完整新手教學，或直接查看其中一部分：「📋 功能介紹」僅介紹畫面與各項功能，不含實際操作。</li>
       <li>本頁最上方的「🏖 劃假教學」開啟<b>練習畫面</b>，依序操作一次劃假（選擇姓名、劃假方式、日期、送出）：名單僅有「練習用」，劃假未開放時亦可練習，內容不會送出或儲存。</li>
-      <li class="edit-only">「📝 排班教學」依序介紹排班視窗各區並實際排一格，教學中排入的內容不會儲存，結束後自動還原。未看過時，第一次按「🔒 排班」解鎖會自動開始。</li>
+      <li class="edit-only">「📝 排班教學」實際點選一格，依序操作班別、自訂時間、排休、特休等假別與特定時段；教學中排入的內容不會儲存，結束後自動還原。班表尚無人員時以示範班表練習。未看過時，第一次按「🔒 排班」解鎖會自動開始。</li>
       <li class="edit-only">「⚙ 開放劃假教學」逐項介紹開放劃假的設定（月份、期間、候補、紀錄保留），最後可實際按一次「儲存」查看結果，設定不會變更。未看過時，第一次開啟劃假的「⚙ 開放設定」會自動開始。</li>
       <li>App 啟動或下拉重整時會播開啟動畫，點一下畫面可跳過。從其他 App 切回來不會重播，畫面維持在原本的位置。</li>
       <li>啟動或下拉重整時，表格從最上面開始。看的是本月時，左右自動捲動，讓今天出現在畫面中；其他月份從 1 號開始。整個月份一次放得下時（例如電腦的大螢幕）不捲動。</li>
@@ -2387,6 +2389,8 @@ async function initFirebase(){
     FB=null;cloudStatus='雲端無法載入（本機模式）';
     setHint('本機模式');
     refreshCalendarDaily();
+    let saved=null;try{saved=localStorage.getItem('paiban-store-code')}catch(e){}
+    if(!saved)maybeStartTour(); // 本來就只用本機的：一樣有新手教學（有代碼只是暫時離線的，等連上再說）
   }
 }
 function recordCodeHistory(code){ // 記錄「這台裝置」用過的主管代碼，僅存本機，不是全系統清單
@@ -2468,7 +2472,7 @@ async function connectStore(code,isNew,silent){
     const d=s.data().data;
     if(d&&d!==lastWritten){ // 其他裝置的更新
       lastWritten=d;
-      applyPayload(d);
+      tourRealDo(()=>applyPayload(d));
       renderAll();
       setHint('已同步其他裝置的更新 ✓');
     }
@@ -2512,7 +2516,7 @@ async function connectViewer(code,silent){ // 以夥伴代碼連線：唯讀，�
     const d=s.data().data;
     if(d&&d!==lastWritten){
       lastWritten=d;
-      applyPayload(d);
+      tourRealDo(()=>applyPayload(d));
       renderAll();
       setHint('夥伴代碼｜已更新');
     }
@@ -2937,6 +2941,12 @@ function dailySplitHours(d){ // 當天早／晚班總工時（分鐘，含休息
 function fmtHM(min){const h=Math.floor(min/60),m=min%60;return h+':'+String(m).padStart(2,'0')}
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 let tourHoldSave=false,tourSnapCells=null; // 排班教學中：不存檔；動到的格子先記原本的樣子，教學結束還原
+let tourSchedDemo=null,tourPickKey=null; // 空白班表的排班教學：{real:真正的 state}；教學中操作的那一格 {sid,d}
+function tourRealDo(fn){ // 示範中收到雲端更新：寫進真正的資料，不寫進示範班表
+  if(!tourSchedDemo)return fn();
+  const d=state;state=tourSchedDemo.real;
+  try{return fn()}finally{tourSchedDemo.real=state;state=d}
+}
 function tourTouch(sid,a,b){
   if(!tourHoldSave||!tourSnapCells)return;
   const md=monthData();
@@ -2948,7 +2958,7 @@ function tourTouch(sid,a,b){
   }
 }
 function tourRestoreCells(){ // 只還原教學中動過的格子，其他裝置同時改的不會被蓋掉
-  const snap=tourSnapCells;tourSnapCells=null;tourHoldSave=false;
+  const snap=tourSnapCells;tourSnapCells=null;tourHoldSave=!!tourSchedDemo; // 示範班表還沒換回去之前，照樣不存檔
   if(!snap||!snap.size)return false;
   const md=monthData();
   snap.forEach((v,k)=>{
@@ -4633,7 +4643,7 @@ function otDetailTable(sid,t){ // 逐日明細：拆開時長／扣休／實際�
     '</table></div>';
 }
 function openOT(sid){
-  if(otDemo&&sid===OT_DEMO_ID){otDemoWith(()=>openOTCore(sid));return}
+  if(otDemo&&otDemo.st.staff.some(s=>s.id===sid)){otDemoWith(()=>openOTCore(sid));return}
   openOTCore(sid);
 }
 function openOTCore(sid){
@@ -5198,31 +5208,52 @@ function tourHM(t){const v=parseFloat(t);if(isNaN(v))return t;const h=Math.floor
 const OT_DEMO_ID='otdemo';
 const OT_DEMO_CAL={'10-9':'補假','10-10':'國慶日','10-25':'光復節','10-26':'補假'}; // 2026 年 10 月
 let otDemo=null,tourCalOverride=null;
+function otDemoConfig(){ // 示範人數少，人力規則先關掉，表頭才不會滿滿的紅色！
+  const c=JSON.parse(JSON.stringify(state.config||{}));
+  c.rules=cfg().rules.map(r=>Object.assign({},r,{on:false}));
+  return c;
+}
 function otDemoState(){
   const W=[1,2,5,6,7,8,9,10,11,13,14,15,16,19,20,21,22,25,26,27,29,30],R=[3,4,12,17,18,23,24,28,31],LONG=[15,22];
   const row={};
   W.forEach(d=>row[d]={t:'shift',s:540,e:LONG.includes(d)?1200:1080});
   R.forEach(d=>row[d]={t:'rest'});
-  const c=JSON.parse(JSON.stringify(state.config||{}));
-  c.rules=cfg().rules.map(r=>Object.assign({},r,{on:false})); // 只有一個人，人力規則先關掉，表頭才不會滿滿的紅色！
   return {store:state.store,title:state.title,corner:state.corner,viewCode:state.viewCode,
     staff:[{id:OT_DEMO_ID,name:'示範',type:'full'}],
     months:{'2026-10':{sched:{[OT_DEMO_ID]:row},notes:[],dayOv:{},roster:[OT_DEMO_ID],dayNames:{}}},
-    calCache:{},config:c,y:2026,m:10};
+    calCache:{},config:otDemoConfig(),y:2026,m:10};
+}
+function blankDemoState(){ // 空白班表（新主管、僅存本機）：教學前幾步改用示範班表，月份照目前畫面
+  const y=state.y,m=state.m,N=new Date(y,m,0).getDate(),ids=['dm1','dm2','dm3'],sched={dm1:{},dm2:{},dm3:{}};
+  for(let d=1;d<=N;d++){
+    const w=new Date(y,m-1,d).getDay();
+    sched.dm1[d]=(w===2||w===3)?{t:'rest'}:{t:'shift',s:540,e:1080};    // 早班，週二三休
+    sched.dm2[d]=(w===4||w===5)?{t:'rest'}:{t:'shift',s:780,e:1320};    // 晚班，週四五休
+    if(w===0||w===5||w===6)sched.dm3[d]={t:'shift',s:1020,e:1320};       // 計時：週五六日晚上
+  }
+  ['dm1','dm2'].forEach(id=>{ // 月休最多 8 天，不會超過額度而變成紅字
+    let n=0;for(let d=1;d<=N;d++)if(sched[id][d].t==='rest'&&++n>8)sched[id][d]={t:'shift',s:id==='dm1'?540:780,e:id==='dm1'?1080:1320};
+  });
+  return {store:state.store,title:state.title,corner:state.corner,viewCode:state.viewCode,
+    staff:[{id:'dm1',name:'示範一',type:'full'},{id:'dm2',name:'示範二',type:'full'},{id:'dm3',name:'示範三',type:'part'}],
+    months:{[y+'-'+m]:{sched,notes:[],dayOv:{},roster:ids,dayNames:{}}},
+    calCache:state.calCache,config:otDemoConfig(),y,m};
 }
 function otDemoWith(fn){
-  const real=state;state=otDemo.st;tourCalOverride=OT_DEMO_CAL;
+  const real=state;state=otDemo.st;tourCalOverride=otDemo.cal;
   try{return fn()}finally{state=real;tourCalOverride=null}
 }
-function otDemoSel(){const sy=document.getElementById('selYear'),sm=document.getElementById('selMonth');if(sy)sy.value=2026;if(sm)sm.value=10}
-function otDemoOn(){
-  if(otDemo)return;
+function otDemoSel(){const sy=document.getElementById('selYear'),sm=document.getElementById('selMonth');if(sy)sy.value=otDemo.st.y;if(sm)sm.value=otDemo.st.m}
+function otDemoOn(kind){ // kind：'ot' 加班時數的示範（固定 10 月一人）、'blank' 空白班表時的示範（三人、目前月份）
+  kind=kind||'ot';
+  if(otDemo){if(otDemo.kind===kind)return;otDemoOff()}
   const w=document.querySelector('.sheet-wrap');
-  otDemo={st:otDemoState(),filter:dayFilter,scroll:w?[w.scrollLeft,w.scrollTop]:[0,0],winY:window.scrollY,jumped:null};
+  otDemo={kind,st:kind==='blank'?blankDemoState():otDemoState(),cal:kind==='blank'?null:OT_DEMO_CAL,
+    filter:dayFilter,scroll:w?[w.scrollLeft,w.scrollTop]:[0,0],winY:window.scrollY,jumped:null};
   if(dayFilter){dayFilter=null;applyDayFilterStyle()} // 有篩選日期時先拿掉，示範結束再放回去
   clearMarks();markedKey=null;updateMarkBtn();
   renderSheet();otDemoSel();
-  if(w){w.scrollLeft=0;w.scrollTop=0}
+  if(w){w.scrollTop=0;if(kind==='blank')scrollSheetToToday();else w.scrollLeft=0}
 }
 function otDemoOff(){
   if(!otDemo)return;
@@ -5240,7 +5271,7 @@ function otDemoOpen(){ // 打開示範的加班視窗（已開就不重開，免
 }
 function otDemoClose(){document.getElementById('ovOT').classList.remove('show')}
 function otSec(...ks){return ks.map(k=>tourShown(document.querySelector('#otBody [data-ots="'+k+'"]'))).filter(Boolean)}
-const TOUR_GRP={ot:{off:otDemoOff}}; // 連續幾步共用的示範：離開這一組才收掉
+const TOUR_GRP={ot:{off:otDemoOff},blank:{off:otDemoOff}}; // 連續幾步共用的示範：離開這一組才收掉
 function tourSteps(role,full){ // full：完整新手教學，走到排班、開放設定、劃假時直接插入該段的實際操作
   const $=q=>document.querySelector(q);
   const RED=t=>'<b style="color:var(--red)">'+t+'</b>';
@@ -5249,6 +5280,9 @@ function tourSteps(role,full){ // full：完整新手教學，走到排班、開
     return '一列為一位夥伴，'+(sc?'<b>左右滑動</b>可查看其他日期；查看本月時，開啟後自動捲動，讓今天出現在畫面中。':'整個月份一次顯示於畫面上。');
   };
   const NAME=full?'新手教學':'功能介紹';
+  const BL=(role==='edit'||role==='view')&&!monthStaff().length; // 空白班表（新主管、僅存本機）：前幾步改用示範班表
+  const blank=st=>{if(!BL)return st;const en=st.enter;return Object.assign({},st,{grp:'blank',enter:()=>{otDemoOn('blank');if(en)en()}})};
+  const BLNOTE=()=>BL?'目前班表尚無人員，以下先以<b>示範班表</b>說明，實際班表不會變更。<br>':'';
   if(role==='lcfg'){ // 主管第一次打開「⚙ 開放設定」：逐欄介紹；教學中按儲存不會真的改
     const on=()=>document.getElementById('lcOn').checked;
     const lab=id=>{const e=$('#'+id);return e?e.closest('label'):null};
@@ -5271,36 +5305,66 @@ function tourSteps(role,full){ // full：完整新手教學，走到排班、開
         b:'設定完成後按<b>「儲存」</b>才會生效；不變更則按「取消」。<br>請按「儲存」查看儲存後的畫面，教學中不會實際變更設定。'}
     ];
   }
-  if(role==='sched'){ // 主管第一次解鎖排班：點一格、認識排班視窗各區；教學中排的格子不會存
+  if(role==='sched'){ // 排班教學：實際點一格，依序操作班別、排休、特休等假別；教學中排的格子不會存
     const cellOpen=()=>document.getElementById('ovCell').classList.contains('show');
+    const closeCell=()=>document.getElementById('ovCell').classList.remove('show');
     const now=new Date(),today=(state.y===now.getFullYear()&&state.m===now.getMonth()+1)?now.getDate():0;
-    const inWrap=el=>tourInView(el);
-    let picked=null;
-    const pick=()=>{ // 今天那一欄第一位，看不到就挑畫面上第一格
-      if(picked&&picked.isConnected)return picked;
+    const pick=()=>{ // 同一格從頭用到尾：記住點開的是哪一格；還沒點過就挑今天那一欄第一位，看不到就挑畫面上第一格
+      if(tourPickKey){const c=cellOf(tourPickKey.sid,tourPickKey.d);if(c)return c}
       const cells=[...document.querySelectorAll('#sheet td.day-cell[data-sid]')];
-      picked=cells.find(td=>+td.dataset.day===today&&inWrap(td))||cells.find(inWrap)||null;return picked;
+      return cells.find(td=>+td.dataset.day===today&&tourInView(td))||cells.find(td=>tourInView(td))||null;
+    };
+    const cmOpen=()=>{ // 需要排班視窗的步驟：視窗關著就把同一格打開
+      if(cellOpen())return;
+      const c=pick();if(c)openCell(c.dataset.sid,+c.dataset.day);
+    };
+    const keep=()=>{if(cellOpen())tourPickKey={sid:cur.sid,d:cur.day}};
+    const ent=()=>tourPickKey?entryOf(tourPickKey.sid,tourPickKey.d):null;
+    const chips=ks=>ks.map(k=>tourShown($('#ovCell .chip[data-leave="'+k+'"]'))).filter(Boolean);
+    const lvName=()=>cur.leaveTag?LEAVE_SHORT[cur.leaveTag]:'特休';
+    const useLeave=()=>{ // 從後面退回來、或視窗重開時假別被清掉：補回一個假別，接下來幾步才看得到
+      if(!cur.leaveTag){const e=ent();cur.leaveTag=(e&&TIMED_LEAVES.includes(e.t))?e.t:(e&&e.lt)||'annual';cur.alOn=false;cur.as=cur.s;cur.ae=cur.e;syncLeaveTag();syncAl()}
     };
     const dayTh=()=>$('#sheet thead tr:nth-child(2) th[data-day="'+today+'"]')||$('#sheet thead tr:nth-child(2) th[data-day]');
+    const demoNote=()=>tourSchedDemo?'目前班表尚無人員，以下以<b>示範班表</b>練習；':'';
     return [
-      {el:()=>tourShown($('#btnEdit')),h:'排班教學',b:'目前為<b>排班中</b>（已解鎖），點選格子即可排班。以下依序操作一次，約 1 分鐘。<br>教學中排入的內容不會儲存，結束後自動還原。'},
-      {el:()=>cellOpen()?null:tourShown(pick()),act:1,need:cellOpen,auto:1,h:'① 點選格子',
-        b:'點選任一格，即可排該員當日的班。<br>請點選圈起處的格子，點選後自動進入下一步。'},
-      {el:()=>tourShown($('#ovCell .cm-leave-box')),h:'② 假別',
-        b:'<b>△ 指定休息、╲ 排休、紅線</b>：點選即直接排入。<br><b>特休、公差、事假、職災、颱風假</b>：先點選（反白），再選擇班別或自訂時間，最後按「套用」；僅請部分時數時勾選「特定時段」。'},
-      {el:()=>tourShown($('#cmPresets')),h:'③ 班別',
-        b:'常用班段，點選即排入此格並關閉視窗。<br>班段可於後台設定的「班段」修改。'},
-      {el:()=>{const t=$('#tvS');return t?tourShown(t.closest('.stepper-row')):null},act:1,h:'④ 自訂時間',
-        b:'班別以外的時間於此輸入，例如 <b>1315</b> 即 13:15；± 每次調整 15 分鐘。此區可直接點選試用。'},
-      {el:()=>tourShown($('#cmBreaks')),act:1,h:'⑤ 休息時間',
-        b:'依班段長度自動帶入：超過 8.5 小時休 1 小時，超過 4 小時休 0.5 小時。<br>休息 1 小時，或手動改為與預設不同時，格子右側標註「休○」。'},
-      {el:()=>tourShown($('#ovCell .cm-actions')),act:1,need:()=>!cellOpen(),auto:1,h:'⑥ 套用或退出',
-        b:'<b>套用</b>：排入此格。<b>清除此格</b>：改回未排班。<b>不儲存退出</b>：不做任何變更。<br>請擇一點選，教學中不會儲存。'},
-      {el:()=>tourShown($('#sheet td.day-cell.changed-mark')),h:'⑦ 已修改的格子',
-        b:'本次排班修改過的格子顯示為<b>淡藍色</b>，左下角灰字為原本內容；鎖定後逐漸淡去。'},
-      {el:()=>tourShown(dayTh()),h:'⑧ 表頭日期',
+      {enter:()=>{closeCell();tourPickKey=null},el:()=>tourShown($('#btnEdit')),h:'排班教學',b:()=>'目前為<b>排班中</b>（已解鎖），點選格子即可排班。<br>'+demoNote()+
+        '以下實際操作一次：一般班別、排休、特休等假別，約 2 分鐘。<br>教學中排入的內容不會儲存，結束後自動還原。'},
+      {enter:closeCell,el:()=>cellOpen()?null:tourShown(pick()),act:1,need:cellOpen,auto:1,h:'① 點選格子',
+        b:'點選格子即開啟該員當日的排班視窗。<br>請點選圈起處的格子。'},
+      {enter:()=>{cmOpen();keep();if(cur.leaveTag){cur.leaveTag=null;syncLeaveTag();syncAl()}},cm:cmOpen,
+        el:()=>tourShown($('#cmPresets')),act:1,need:()=>!cellOpen(),auto:1,h:'② 班別',
+        b:'常用班段。未選假別時，點選班別即<b>直接排入</b>此格並關閉視窗。<br>請點選任一班別。<br>班段可於後台設定的「班段」修改。'},
+      {enter:closeCell,el:()=>cellOpen()?null:tourShown(pick()),act:1,need:cellOpen,auto:1,h:'③ 已排入',
+        b:()=>{const e=ent();return (e&&e.t==='shift'?'已排入 <b>'+fmtHM(e.s)+'～'+fmtHM(e.e)+'</b>：左上為上班、右下為下班時間。':'已回到班表。')+
+          '<br>同一格可再次點選修改。請再點選此格。'}},
+      {enter:()=>{cmOpen();keep()},cm:cmOpen,el:()=>{const t=$('#tvS');return t?tourShown(t.closest('.stepper-row')):null},act:1,h:'④ 自訂時間',
+        b:'班別以外的時間於此輸入，例如 <b>1315</b> 即 13:15；± 每次調整 15 分鐘。<br>調整後按最下方「套用」排入。此區可直接點選試用。'},
+      {enter:cmOpen,cm:cmOpen,el:()=>tourShown($('#cmBreaks')),act:1,h:'⑤ 休息時間',
+        b:'依班段長度自動帶入：超過 8.5 小時休 1 小時，超過 4 小時休 0.5 小時，也可手動改。<br>休息 1 小時，或與預設不同時，格子右側標註「休○」。'},
+      {enter:()=>{cmOpen();if(cur.leaveTag){cur.leaveTag=null;syncLeaveTag();syncAl()}},cm:cmOpen,
+        el:()=>chips(['desig','rest']),act:1,need:()=>{const e=ent();return !cellOpen()&&!!e&&(e.t==='rest'||e.t==='desig')},auto:1,h:'⑥ 排休、指定休息',
+        b:'<b>△ 指定休息</b>、<b>╲ 排休</b>為整天不上班：點選後<b>直接排入</b>並關閉視窗，不需按「套用」。<br>請點選其中一個。<br>另有「紅線」用於到職前、離職後，可一次畫到指定日期。'},
+      {enter:closeCell,el:()=>cellOpen()?null:tourShown(pick()),act:1,need:cellOpen,auto:1,h:'⑦ 已排入',
+        b:()=>{const e=ent();return (e&&e.t==='desig'?'已排入 <b>△ 指定休息</b>。':e&&e.t==='rest'?'已排入 <b>排休</b>，格子顯示 ✕。':'已回到班表。')+
+          '<br>請再點選此格，繼續介紹其他假別。'}},
+      {enter:()=>{cmOpen();keep();if(cur.leaveTag){cur.leaveTag=null;syncLeaveTag();syncAl()}},cm:cmOpen,
+        el:()=>chips(['annual','duty','personal','injury','typhoon']),act:1,need:()=>!!cur.leaveTag&&cellOpen(),auto:1,h:'⑧ 特休等假別',
+        b:'<b>特休、公差、事假、職災、颱風假</b>：點選後<b>反白</b>，尚未排入；接著選擇時間，再按「套用」。<br>再點一次可取消。<br>請點選其中一個。'},
+      {enter:()=>{cmOpen();keep();useLeave()},cm:cmOpen,el:()=>{const t=$('#tvS');return [tourShown($('#cmPresets')),t&&tourShown(t.closest('.stepper-row'))].filter(Boolean)},act:1,h:'⑨ 選擇時間',
+        b:()=>'已選「<b>'+lvName()+'</b>」。此時點選班別<b>只帶入時間</b>、不會直接排入；也可於自訂時間調整。<br>此區可直接點選試用。'},
+      {enter:()=>{cmOpen();keep();useLeave()},cm:cmOpen,el:()=>tourShown($('#alRow')),act:1,h:'⑩ 特定時段',
+        b:()=>'<b>不勾選</b>：整天計 8 小時，格子只標「'+(LEAVE_MARK[cur.leaveTag||'annual']||['特'])[0]+'」。<br>'+
+          '<b>勾選</b>：依上方班段記錄，可於「從／到」選擇班段內的<b>任意時段</b>，只請其中一段；格子標示時數與時段（例如「特1」），其餘時間照常上班。<br>'+
+          '計時人員的班段不是 8 小時時固定勾選。此區可直接點選試用。'},
+      {enter:()=>{cmOpen();keep();useLeave()},cm:cmOpen,el:()=>tourShown($('#ovCell .cm-actions')),act:1,need:()=>!cellOpen(),auto:1,h:'⑪ 套用',
+        b:'<b>套用</b>：排入此格。<b>清除此格</b>：改回未排班。<b>不儲存退出</b>：不做任何變更。<br>請按「套用」。'},
+      {enter:closeCell,el:()=>tourShown(pick()),h:'⑫ 已修改的格子',
+        b:()=>{const e=ent(),lt=e?(TIMED_LEAVES.includes(e.t)?e.t:e.lt):null;
+          return (lt?'已排入「'+LEAVE_SHORT[lt]+'」。':'')+'本次排班修改過的格子顯示為<b>淡藍色</b>，左下角灰字為原本內容；鎖定後逐漸淡去。'}},
+      {enter:closeCell,el:()=>tourShown(dayTh()),h:'⑬ 表頭日期',
         b:'排班中點選表頭日期，可將該日手動設為紅字或黑字，或加上名稱（例如店休、週年慶）。'},
-      {el:()=>tourShown($('#btnEdit')),act:1,need:()=>!editMode,h:'⑨ 鎖定',
+      {enter:closeCell,el:()=>tourShown($('#btnEdit')),act:1,need:()=>!editMode,h:'⑭ 鎖定',
         b:'每格修改後即<b>自動存檔</b>。排班完成後按此<b>鎖定</b>，才會進行人力檢查：'+RED('紅色！')+'為人力不符規則，<b class="c-amber">黃色！</b>為出勤天數超標。<br>請按「鎖定」。'}
     ];
   }
@@ -5371,16 +5435,16 @@ function tourSteps(role,full){ // full：完整新手教學，走到排班、開
     {h:full?'歡迎使用我的班表':'功能介紹',b:full
       ?'主管版新手教學，依序介紹班表、排班、人員與劃假管理，並實際操作一次排班、開放劃假設定與劃假，約 5 分鐘。<br>各部分可於右上角「？」個別重看。'
       :'依序介紹班表與各項功能，約 2 分鐘。<br>排班、開放劃假、劃假的實際操作，可於「？」個別查看。'},
-    {el:()=>tourShown($('.sheet-wrap')),h:'班表',b:()=>SHEET()+'<br>表頭「！」：'+RED('紅色')+'為當日人力不符規則，<b class="c-amber">黃色</b>為出勤天數超標，點選可查看原因。'},
-    SYM,
-    {enter:()=>tourDemoApply([LV_DEMO_KINDS]),leave:()=>tourDemoRestore(),
+    blank({el:()=>tourShown($('.sheet-wrap')),h:'班表',b:()=>BLNOTE()+SHEET()+'<br>表頭「！」：'+RED('紅色')+'為當日人力不符規則，<b class="c-amber">黃色</b>為出勤天數超標，點選可查看原因。'}),
+    blank(SYM),
+    blank({enter:()=>tourDemoApply([LV_DEMO_KINDS]),leave:()=>tourDemoRestore(),
       el:()=>tourDemoEl($('.sheet-wrap')),h:'班表上的劃假',b:t=>
         (Array.isArray(t)?'圈起處為劃假在班表上的樣式，依序由左至右：':'夥伴的劃假直接顯示在班表上：')+
         tourGrid(LV_DEMO_KINDS)+
-        '<div class="tt-fn">「15~」為 15:00 後才能上；「臨時」為截止後劃的候補。<br>已排班且未衝突的格子不顯示底色。<br>僅主管可見，夥伴無法看到他人的劃假。</div>'},
+        '<div class="tt-fn">「15~」為 15:00 後才能上；「臨時」為截止後劃的候補。<br>已排班且未衝突的格子不顯示底色。<br>僅主管可見，夥伴無法看到他人的劃假。</div>'}),
     {el:()=>tourShown($('#btnEdit')),h:'開始排班',b:()=>'按此<b>解鎖</b>後，點選格子即可排入班別、自訂時間或假別；完成後再按一次<b>鎖定</b>。<br>鎖定後才進行人力檢查，紅色「！」於此時顯示。'+
-      (!full?'':monthStaff().length?'<br>下一步起實際操作一次排班。':'<br>本月尚無人員，新增人員後可於「？」的「📝 排班教學」實際操作。')},
-    {seg:'sched',when:()=>full&&monthStaff().length>0},
+      (!full?'':monthStaff().length?'<br>下一步起實際操作一次排班。':'<br>本月尚無人員，下一步起以示範班表實際操作一次排班。')},
+    {seg:'sched',when:()=>full},
     {el:()=>tourShown($('#btnStaff')),h:'＋ 人員',b:'人員的新增、編輯與離職皆於此處理。以下依序預覽各畫面，僅供查看，不會變更資料。'},
     {enter:()=>{renderStaffList();document.getElementById('ovStaffList').classList.add('show')},
      leave:()=>document.getElementById('ovStaffList').classList.remove('show'),
@@ -5420,15 +5484,15 @@ function tourSteps(role,full){ // full：完整新手教學，走到排班、開
     {h:full?'歡迎使用我的班表':'功能介紹',b:full
       ?'依序介紹班表的看法與各項功能，並以練習畫面操作一次劃假，約 2 分鐘。<br>各部分可於右上角「？」個別重看。'
       :'依序介紹班表的看法與各項功能，約 1 分鐘。<br>劃假的實際操作，可於「？」的「🏖 劃假教學」查看。'},
-    {el:()=>tourShown($('.sheet-wrap')),h:'班表',b:()=>SHEET()+'<br>表頭紅字為週末與國定假日。'},
-    {el:()=>tourShown(tourCell()),h:'看懂一格班',b:td=>{
+    blank({el:()=>tourShown($('.sheet-wrap')),h:'班表',b:()=>BLNOTE()+SHEET()+'<br>表頭紅字為週末與國定假日。'}),
+    blank({el:()=>tourShown(tourCell()),h:'看懂一格班',b:td=>{
       const s=td.querySelector('.t-s').textContent,e=td.querySelector('.t-e').textContent;
       const ex=[s,e].find(x=>x.includes('.'))||'13.5'; // 拿有小數的當例子，看得出 .5 是半小時
       const bk=td.querySelector('.brk-tag');
       return '此格為 <b>'+tourHM(s)+' 上班、'+tourHM(e)+' 下班</b>。左上為上班時間、右下為下班時間，以小時表示：'+ex+' 即 '+tourHM(ex)+'。'+
         (bk?'右側「'+esc(bk.textContent)+'」為休息時間註記。':'')+
-        '<br>僅有斜線 ╱、沒有時間的格子，表示當天未排班。'}},
-    SYM,
+        '<br>僅有斜線 ╱、沒有時間的格子，表示當天尚未排班。'}}),
+    blank(SYM),
     ...OT,
     {el:()=>[tourShown($('#selYear')),tourShown($('#selMonth'))].filter(Boolean),h:'切換月份',b:'於此切換查看其他月份的班表。'},
     {el:()=>tourShown($('#btnLeave')),h:'劃假',b:()=>'開放期間於此標出無法上班的日子，完成後按「送出」。'+
@@ -5489,7 +5553,10 @@ function startTour(role,o){ // o.full：完整新手教學；o.resume：段落�
   const fr=o.resume;
   tourRole=fr?fr.role:(role||(viewerMode?'view':'edit'));
   tourOutcome=null;
-  if(tourRole==='sched'){tourHoldSave=true;tourSnapCells=new Map()}
+  if(tourRole==='sched'){
+    tourHoldSave=true;tourSnapCells=new Map();tourPickKey=null;
+    if(!monthStaff().length){const d=blankDemoState();tourSchedDemo={real:state};state=d;changedCells.clear();renderAll()} // 沒有人員：換成示範班表練習
+  }
   if(fr)tourList=fr.list;
   else{
     tourList=tourSteps(tourRole,!!o.full&&(tourRole==='view'||tourRole==='edit'));
@@ -5517,6 +5584,7 @@ function startTour(role,o){ // o.full：完整新手教學；o.resume：段落�
   window.addEventListener('resize',tourSchedule);
   document.addEventListener('scroll',tourSchedule,true); // 視窗裡面捲動時，洞要跟著移
   document.addEventListener('keydown',tourKey);
+  document.addEventListener('focusin',tourFocusGuard,true);
   tourMO=new MutationObserver(ms=>{if(ms.every(m=>root.contains(m.target)))return;tourSchedule()}); // 畫面重畫（選了名字、點了日期）就重新對位
   tourMO.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['class','style']});
   tourStarts++;
@@ -5556,7 +5624,7 @@ function tourEnding(){ // 劃假練習、開放設定：視窗關掉時，依按
   if(tourRole==='sched'){
     const touched=!!(tourSnapCells&&tourSnapCells.size);
     tourFinish('排班教學結束','鎖定後，淡藍色的已修改格子逐漸淡去；人力不符規則的日期，表頭顯示「！」。<br>'+
-      (touched?'教學中排入的內容<b>不會儲存</b>，稍後自動還原。<br>':'')+'可於「？」的「📝 排班教學」重看。');
+      (tourSchedDemo?'示範班表的內容<b>不會儲存</b>，結束後換回原本的班表。<br>':touched?'教學中排入的內容<b>不會儲存</b>，稍後自動還原。<br>':'')+'可於「？」的「📝 排班教學」重看。');
     setTimeout(()=>{if(tourSnapCells)tourRestoreCells()},2300); // 等淡掉的動畫跑完再還原
     return;
   }
@@ -5572,8 +5640,30 @@ function tourEnding(){ // 劃假練習、開放設定：視窗關掉時，依按
     else tourFinish('開放劃假教學結束','最後一步為按<b>「儲存」</b>，設定才會生效。<br>教學中的變更<b>皆未儲存</b>，設定維持原樣。<br>可於「？」的「⚙ 開放劃假教學」重看。');
   }
 }
+/* 教學中的焦點：圈起處以外的欄位暫時移出 Tab 順序（tabindex=-1），並擋下聚焦。
+   三星瀏覽器等的選單／鍵盤上有「上一步／下一步」，會直接跳到下一個欄位，不經過暗幕；教學結束照原樣還原 */
+let tourLocked=new Map(); // 元素 → 原本的 tabindex（沒有就是 null）
+const TOUR_FOCUSABLE='input,select,textarea,button,a[href],[contenteditable="true"],[tabindex]';
+function tourAllowed(){ // 可以操作的範圍：說明框本身，以及「可直接點」步驟的圈起處
+  const st=tourList&&tourList[tourIdx],t=st&&st.act?tourTarget(st):null;
+  return [document.getElementById('tour')].concat(t?(Array.isArray(t)?t:[t]):[]).filter(Boolean);
+}
+function tourLockFocus(){
+  const allow=tourAllowed(),ok=el=>allow.some(a=>a.contains(el)),want=new Set();
+  document.querySelectorAll(TOUR_FOCUSABLE).forEach(el=>{if(!ok(el))want.add(el)});
+  tourLocked.forEach((ti,el)=>{if(!want.has(el)){tourRestoreTab(el,ti);tourLocked.delete(el)}});
+  want.forEach(el=>{if(!tourLocked.has(el)){tourLocked.set(el,el.getAttribute('tabindex'));el.setAttribute('tabindex','-1')}});
+  const a=document.activeElement;if(a&&a!==document.body&&!ok(a)&&a.blur)a.blur();
+}
+function tourRestoreTab(el,ti){if(ti==null)el.removeAttribute('tabindex');else el.setAttribute('tabindex',ti)}
+function tourUnlockFocus(){tourLocked.forEach((ti,el)=>tourRestoreTab(el,ti));tourLocked=new Map()}
+function tourFocusGuard(e){ // 還是被聚焦到圈起處以外（例如瀏覽器自己的欄位切換）：立刻移開
+  const el=e.target;if(!el||!el.blur||!document.getElementById('tour'))return;
+  if(!tourAllowed().some(a=>a.contains(el)))el.blur();
+}
 function tourText(){
   const root=document.getElementById('tour');if(!root)return;
+  tourLockFocus();
   const st=tourList[tourIdx],t=tourTarget(st),seq=tourList.filter(s=>!s.seg),i=seq.indexOf(st),n=seq.length; // 編號不算插入的段落
   root.querySelector('.tt-n').textContent=i?(i+' / '+(n-1)):'';
   root.querySelector('.tt-h').textContent=st.h;
@@ -5599,6 +5689,7 @@ function tourRefresh(){
     st._was=true;st._pend=true;const k=tourIdx;
     setTimeout(()=>{st._pend=false;if(tourIdx===k&&tourList&&tourList[k]===st&&document.getElementById('tour'))tourGo(k+1,1)},350);return}
   if(st._pend)return;
+  if(st.cm&&!document.getElementById('ovCell').classList.contains('show')&&!(st.need&&st.need()))st.cm();
   if(st.el&&!st.opt&&!tourTarget(st)){tourGo(tourIdx+1,1);return}
   tourText();tourPlace();
 }
@@ -5652,10 +5743,17 @@ function tourTeardown(){ // 收掉暗幕與監聽（不記錄、不還原）
   window.removeEventListener('resize',tourSchedule);
   document.removeEventListener('scroll',tourSchedule,true);
   document.removeEventListener('keydown',tourKey);
+  document.removeEventListener('focusin',tourFocusGuard,true);
+  tourUnlockFocus();
 }
 function endTour(skipped){
   tourTeardown();
-  if(tourRole==='sched')tourRestoreCells();
+  if(tourRole==='sched'){
+    document.getElementById('ovCell').classList.remove('show');
+    tourRestoreCells();
+    if(tourSchedDemo){state=tourSchedDemo.real;tourSchedDemo=null;tourHoldSave=false;changedCells.clear();renderAll()} // 換回真正的班表
+    tourPickKey=null;
+  }
   tourMarkRole();
   if(tourStack.length){tourResume();return} // 完整新手教學中的一段：看完或略過此段，都回到主教學
   if(skipped===true)showToast('已略過教學，可於「？」重看',2800);
@@ -5669,7 +5767,7 @@ function tourMarkRole(){ // 只記「本人身分」看過的那一版；主管�
 }
 function maybeStartTour(){ // 等開啟動畫結束、其他視窗（例如剛建立代碼的說明）都關掉，再開始
   const role=viewerMode?'view':'edit';
-  if(!storeCode||tourSeen(role))return;
+  if(tourSeen(role))return; // 僅存本機（沒有代碼）的主管也一樣：空白班表也能看完整教學
   let tries=0;
   const tick=()=>{
     if((viewerMode?'view':'edit')!==role||tourSeen(role)||document.getElementById('tour'))return; // 中途換了代碼就不開
@@ -6454,6 +6552,7 @@ document.getElementById('btnJoinStore').addEventListener('click',async()=>{
 document.getElementById('btnSkipCloud').addEventListener('click',()=>{
   document.getElementById('ovFirstSetup').classList.remove('show');
   setHint('僅本機模式');
+  maybeStartTour(); // 選「先不用」直接使用本機班表：第一次一樣開始新手教學
 });
 function computeAndApplyPrintSizing(){
   // 實際套上列印用樣式量出真實高度，不用猜的公釐數字；量測跟正式列印共用同一套CSS數字
