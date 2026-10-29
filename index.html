@@ -6,6 +6,8 @@
 <title>我的班表</title>
 <!-- 安裝成手機 App（PWA）：需與 manifest.webmanifest、sw.js、圖示放在同一資料夾 -->
 <meta name="theme-color" content="#eceae3">
+<!-- 告訴瀏覽器本頁自己處理深淺色：淺色時宣告 only light，三星瀏覽器等的「強制網頁深色」就不會再把畫面重新上色 -->
+<meta name="color-scheme" content="only light">
 <meta name="description" content="門市排班與劃假">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" href="./icon-192.png?v=2">
@@ -136,6 +138,8 @@ var UI=(function(){
     root.style.setProperty('--uiFont',(f.css?f.css+',':'')+'var(--fontSys)');
     var mt=document.querySelector('meta[name="theme-color"]');
     if(mt)mt.setAttribute('content',pt.b);
+    var mcs=document.querySelector('meta[name="color-scheme"]'); // 本頁目前是深色就宣告 dark，淺色就宣告 only light（不准瀏覽器自行轉深色）
+    if(mcs)mcs.setAttribute('content',dark?'dark':'only light');
     if(typeof window.fitCells==='function'){window.fitCells();if(window.fitSheetHeight)window.fitSheetHeight()}
     if(typeof window.fitSticky==='function')window.fitSticky();
     try{if(document.fonts&&document.fonts.ready)document.fonts.ready.then(function(){
@@ -885,6 +889,7 @@ html.rh-l .name-txt{line-height:1.45}
 html.rh-l .name-sub{margin-top:3px}
 html.rh-l .hours-line{margin-top:3px}
 /* ── 深色模式 ── */
+html{color-scheme:only light} /* 淺色時不讓瀏覽器（例如三星瀏覽器的網頁深色模式）自行轉成深色 */
 html.dark{color-scheme:dark}
 html.dark{
   --onBlue:#14161a;
