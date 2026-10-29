@@ -297,7 +297,7 @@ body.print-sizing .btn.gold{animation:none}
 #toast{
   position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(12px);
   background:#2b2b2b;color:#fff;padding:10px 20px;border-radius:24px;
-  font-size:14px;font-weight:600;z-index:200;
+  font-size:14px;font-weight:600;z-index:9500; /* 教學的暗幕上面也看得到 */
   opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;
 }
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
@@ -1944,8 +1944,8 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
     <ul class="hul">
       <li>第一次用夥伴代碼或主管代碼打開時，會有一段對應的新手教學；每支手機各只出現一次，可從本頁最上方重看。主管可另外預覽夥伴看到的版本。</li>
       <li>本頁最上方的「🏖 劃假教學」會開<b>練習畫面</b>，一步步帶著劃一次（選名字、選種類、點日期、送出）：名單是「練習用」的假名字，劃假沒開放也能練，劃的假不會送出、也不會存。</li>
-      <li class="edit-only">主管第一次按「🔒 排班」解鎖時，會帶著排一格，介紹排班視窗的每一區；本頁最上方的「排班教學」可以重看。</li>
-      <li class="edit-only">主管第一次打開劃假的「⚙ 開放設定」時，會逐欄介紹怎麼開放劃假（月份、期間、候補、紀錄保留）；本頁最上方的「開放劃假教學」可以重看。教學中沒按「儲存」都不會生效。</li>
+      <li class="edit-only">主管第一次按「🔒 排班」解鎖時，會帶著排一格，介紹排班視窗的每一區；本頁最上方的「排班教學」可以重看。教學中排的格子不會存進班表，結束後自動還原。</li>
+      <li class="edit-only">主管第一次打開劃假的「⚙ 開放設定」時，會逐欄介紹怎麼開放劃假（月份、期間、候補、紀錄保留）；本頁最上方的「開放劃假教學」可以重看。教學最後可以實際按一次「儲存」看看會發生什麼，但設定不會真的改。</li>
       <li>App 啟動或下拉重整時會播開啟動畫，點一下畫面可跳過。從其他 App 切回來不會重播，畫面維持在原本的位置。</li>
       <li>啟動或下拉重整時，表格從最上面開始。看的是本月時，左右會自動捲到今天，今天排在名字右邊第一格；其他月份從 1 號開始。</li>
     </ul>
@@ -2901,11 +2901,38 @@ function dailySplitHours(d){ // 當天早／晚班總工時（分鐘，含休息
 }
 function fmtHM(min){const h=Math.floor(min/60),m=min%60;return h+':'+String(m).padStart(2,'0')}
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+let tourHoldSave=false,tourSnapCells=null; // 排班教學中：不存檔；動到的格子先記原本的樣子，教學結束還原
+function tourTouch(sid,a,b){
+  if(!tourHoldSave||!tourSnapCells)return;
+  const md=monthData();
+  for(let d=a;d<=(b||a);d++){
+    const k=sid+':'+d;
+    if(tourSnapCells.has(k))continue;
+    const e=md.sched[sid]&&md.sched[sid][d];
+    tourSnapCells.set(k,e===undefined?undefined:JSON.parse(JSON.stringify(e)));
+  }
+}
+function tourRestoreCells(){ // 只還原教學中動過的格子，其他裝置同時改的不會被蓋掉
+  const snap=tourSnapCells;tourSnapCells=null;tourHoldSave=false;
+  if(!snap||!snap.size)return false;
+  const md=monthData();
+  snap.forEach((v,k)=>{
+    const i=k.lastIndexOf(':'),sid=k.slice(0,i),d=+k.slice(i+1);
+    if(!md.sched[sid])md.sched[sid]={};
+    if(v===undefined)delete md.sched[sid][d];else md.sched[sid][d]=v;
+    changedCells.delete(k);
+  });
+  renderSheet();
+  setHint('已還原教學示範的格子');
+  return true;
+}
 function scheduleSave(){
+  if(tourHoldSave){setHint('教學示範中（不會存檔）');return}
   if(viewerMode){setHint('夥伴代碼｜僅檢視');return}
   clearTimeout(saveTimer);
   setHint('儲存中…');
   saveTimer=setTimeout(async()=>{
+    if(tourHoldSave)return; // 教學開始前排定的存檔，剛好在教學中觸發也不存（免得把示範的格子存上去）
     state.store=document.getElementById('storeName').value;
     state.title=document.getElementById('sheetTitle').value||'排班表';
     const localOk=await saveRaw(JSON.stringify(state));
@@ -3897,6 +3924,13 @@ document.getElementById('btnPurgeLeave').addEventListener('click',async()=>{
 });
 document.getElementById('btnCloseLeaveCfg').addEventListener('click',()=>document.getElementById('ovLeaveCfg').classList.remove('show'));
 document.getElementById('btnLeaveCfgSave').addEventListener('click',()=>{
+  if(document.getElementById('tour')&&tourRole==='lcfg'){ // 教學示範：跳通知、關視窗都跟真的一樣，但設定一律不改
+    const on=document.getElementById('lcOn').checked;
+    tourOutcome={saved:1,on,missing:on&&(!document.getElementById('lcFrom').value||!document.getElementById('lcTo').value)};
+    document.getElementById('ovLeaveCfg').classList.remove('show');
+    showToast((on?'已開放劃假 ✓':'已關閉劃假')+'（教學示範，設定沒有改）',3500);
+    return;
+  }
   const nl={
     on:document.getElementById('lcOn').checked,
     ym:document.getElementById('lcYm').value||'',
@@ -4011,7 +4045,13 @@ function applyBrushToWeekdays(){
 }
 document.getElementById('btnLeaveSave').addEventListener('click',async()=>{
   if(!lvWho||!lvDraft)return;
-  if(lvIsDemo()){showToast('這是練習，不會送出。真正劃假時按「送出」，就會送給主管 ✓',3500);return}
+  if(lvIsDemo()){ // 練習畫面：照真的流程（跳小通知、關掉視窗）走一次，但什麼都不送出
+    tourOutcome={sent:1};
+    document.getElementById('ovLeave').classList.remove('show');
+    lvDemo=false;lvWho=null;lvDraft=null;lvOriginal=null;updateLeaveBadge();
+    showToast('已送出劃假 ✓（練習，沒有真的送出）',3500);
+    return;
+  }
   const ce=lvCanEdit();
   if(!ce.ok){showToast(ce.msg);return}
   const ym=(leaveWindow().L||{}).ym||ymOf(state.y,state.m);
@@ -4214,6 +4254,7 @@ function setEntry(entry){
     if(rt.count>quota()&&!confirm('本月月休天數為 '+quota()+' 天（週六日，不含國定假日當天），'+st.name+' 排入後將達 '+rt.count+' 天'+
       (rt.offUsed?'（含到職前／離職後的紅線 '+rt.offUsed+' 天）':'')+'。仍要排入嗎？'))return;
   }
+  tourTouch(cur.sid,cur.day);
   const prevEntry=entryOf(cur.sid,cur.day); // 覆蓋前先記下目前的值
   if(entry)md.sched[cur.sid][cur.day]=entry;else delete md.sched[cur.sid][cur.day];
   if(!entriesEqual(prevEntry,entry)){ // 內容完全沒變就不算異動，不顯示灰字
@@ -4333,6 +4374,7 @@ function applyRedline(){ // 從此格畫一段連續紅線（到職前／離職�
   let hasData=false;
   for(let d=a;d<=b;d++){const e=md.sched[cur.sid][d];if(e&&e.t!=='redline')hasData=true}
   if(hasData&&!confirm(state.m+'/'+a+'～'+state.m+'/'+b+' 之間已有排班或假別，要全部覆蓋為紅線嗎？'))return;
+  tourTouch(cur.sid,a,b);
   for(let d=a;d<=b;d++)md.sched[cur.sid][d]={t:'redline'};
   scheduleSave();renderSheet();
   document.getElementById('ovCell').classList.remove('show');
@@ -4345,6 +4387,7 @@ function clearCell(){ // 清除此格；若為紅線，可選擇清除整段
     while(a>1&&md.sched[cur.sid][a-1]&&md.sched[cur.sid][a-1].t==='redline')a--;
     while(b<N&&md.sched[cur.sid][b+1]&&md.sched[cur.sid][b+1].t==='redline')b++;
     if(b>a&&confirm('清除整段紅線（'+state.m+'/'+a+'～'+state.m+'/'+b+'）？\n按「取消」僅清除此格。')){
+      tourTouch(cur.sid,a,b);
       for(let d=a;d<=b;d++)delete md.sched[cur.sid][d];
       scheduleSave();renderSheet();
       document.getElementById('ovCell').classList.remove('show');
@@ -4996,7 +5039,7 @@ function tourSteps(role){
     const shown=a=>a.map(tourShown).filter(Boolean);
     return [
       {el:()=>tourShown($('#ovLeaveCfg .m-title')),h:'開放劃假教學',
-        b:'每個月要讓夥伴劃假前，在這裡設定一次。跟著看一遍，大約 1 分鐘。<br>教學中改的設定，<b>沒按「儲存」都不會生效</b>，可以放心點。'},
+        b:'每個月要讓夥伴劃假前，在這裡設定一次。跟著看一遍，大約 1 分鐘。<br>教學中可以放心點，<b>最後就算按了「儲存」，設定也不會真的改</b>。'},
       {el:()=>tourShown(lab('lcOn')),act:1,need:on,auto:1,h:'① 打開「開放夥伴劃假」',
         b:()=>on()?'已經打開了，下面的設定都出現了。':'<b>勾起來</b>，下面才會出現設定。勾好會自動到下一步。'},
       {el:()=>tourShown(lab('lcYm')),act:1,h:'② 劃哪個月',
@@ -5008,8 +5051,8 @@ function tourSteps(role){
           '再勾<b>「候補也要限時」</b>，填候補截止日，過了就鎖定；不勾就一直開到你關閉或換月份。'},
       {el:()=>shown([$('#lcPurgeInfo'),($('#lcKeep')||{}).parentElement]),h:'⑤ 劃假紀錄',
         b:'雲端會留著每個月的劃假。這裡可以只保留最近幾個月，按「清除其餘」刪掉更早的；<b>正在開放的月份不會被刪</b>，班表本身也不受影響。'},
-      {el:()=>tourShown($('#btnLeaveCfgSave')),h:'⑥ 最後按「儲存」',
-        b:'設定好按<b>「儲存」</b>才會生效，夥伴打開劃假就看得到。<br>不想改就按「取消」。'}
+      {el:()=>tourShown($('#ovLeaveCfg .m-actions')),act:1,need:()=>!document.getElementById('ovLeaveCfg').classList.contains('show'),h:'⑥ 最後按「儲存」',
+        b:'設定好按<b>「儲存」</b>才會生效，夥伴打開劃假就看得到；不想改就按「取消」。<br><b>現在按按看「儲存」</b>，看看儲存後會發生什麼（教學中不會真的改設定）。'}
     ];
   }
   if(role==='sched'){ // 主管第一次解鎖排班：點一格、認識排班視窗的每一區，跟著做
@@ -5024,7 +5067,7 @@ function tourSteps(role){
     };
     const dayTh=()=>$('#sheet thead tr:nth-child(2) th[data-day="'+today+'"]')||$('#sheet thead tr:nth-child(2) th[data-day]');
     return [
-      {el:()=>tourShown($('#btnEdit')),h:'排班教學',b:'現在是<b>排班中</b>（已解鎖），格子點了就能排。<br>跟著做一次，大約 1 分鐘。'},
+      {el:()=>tourShown($('#btnEdit')),h:'排班教學',b:'現在是<b>排班中</b>（已解鎖），格子點了就能排。跟著做一次，大約 1 分鐘。<br>教學中排的格子<b>不會真的存</b>，結束後會自動還原，可以放心點。'},
       {el:()=>cellOpen()?null:tourShown(pick()),act:1,need:cellOpen,auto:1,h:'① 點一格',
         b:'點任何一格，就能排那個人那天的班。<br><b>點這一格試試看</b>，點了會自動到下一步。'},
       {el:()=>tourShown($('#ovCell .cm-leave-box')),h:'② 假別',
@@ -5036,13 +5079,13 @@ function tourSteps(role){
       {el:()=>tourShown($('#cmBreaks')),act:1,h:'⑤ 休息時間',
         b:'依班的長度自動帶入：超過 8.5 小時休 1 小時、超過 4 小時休 0.5 小時。<br>休 1 小時，或手動改成跟預設不一樣，格子右邊會註記「休○」。'},
       {el:()=>tourShown($('#ovCell .cm-actions')),act:1,need:()=>!cellOpen(),auto:1,h:'⑥ 套用或退出',
-        b:'<b>套用</b>：存進這格。<b>清除此格</b>：變回沒排。<b>不儲存退出</b>：什麼都不改。<br><b>現在按一個試試看。</b>'},
+        b:'<b>套用</b>：存進這格。<b>清除此格</b>：變回沒排。<b>不儲存退出</b>：什麼都不改。<br><b>現在按一個試試看</b>（教學中不會真的存）。'},
       {el:()=>tourShown($('#sheet td.day-cell.changed-mark')),h:'⑦ 剛改過的格子',
         b:'這次排班改過的格子會變<b>淡藍色</b>，左下角的灰字是原本的內容；鎖定後會慢慢淡掉。'},
       {el:()=>tourShown(dayTh()),h:'⑧ 點表頭的日期',
         b:'排班中點表頭的日期，可以把這天手動設成紅字或黑字，或取個名字（例如店休、週年慶）。'},
-      {el:()=>tourShown($('#btnEdit')),h:'⑨ 排完記得鎖定',
-        b:'每一格改完都會<b>自動存檔</b>。排完按這裡<b>鎖定</b>，才會檢查人力：<b style="color:var(--red)">紅色！</b>是人力不符規則，<b class="c-amber">黃色！</b>是出勤天數超標。'}
+      {el:()=>tourShown($('#btnEdit')),act:1,need:()=>!editMode,h:'⑨ 排完記得鎖定',
+        b:'平常每一格改完都會<b>自動存檔</b>。排完按這裡<b>鎖定</b>，才會檢查人力：<b style="color:var(--red)">紅色！</b>是人力不符規則，<b class="c-amber">黃色！</b>是出勤天數超標。<br><b>現在按按看「鎖定」</b>。'}
     ];
   }
   if(role==='leave'){ // 在「我要劃假」裡一步步跟著做；②③④ 可以直接點
@@ -5067,9 +5110,9 @@ function tourSteps(role){
       {el:()=>tourShown($('#lvWdRow')),act:1,h:'④ 每週固定的，一次劃好',
         b:'例如每週二都不行：點「二」，再按<b>套用</b>，整個月的星期二就一次劃好，用的是②選的那種。'},
       {el:()=>tourShown($('#lvNote')),h:'⑤ 補充說明（選填）',b:'日曆寫不下的事寫這裡，例如「缺人的話這天可以支援」。只有主管看得到。'},
-      {el:()=>tourShown($('#btnLeaveSave')),h:'⑥ 最後一定要按「送出」',
-        b:()=>'<b>沒按送出不會存</b>。送出後主管就會收到通知。<br>之後想改，截止前打開劃假、選名字，改完再送出一次就好。'+
-          (demo()?'<br>（練習畫面按送出不會真的送出，練完按「關閉」就好。）':'')}
+      {el:()=>tourShown($('#ovLeave .m-actions')),act:1,need:()=>!document.getElementById('ovLeave').classList.contains('show'),h:'⑥ 最後一定要按「送出」',
+        b:()=>'劃好後一定要按<b>「送出」</b>，沒按不會存。之後想改，截止前打開劃假、選名字，改完再送出一次就好。<br>'+
+          (demo()?'<b>現在按按看「送出」</b>，看看送出後會發生什麼（練習不會真的送出）。':'')}
     ];
   }
   if(role==='edit')return [
@@ -5099,7 +5142,7 @@ function tourSteps(role){
       '<b>後台設定</b>：班段、人力規則、劃假、行事曆（要登入）。<br><b>已隱藏人員</b>：找回之前隱藏的人。<br>'+
       '<b>加入現有代碼</b>、<b>建立新店家</b>：換店，或開一份新的班表。'},
     {el:()=>tourShown(tourOtBtn()),h:'加班時數',b:'點名字旁的 <b>⋯</b>，看這個人這個月的<b>加班時數</b>：國定假日有上班、月休沒休滿、單天超過 8 小時、上班天數超標，都會算進來。<br>下面會列出是哪幾天，點日期就會跳到班表那一格。'},
-    {el:()=>tourShown($('#btnHelp')),h:'看不懂就按這裡',b:'符號、顏色和各種規則都寫在這裡。<br>最上方還有這些教學可以隨時看：<b>重看新手教學</b>、<b>預覽夥伴版</b>、<b>🏖 劃假教學</b>、<b>📝 排班教學</b>、<b>⚙ 開放劃假教學</b>。'}
+    {el:()=>tourShown($('#btnHelp')),h:'看不懂就按這裡',b:'符號、顏色和各種規則都寫在這裡。<br>最上方還有這些教學可以隨時看：<b>重看新手教學</b>、<b>預覽夥伴版</b>、<b>🏖 劃假教學</b>、<b>📝 排班教學</b>、<b>⚙ 開放劃假教學</b>。<br>新手教學到這裡結束，按「開始使用」就可以開始了 🎉'}
   ];
   return [
     {h:'歡迎使用我的班表 👋',b:'花 30 秒帶你認識一下怎麼看班表、怎麼劃假。<br>之後想再看，按右上角的「？」就能重看。'},
@@ -5116,10 +5159,10 @@ function tourSteps(role){
     {el:()=>tourShown($('#btnLeave')),h:'劃假',b:'開放期間點這裡，標出不能上班的日子，最後按「送出」。<br>不知道怎麼劃？按「？」裡的<b>「🏖 劃假教學」</b>，用練習畫面跟著做一次，劃的不會送出。'},
     {el:()=>tourShown($('#btnMore')),h:'更多 ⋯',b:'<b>匯出或備份</b>：把班表存成 PDF 或印出來。<br><b>複製代碼</b>：複製夥伴代碼，傳給新來的同事。<br><b>加入現有代碼</b>：換成別的代碼，例如去支援別家店。'},
     {el:()=>tourShown($('#btnLook')),h:'調整外觀',b:'字的大小、顏色、深色模式都可以調，只會改你自己的手機。'},
-    {el:()=>tourShown($('#btnHelp')),h:'看不懂就按這裡',b:'每個符號和顏色是什麼意思都寫在這裡。<br>最上方還有<b>「▶ 重看新手教學」</b>和<b>「🏖 劃假教學」</b>，劃假教學用練習畫面跟著做，劃的不會送出。'}
+    {el:()=>tourShown($('#btnHelp')),h:'看不懂就按這裡',b:'每個符號和顏色是什麼意思都寫在這裡。<br>最上方還有<b>「▶ 重看新手教學」</b>和<b>「🏖 劃假教學」</b>，劃假教學用練習畫面跟著做，劃的不會送出。<br>新手教學到這裡結束，按「開始使用」就可以開始了 🎉'}
   ];
 }
-let tourList=null,tourIdx=0,tourRole='view',tourMO=null,tourRaf=0;
+let tourList=null,tourIdx=0,tourRole='view',tourMO=null,tourRaf=0,tourOutcome=null; // tourOutcome：最後一步按了送出／儲存
 function tourTarget(st){
   if(!st.el)return null;
   const t=st.el();
@@ -5133,6 +5176,8 @@ function tourRect(t){ // 單一元素或多個元素合併成一個框
 function startTour(role){
   if(document.getElementById('tour'))return;
   tourRole=role||(viewerMode?'view':'edit');
+  tourOutcome=null;
+  if(tourRole==='sched'){tourHoldSave=true;tourSnapCells=new Map()}
   tourList=tourSteps(tourRole);
   // 主畫面的教學：這支手機上看不到的項目先拿掉。劃假教學的目標要等操作後才出現（例如選了名字才有日曆），走到那一步再判斷
   if(tourRole==='view'||tourRole==='edit')tourList=tourList.filter(st=>!st.el||tourTarget(st));
@@ -5147,7 +5192,7 @@ function startTour(role){
   document.body.appendChild(root);
   root.addEventListener('click',ev=>{
     const b=ev.target.closest('[data-t]');if(!b||b.disabled)return;
-    if(b.dataset.t==='skip')endTour();
+    if(b.dataset.t==='skip')endTour(true);
     else if(b.dataset.t==='prev')tourGo(tourIdx-1,-1);
     else tourGo(tourIdx+1,1);
   });
@@ -5161,7 +5206,7 @@ function startTour(role){
   tourMO.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['class','style']});
   tourGo(0,1);
 }
-function tourKey(e){if(e.key==='Escape')endTour();else if(e.key==='ArrowRight')document.querySelector('#tour [data-t="next"]').click();else if(e.key==='ArrowLeft')tourGo(tourIdx-1,-1)}
+function tourKey(e){if(e.key==='Escape')endTour(!(tourList&&tourList[tourIdx]&&tourList[tourIdx].fin));else if(e.key==='ArrowRight')document.querySelector('#tour [data-t="next"]').click();else if(e.key==='ArrowLeft')tourGo(tourIdx-1,-1)}
 function tourSchedule(){cancelAnimationFrame(tourRaf);tourRaf=requestAnimationFrame(tourRefresh)}
 function tourGo(i,dir){
   const root=document.getElementById('tour');if(!root)return;
@@ -5174,6 +5219,31 @@ function tourGo(i,dir){
   if(t)tourEnsureVisible(t);
   tourText();tourPlace();
 }
+function tourFinish(h,b){ // 換成一張結尾卡（不圈任何東西），按「完成」結束
+  tourList=tourList.slice(0,tourIdx+1).concat([{h,b,fin:1}]);
+  tourGo(tourList.length-1,1);
+}
+function tourEnding(){ // 劃假練習、開放設定：視窗關掉時，依按的是送出／儲存還是關閉／取消，給不同的結尾
+  const o=tourOutcome||{};
+  if(tourRole==='sched'){
+    const touched=!!(tourSnapCells&&tourSnapCells.size);
+    tourFinish('排班教學到這裡結束 🎉','鎖定後，剛才改過的<b>淡藍色格子</b>會慢慢淡掉，表頭有問題的日子會出現「！」。<br>'+
+      (touched?'剛才教學中排的格子<b>不會存進班表</b>，等一下會自動還原成原本的樣子。<br>':'')+'之後想再看，按「？」裡的「📝 排班教學」。');
+    setTimeout(()=>{if(tourSnapCells)tourRestoreCells()},2300); // 等淡掉的動畫跑完再還原
+    return;
+  }
+  if(tourRole==='leave'){
+    if(o.sent)tourFinish('送出成功 🎉','真正劃假時就是這樣：跳出「<b>已送出劃假 ✓</b>」的小通知，視窗自動關掉，主管那邊的 🔔 會出現紅點。<br>'+
+      '剛才是練習，<b>沒有真的送出</b>。<br>劃假教學到這裡結束，開放期間打開「劃假」就能正式劃了。');
+    else tourFinish('劃假教學到這裡結束','最後一步是按<b>「送出」</b>：沒按送出，劃的假不會存，主管也看不到。<br>'+
+      '剛才練習劃的都<b>沒有存</b>。想再練一次，按「？」裡的「🏖 劃假教學」。');
+  }else{
+    if(o.saved)tourFinish('儲存完成 🎉','真正儲存時就是這樣：跳出「<b>'+(o.on?'已開放劃假 ✓':'已關閉劃假')+'</b>」的小通知，設定視窗關掉'+
+      (o.on?'，夥伴打開劃假就能開始劃。':'。')+'<br>剛才是教學示範，<b>設定沒有真的改</b>。'+
+      (o.missing?'<br>（真的儲存時，開放起日或截止日沒填，會先提醒你補上。）':'')+'<br>開放劃假教學到這裡結束。');
+    else tourFinish('開放劃假教學到這裡結束','最後一步是按<b>「儲存」</b>，設定才會生效。<br>剛才的更動都<b>沒有儲存</b>，設定還是原本的樣子。<br>想再看一次，按「？」裡的「⚙ 開放劃假教學」。');
+  }
+}
 function tourText(){
   const root=document.getElementById('tour');if(!root)return;
   const st=tourList[tourIdx],t=tourTarget(st),n=tourList.length,i=tourIdx;
@@ -5182,18 +5252,20 @@ function tourText(){
   const html=typeof st.b==='function'?st.b(t):st.b,bx=root.querySelector('.tt-b');
   if(bx.innerHTML!==html)bx.innerHTML=html;
   const prev=root.querySelector('[data-t="prev"]'),next=root.querySelector('[data-t="next"]');
-  prev.style.display=i?'':'none';
-  next.textContent=i===0?'開始':(i===n-1?(tourRole==='view'||tourRole==='edit'?'開始使用':'我知道了'):'下一步');
-  next.disabled=!!(st.need&&!st.need());
-  root.querySelector('.tt-skip').style.visibility=i===n-1?'hidden':'';
+  const gated=!!(st.need&&!st.need());
+  prev.style.display=(i&&!st.fin)?'':'none';
+  next.textContent=st.fin?'完成':gated?'下一步':i===0?'開始':(i===n-1?(tourRole==='view'||tourRole==='edit'?'開始使用':'我知道了'):'下一步');
+  next.disabled=gated;
+  if(st.fin)root.querySelector('.tt-n').textContent='';
+  root.querySelector('.tt-skip').style.visibility=(i===n-1||st.fin)?'hidden':'';
   root.classList.toggle('act',!!st.act);
 }
 function tourRefresh(){
   const root=document.getElementById('tour');if(!root||!tourList)return;
-  if(tourRole==='leave'&&!document.getElementById('ovLeave').classList.contains('show')){endTour();return} // 劃假視窗被關掉了
-  if(tourRole==='sched'&&!editMode){endTour();return} // 排班已鎖定
-  if(tourRole==='lcfg'&&!document.getElementById('ovLeaveCfg').classList.contains('show')){endTour();return} // 設定視窗關掉了
   const st=tourList[tourIdx];
+  if(!st.fin&&((tourRole==='leave'&&!document.getElementById('ovLeave').classList.contains('show'))||
+     (tourRole==='lcfg'&&!document.getElementById('ovLeaveCfg').classList.contains('show')))){tourEnding();return} // 視窗關掉了：接結尾卡
+  if(tourRole==='sched'&&!editMode&&!st.fin){tourEnding();return} // 按了鎖定：接結尾卡
   if(st.need&&st.auto&&!st._was&&st.need()){st._was=true;setTimeout(()=>tourGo(tourIdx+1,1),350);return} // 做到了，自動下一步
   if(st.el&&!tourTarget(st)){tourGo(tourIdx+1,1);return}
   tourText();tourPlace();
@@ -5228,8 +5300,10 @@ function tourPlace(){
   }
   tip.style.top=Math.round(top)+'px';tip.style.left=Math.round(left)+'px';
 }
-function endTour(){
+function endTour(skipped){
   const root=document.getElementById('tour');if(root)root.remove();
+  if(tourRole==='sched')tourRestoreCells();
+  if(skipped===true)showToast('已略過教學，之後可以在「？」重看',2800);
   if(tourMO){tourMO.disconnect();tourMO=null}
   cancelAnimationFrame(tourRaf);
   window.removeEventListener('resize',tourSchedule);
