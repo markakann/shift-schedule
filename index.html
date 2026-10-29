@@ -1111,12 +1111,12 @@ body.print-sizing .name-sub{margin-top:0}
   box-shadow:0 0 0 200vmax rgba(0,0,0,.62);outline:2px solid rgba(255,255,255,.9);
   transition:left .32s ease,top .32s ease,width .32s ease,height .32s ease}
 .tour-hole.none{outline-color:transparent}
-.tour-tip{position:fixed;left:12px;top:40%;pointer-events:auto;width:min(340px,calc(100vw - 24px));box-sizing:border-box;
+.tour-tip{position:fixed;left:12px;top:40%;pointer-events:auto;width:min(370px,calc(100vw - 24px));box-sizing:border-box;display:flex;flex-direction:column;
   background:var(--paper);color:var(--ink);border-radius:14px;padding:14px 16px 12px;
   box-shadow:0 10px 30px rgba(0,0,0,.4);transition:left .32s ease,top .32s ease}
 .tour-tip .tt-n{font-size:12px;color:var(--fade);font-weight:700;letter-spacing:1px;min-height:1em}
 .tour-tip .tt-h{font-size:calc(17px*var(--uiFS));font-weight:700;margin:2px 0 6px}
-.tour-tip .tt-b{font-size:calc(14px*var(--uiFS));line-height:1.7}
+.tour-tip .tt-b{font-size:calc(14px*var(--uiFS));line-height:1.7;overflow-y:auto;min-height:0;overscroll-behavior:contain}
 .tour-tip .tt-b b:not([class]){color:var(--blue)} /* 有指定顏色（紅、黃）的照原色 */
 .tour-tip .tt-act{display:flex;gap:8px;align-items:center;margin-top:12px}
 .tour-tip .btn:disabled{opacity:.4;cursor:default}
@@ -1124,6 +1124,13 @@ body.print-sizing .name-sub{margin-top:0}
 #lvModal.demo-mode .m-title{color:#a85c07}
 html.dark #lvModal.demo-mode .m-title{color:#f0b978}
 .tour-tip .tt-b .lgc{margin-left:2px}
+.tour-tip .tt-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px 10px;margin:4px 0 2px;font-size:.96em}
+.tour-tip .tt-grid>span{display:flex;align-items:center;gap:7px;min-width:0;line-height:1.45}
+.tour-tip .tt-grid i{flex:0 0 2.2em;text-align:center;font-style:normal;font-weight:700;white-space:nowrap}
+.tour-tip .tt-grid i.lgc{width:auto;height:auto;margin:0;padding:0 2px;font-size:.82em;line-height:1.5;vertical-align:baseline;color:var(--ink)}
+.tour-tip .tt-grid i.lgc.sw-clash{color:var(--red)}
+.tour-tip .tt-gh{font-size:12px;color:var(--fade);font-weight:700;margin-top:6px;letter-spacing:1px}
+.tour-tip .tt-fn{font-size:calc(12.5px*var(--uiFS));color:var(--fade);line-height:1.65;margin-top:6px}
 .tour-tip .tt-skip{border:none;background:none;color:var(--fade);font-size:13px;padding:6px 2px;margin-right:auto;cursor:pointer;font-family:inherit}
 html.dark .tour-hole{box-shadow:0 0 0 200vmax rgba(0,0,0,.74)}
 html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
@@ -1919,7 +1926,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
     </div>
     <div class="sec-label">表格符號</div>
     <div class="legend">
-      <span>╱ 未排</span>
+      <span>╱ 尚未排班</span>
       <span>✕ 排休</span>
       <span><b>△</b> 指定休息</span>
       <span><b>特</b> 特休（整天計 8 小時）</span>
@@ -5121,27 +5128,28 @@ function tourLvCell(){ // 畫面上看得到的一格劃假（優先撞到的、
 /* 教學的示範格：挑畫面上看得到的一兩列，連續幾格暫時畫成要介紹的樣子；只改畫面、不動資料，離開那一步就換回來 */
 const R='style="color:var(--red)"';
 const LV_DEMO_KINDS=[ // 班表上的劃假（主管才看得到）
-  {c:'lv-all', h:'<span class="lv-cell-tag">假</span>',lg:'<i class="lgc sw-all"></i>「假」整天不能上'},
-  {c:'lv-only',h:'<span class="lv-cell-tag">限</span>',lg:'<i class="lgc sw-only"></i>「限」只能上這段'},
-  {c:'lv-part',h:'<span class="lv-cell-tag">~18</span>',lg:'<i class="lgc sw-part"></i>「~18」只能上到 18:00（「15~」為 15:00 後才能上）'},
-  {c:'lv-late',h:'<span class="lv-cell-tag">假</span>',lg:'<i class="lgc sw-late"></i>截止後劃的<b>臨時（候補）</b>'},
-  {c:'filled lv-clash',h:'<span class="t-s">9</span><span class="t-e">18</span><span class="lv-cell-tag bad">!</span>',lg:'<i class="lgc sw-clash"></i>紅框加「!」：排定的班與劃假衝突'}
+  {c:'lv-all', h:'<span class="lv-cell-tag">假</span>',ic:'<i class="lgc sw-all">假</i>',nm:'整天不能上'},
+  {c:'lv-only',h:'<span class="lv-cell-tag">限</span>',ic:'<i class="lgc sw-only">限</i>',nm:'只能上這段'},
+  {c:'lv-part',h:'<span class="lv-cell-tag">~18</span>',ic:'<i class="lgc sw-part">~18</i>',nm:'只能上到 18:00'},
+  {c:'lv-late',h:'<span class="lv-cell-tag">假</span>',ic:'<i class="lgc sw-late">假</i>',nm:'臨時（候補）'},
+  {c:'filled lv-clash',h:'<span class="t-s">9</span><span class="t-e">18</span><span class="lv-cell-tag bad">!</span>',ic:'<i class="lgc sw-clash" '+R+'>!</i>',nm:'班與劃假衝突'}
 ];
 const SYM_DEMO_ROWS=[ // 班表上的各種記號
-  [{c:'off',h:'',lg:'<b style="color:var(--ink)">✕</b> 排休'},
-   {c:'filled',h:'<span class="mark tri">△</span>',lg:'<b '+R+'>△</b> 指定休息'},
-   {c:'filled',h:'<span class="mark word ">特</span>',lg:'<b '+R+'>特</b> 特休'},
-   {c:'filled',h:'<span class="mark word brown">公</span>',lg:'<b class="c-brown">公</b> 公差'},
-   {c:'filled',h:'<span class="mark word purple">事</span>',lg:'<b class="c-purple">事</b> 事假'},
-   {c:'filled',h:'<span class="mark word sky">颱</span>',lg:'<b class="c-sky">颱</b> 颱風假'}],
-  [{c:'filled',h:'<span class="mark word green injury-mark">職災</span>',lg:'<b class="c-green">職災</b> 職業傷害'},
-   {c:'filled al-part',h:'<span class="t-s">9</span><span class="t-e">18</span><span class="mark al-mark part ">特1<span class="al-time">15-16</span></span>',lg:'<b '+R+'>特1</b> 部分時段特休（下方小字為請假時段，上下班時間照排定）'},
-   {c:'filled',h:'<span class="t-s">9</span><span class="t-e">18.5</span><span class="brk-tag">休1</span>',lg:'<b style="color:var(--blue)">休1</b> 休息 1 小時（與預設不同時標註）'},
-   {c:'redline',h:'',lg:'<b '+R+'>─</b> 紅線：到職前或離職後'},
-   {c:'',h:'<span class="nat-auto">國</span>',lg:'<b '+R+'>國</b> 國定假日且未排班'},
-   {c:'',h:'',lg:'<b style="color:var(--ink)">╱</b> 未排班'}]
+  [{c:'off',h:'',ic:'<i style="color:var(--ink)">✕</i>',nm:'排休'},
+   {c:'filled',h:'<span class="mark tri">△</span>',ic:'<i '+R+'>△</i>',nm:'指定休息'},
+   {c:'filled',h:'<span class="mark word ">特</span>',ic:'<i '+R+'>特</i>',nm:'特休'},
+   {c:'filled',h:'<span class="mark word brown">公</span>',ic:'<i class="c-brown">公</i>',nm:'公差'},
+   {c:'filled',h:'<span class="mark word purple">事</span>',ic:'<i class="c-purple">事</i>',nm:'事假'},
+   {c:'filled',h:'<span class="mark word sky">颱</span>',ic:'<i class="c-sky">颱</i>',nm:'颱風假'}],
+  [{c:'filled',h:'<span class="mark word green injury-mark">職災</span>',ic:'<i class="c-green">職災</i>',nm:'職業傷害'},
+   {c:'filled al-part',h:'<span class="t-s">9</span><span class="t-e">18</span><span class="mark al-mark part ">特1<span class="al-time">15-16</span></span>',ic:'<i '+R+'>特1</i>',nm:'部分時段特休'},
+   {c:'filled',h:'<span class="t-s">9</span><span class="t-e">18.5</span><span class="brk-tag">休1</span>',ic:'<i style="color:var(--blue)">休1</i>',nm:'休息 1 小時'},
+   {c:'redline',h:'',ic:'<i '+R+'>─</i>',nm:'到職前／離職後'},
+   {c:'',h:'<span class="nat-auto">國</span>',ic:'<i '+R+'>國</i>',nm:'國定假日'},
+   {c:'',h:'',ic:'<i style="color:var(--ink)">╱</i>',nm:'尚未排班'}]
 ];
 let tourDemo=null;
+function tourGrid(ks){return '<div class="tt-grid">'+ks.map(k=>'<span>'+k.ic+'<span>'+k.nm+'</span></span>').join('')+'</div>'} // 教學裡的圖例：圖示＋名稱，兩欄排列
 function tourDemoPick(nRows,perRow){ // 一列一列找：整排看得到的人，從最左邊看得到的那天開始取
   const out=[];
   for(const tr of document.querySelectorAll('#sheet tbody tr')){
@@ -5327,13 +5335,15 @@ function tourSteps(role,full){ // full：完整新手教學，走到排班、開
   // 夥伴版、主管版共用的幾步
   const SYM={enter:()=>tourDemoApply(SYM_DEMO_ROWS),leave:()=>tourDemoRestore(),
     el:()=>tourDemoEl($('.sheet-wrap')),h:'班表記號',b:t=>{
+      const all=SYM_DEMO_ROWS.flat();
+      const FN='<div class="tt-fn">特1：下方小字為請假時段，上下班時間照原排定。<br>休1：休息 1 小時，或與預設不同的休息時間。<br>各記號說明可於「？」查閱。</div>';
       const shown=(Array.isArray(t)&&tourDemo)?tourDemo.shown:null;
-      const line=(ks,label)=>(label?'<b>'+label+'</b>　':'')+ks.map(k=>k.lg).join('、');
-      const body=shown
-        ?shown.map((ks,i)=>line(ks,shown.length>1?(i?'第二排':'第一排'):'')).join('<br>')+
-          (shown.length<SYM_DEMO_ROWS.length?'<br><b>其他</b>　'+SYM_DEMO_ROWS.slice(shown.length).flat().map(k=>k.lg).join('、'):'')
-        :SYM_DEMO_ROWS.flat().map(k=>k.lg).join('、');
-      return (shown?'圈起處為各種記號的示範，由左至右：':'班表上的其他記號：')+'<br>'+body+'<br>記號說明可隨時於「？」查閱。';
+      if(!shown)return '班表上的各種記號：'+tourGrid(all)+FN;
+      const inShown=new Set(shown.flat()),rest=all.filter(k=>!inShown.has(k));
+      const label=shown.length>1||rest.length;
+      return '圈起處為各種記號的示範，依序由左至右：'+
+        shown.map((ks,i)=>(label?'<div class="tt-gh">'+(shown.length>1?(i?'第二排':'第一排'):'圈起處')+'</div>':'')+tourGrid(ks)).join('')+
+        (rest.length?'<div class="tt-gh">其他</div>'+tourGrid(rest):'')+FN;
     }};
   const otOpen=()=>document.getElementById('ovOT').classList.contains('show');
   const OT=[ // 加班時數：換成示範班表，實際點開 ⋯、點日期跳轉一次；離開這一組就換回真的班表
@@ -5365,9 +5375,9 @@ function tourSteps(role,full){ // full：完整新手教學，走到排班、開
     SYM,
     {enter:()=>tourDemoApply([LV_DEMO_KINDS]),leave:()=>tourDemoRestore(),
       el:()=>tourDemoEl($('.sheet-wrap')),h:'班表上的劃假',b:t=>
-        (Array.isArray(t)?'圈起處為劃假在班表上的樣式，由左至右：':'夥伴的劃假直接顯示在班表上：')+'<br>'+
-        LV_DEMO_KINDS.map(k=>k.lg).join('<br>')+
-        '<br>僅主管可見，夥伴無法看到他人的劃假。已排班且未衝突的格子不顯示底色。'},
+        (Array.isArray(t)?'圈起處為劃假在班表上的樣式，依序由左至右：':'夥伴的劃假直接顯示在班表上：')+
+        tourGrid(LV_DEMO_KINDS)+
+        '<div class="tt-fn">「15~」為 15:00 後才能上；「臨時」為截止後劃的候補。<br>已排班且未衝突的格子不顯示底色。<br>僅主管可見，夥伴無法看到他人的劃假。</div>'},
     {el:()=>tourShown($('#btnEdit')),h:'開始排班',b:()=>'按此<b>解鎖</b>後，點選格子即可排入班別、自訂時間或假別；完成後再按一次<b>鎖定</b>。<br>鎖定後才進行人力檢查，紅色「！」於此時顯示。'+
       (!full?'':monthStaff().length?'<br>下一步起實際操作一次排班。':'<br>本月尚無人員，新增人員後可於「？」的「📝 排班教學」實際操作。')},
     {seg:'sched',when:()=>full&&monthStaff().length>0},
@@ -5501,7 +5511,7 @@ function startTour(role,o){ // o.full：完整新手教學；o.resume：段落�
     else if(b.dataset.t==='prev')tourGo(tourIdx-1,-1);
     else tourGo(tourIdx+1,1);
   });
-  const stop=e=>e.preventDefault(); // 洞外面不讓底下的畫面被滑動
+  const stop=e=>{const b=e.target.closest&&e.target.closest('.tt-b');if(b&&b.scrollHeight>b.clientHeight+1)return;e.preventDefault()}; // 洞外面不讓底下的畫面被滑動；說明太長可捲動時例外
   root.addEventListener('wheel',stop,{passive:false});
   root.addEventListener('touchmove',stop,{passive:false});
   window.addEventListener('resize',tourSchedule);
@@ -5611,13 +5621,23 @@ function tourPlace(){
     hole.classList.add('none');
     hole.style.left=(vw/2)+'px';hole.style.top=(vh/2)+'px';hole.style.width='0px';hole.style.height='0px';
   }
-  const tw=tip.offsetWidth,th=tip.offsetHeight;
+  tip.style.maxHeight='';
+  let tw=tip.offsetWidth,th=tip.offsetHeight;
   let top,left;
-  if(!r){top=(vh-th)/2;left=(vw-tw)/2}
-  else{
-    if(vh-r.bottom>=th+24)top=r.bottom+12;          // 下面放得下就放下面
-    else if(r.top>=th+24)top=r.top-th-12;           // 不然放上面
-    else top=r.top>vh-r.bottom?12:vh-th-16;         // 都放不下（例如整張班表、日曆）就放空間大的那一頭
+  if(!r){
+    if(th>vh-24){tip.style.maxHeight=(vh-24)+'px';th=tip.offsetHeight}
+    top=(vh-th)/2;left=(vw-tw)/2;
+  }else{
+    const below=vh-r.bottom-24,above=r.top-24;
+    if(below>=th)top=r.bottom+12;                   // 下面放得下就放下面
+    else if(above>=th)top=r.top-th-12;              // 不然放上面
+    else if(Math.max(below,above)>=220){            // 都放不下但有一邊夠大：說明框縮到那一邊，內文可捲動，不蓋住圈起處
+      tip.style.maxHeight=Math.max(below,above)+'px';th=tip.offsetHeight;
+      top=below>=above?r.bottom+12:r.top-th-12;
+    }else{                                          // 目標本身很大（例如整張班表、日曆）：放空間大的那一頭
+      if(th>vh-28){tip.style.maxHeight=(vh-28)+'px';th=tip.offsetHeight}
+      top=r.top>vh-r.bottom?12:vh-th-16;
+    }
     left=Math.min(Math.max(12,(r.left+r.right)/2-tw/2),vw-tw-12);
   }
   tip.style.top=Math.round(top)+'px';tip.style.left=Math.round(left)+'px';
