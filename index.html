@@ -1124,6 +1124,9 @@ body.print-sizing .name-sub{margin-top:0}
 #lvModal.demo-mode .m-title{color:#a85c07}
 html.dark #lvModal.demo-mode .m-title{color:#f0b978}
 .tour-tip .tt-b .lgc{margin-left:2px}
+.tour-tip .tt-menu{display:flex;flex-direction:column;gap:6px;margin:8px 0}
+.tour-tip .tt-menu .btn{display:block;width:100%;text-align:left;padding:8px 12px;line-height:1.5}
+.tour-tip .tt-menu .btn small{display:block;font-weight:400;color:var(--fade);font-size:12px}
 .tour-tip .tt-skip{border:none;background:none;color:var(--fade);font-size:13px;padding:6px 2px;margin-right:auto;cursor:pointer;font-family:inherit}
 html.dark .tour-hole{box-shadow:0 0 0 200vmax rgba(0,0,0,.74)}
 html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
@@ -1958,10 +1961,10 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
     <div class="hr"></div>
     <div class="sec-label">打開 App</div>
     <ul class="hul">
-      <li>第一次用夥伴代碼或主管代碼打開時，會有一段對應的新手教學；每支手機各只出現一次，可從本頁最上方重看。主管可另外預覽夥伴看到的版本。</li>
-      <li>本頁最上方的「🏖 劃假教學」會開<b>練習畫面</b>，一步步帶著劃一次（選名字、選種類、點日期、送出）：名單是「練習用」的假名字，劃假沒開放也能練，劃的假不會送出、也不會存。</li>
-      <li class="edit-only">主管第一次按「🔒 排班」解鎖時，會帶著排一格，介紹排班視窗的每一區；本頁最上方的「排班教學」可以重看。教學中排的格子不會存進班表，結束後自動還原。</li>
-      <li class="edit-only">主管第一次打開劃假的「⚙ 開放設定」時，會逐欄介紹怎麼開放劃假（月份、期間、候補、紀錄保留）；本頁最上方的「開放劃假教學」可以重看。教學最後可以實際按一次「儲存」看看會發生什麼，但設定不會真的改。</li>
+      <li>第一次以夥伴代碼或主管代碼開啟時，顯示對應的新手教學，結束後可接著查看其他教學；每支裝置各顯示一次，可由本頁最上方重看。主管可另外預覽夥伴版。</li>
+      <li>本頁最上方的「🏖 劃假教學」開啟<b>練習畫面</b>，依序操作一次劃假（選擇姓名、劃假方式、日期、送出）：名單僅有「練習用」，劃假未開放時亦可練習，內容不會送出或儲存。</li>
+      <li class="edit-only">主管第一次按「🔒 排班」解鎖時，依序介紹排班視窗各區並實際排一格；可由本頁最上方的「📝 排班教學」重看。教學中排入的內容不會儲存，結束後自動還原。</li>
+      <li class="edit-only">主管第一次開啟劃假的「⚙ 開放設定」時，逐項介紹開放劃假的設定（月份、期間、候補、紀錄保留）；可由本頁最上方的「⚙ 開放劃假教學」重看。教學最後可實際按一次「儲存」查看結果，設定不會變更。</li>
       <li>App 啟動或下拉重整時會播開啟動畫，點一下畫面可跳過。從其他 App 切回來不會重播，畫面維持在原本的位置。</li>
       <li>啟動或下拉重整時，表格從最上面開始。看的是本月時，左右會自動捲到今天，今天排在名字右邊第一格；其他月份從 1 號開始。</li>
     </ul>
@@ -3684,7 +3687,7 @@ let lvDraft=null;            // 編輯中的劃假內容（按送出才寫雲端
 let lvOriginal=null;         // 選到這個人時的原始內容，送出時用來比對差異
 let lvBrush={m:'all',t:540,t2:1320};// 目前的筆刷：點日期要套用什麼（only 模式用 t～t2）
 function lvCanEdit(){ // 現在能不能改；回傳 {ok, late, msg}
-  if(lvIsDemo())return {ok:true,late:false,msg:'這是練習畫面，劃的假不會送出、也不會存，可以放心點。'};
+  if(lvIsDemo())return {ok:true,late:false,msg:'練習畫面：劃假內容不會送出或儲存。'};
   if(!FB||!leaveDocCode())return {ok:false,msg:'劃假需要連上雲端（本機模式或尚未設定夥伴代碼時無法使用）。'};
   if(srvState==='wait')return {ok:false,wait:true,msg:'正在跟雲端對時間…'};
   const w=leaveWindow();
@@ -3954,7 +3957,7 @@ document.getElementById('btnLeaveCfgSave').addEventListener('click',()=>{
     const on=document.getElementById('lcOn').checked;
     tourOutcome={saved:1,on,missing:on&&(!document.getElementById('lcFrom').value||!document.getElementById('lcTo').value)};
     document.getElementById('ovLeaveCfg').classList.remove('show');
-    showToast((on?'已開放劃假 ✓':'已關閉劃假')+'（教學示範，設定沒有改）',3500);
+    showToast((on?'已開放劃假 ✓':'已關閉劃假')+'（教學示範，設定未變更）',3500);
     return;
   }
   const nl={
@@ -4075,7 +4078,7 @@ document.getElementById('btnLeaveSave').addEventListener('click',async()=>{
     tourOutcome={sent:1};
     document.getElementById('ovLeave').classList.remove('show');
     lvDemo=false;lvWho=null;lvDraft=null;lvOriginal=null;updateLeaveBadge();
-    showToast('已送出劃假 ✓（練習，沒有真的送出）',3500);
+    showToast('已送出劃假 ✓（練習，未實際送出）',3500);
     return;
   }
   const ce=lvCanEdit();
@@ -5108,70 +5111,100 @@ function tourLvCell(){ // 畫面上看得到的一格劃假（優先撞到的、
   }
   return null;
 }
-/* 「班表上的劃假」示範：挑畫面上一列連續幾格，暫時畫成五種劃假的樣子；只改畫面，離開這一步就換回來 */
-const LV_DEMO_KINDS=[
-  {c:'lv-all', h:'<span class="lv-cell-tag">假</span>'},
-  {c:'lv-only',h:'<span class="lv-cell-tag">限</span>'},
-  {c:'lv-part',h:'<span class="lv-cell-tag">~18</span>'},
-  {c:'lv-late',h:'<span class="lv-cell-tag">假</span>'},
-  {c:'filled lv-clash',h:'<span class="t-s">9</span><span class="t-e">18</span><span class="lv-cell-tag bad">!</span>'}
+/* 教學的示範格：挑畫面上看得到的一兩列，連續幾格暫時畫成要介紹的樣子；只改畫面、不動資料，離開那一步就換回來 */
+const R='style="color:var(--red)"';
+const LV_DEMO_KINDS=[ // 班表上的劃假（主管才看得到）
+  {c:'lv-all', h:'<span class="lv-cell-tag">假</span>',lg:'<i class="lgc sw-all"></i>「假」整天不能上'},
+  {c:'lv-only',h:'<span class="lv-cell-tag">限</span>',lg:'<i class="lgc sw-only"></i>「限」只能上這段'},
+  {c:'lv-part',h:'<span class="lv-cell-tag">~18</span>',lg:'<i class="lgc sw-part"></i>「~18」只能上到 18:00（「15~」為 15:00 後才能上）'},
+  {c:'lv-late',h:'<span class="lv-cell-tag">假</span>',lg:'<i class="lgc sw-late"></i>截止後劃的<b>臨時（候補）</b>'},
+  {c:'filled lv-clash',h:'<span class="t-s">9</span><span class="t-e">18</span><span class="lv-cell-tag bad">!</span>',lg:'<i class="lgc sw-clash"></i>紅框加「!」：排定的班與劃假衝突'}
 ];
-let tourLvDemo=null;
-function tourLvDemoPick(){ // 第一列整排看得到的人，從最左邊看得到的那天開始取 5 格
+const SYM_DEMO_ROWS=[ // 班表上的各種記號
+  [{c:'off',h:'',lg:'<b style="color:var(--ink)">✕</b> 排休'},
+   {c:'filled',h:'<span class="mark tri">△</span>',lg:'<b '+R+'>△</b> 指定休息'},
+   {c:'filled',h:'<span class="mark word ">特</span>',lg:'<b '+R+'>特</b> 特休'},
+   {c:'filled',h:'<span class="mark word brown">公</span>',lg:'<b class="c-brown">公</b> 公差'},
+   {c:'filled',h:'<span class="mark word purple">事</span>',lg:'<b class="c-purple">事</b> 事假'},
+   {c:'filled',h:'<span class="mark word sky">颱</span>',lg:'<b class="c-sky">颱</b> 颱風假'}],
+  [{c:'filled',h:'<span class="mark word green injury-mark">職災</span>',lg:'<b class="c-green">職災</b> 職業傷害'},
+   {c:'filled al-part',h:'<span class="t-s">9</span><span class="t-e">18</span><span class="mark al-mark part ">特1<span class="al-time">15-16</span></span>',lg:'<b '+R+'>特1</b> 部分時段特休（下方小字為請假時段，上下班時間照排定）'},
+   {c:'filled',h:'<span class="t-s">9</span><span class="t-e">18.5</span><span class="brk-tag">休1</span>',lg:'<b style="color:var(--blue)">休1</b> 休息 1 小時（與預設不同時標註）'},
+   {c:'redline',h:'',lg:'<b '+R+'>─</b> 紅線：到職前或離職後'},
+   {c:'',h:'<span class="nat-auto">國</span>',lg:'<b '+R+'>國</b> 國定假日且未排班'},
+   {c:'',h:'',lg:'<b style="color:var(--ink)">╱</b> 未排班'}]
+];
+let tourDemo=null;
+function tourDemoPick(nRows,perRow){ // 一列一列找：整排看得到的人，從最左邊看得到的那天開始取
+  const out=[];
   for(const tr of document.querySelectorAll('#sheet tbody tr')){
     if(!tr.querySelector('td.name-cell[data-sid]'))continue;
     const cells=[...tr.querySelectorAll('td.day-cell[data-sid]')].filter(td=>tourInView(td));
-    if(cells.length>=3)return cells.slice(0,LV_DEMO_KINDS.length);
+    if(cells.length>=3)out.push(cells.slice(0,perRow));
+    if(out.length>=nRows)break;
   }
-  return null;
+  return out.length?out:null;
 }
-function tourLvDemoApply(){
-  tourLvDemoRestore();
-  const cells=tourLvDemoPick();if(!cells)return false;
-  tourLvDemo={cells:cells.map((td,i)=>{
-    const k=LV_DEMO_KINDS[i],saved={cls:td.className,html:td.innerHTML,st:td.getAttribute('style')||null};
-    td.style.transition='none'; // 不要慢慢變色，一進來就看得到
-    td.className=td.className.split(' ').filter(c=>c==='day-cell'||c==='rd').join(' ')+' '+k.c;
-    td.innerHTML=k.h;
-    return {el:td,saved};
-  })};
+function tourDemoApply(rows){ // rows：[[{c,h,lg},…],…]
+  tourDemoRestore();
+  const picked=tourDemoPick(rows.length,Math.max(...rows.map(r=>r.length)));if(!picked)return false;
+  const cells=[],shown=[];
+  picked.forEach((tds,ri)=>{
+    const kinds=rows[ri].slice(0,tds.length);shown.push(kinds);
+    tds.slice(0,kinds.length).forEach((td,i)=>{
+      const k=kinds[i],saved={cls:td.className,html:td.innerHTML,st:td.getAttribute('style')||null};
+      td.style.transition='none'; // 不要慢慢變色，一進來就看得到
+      td.className=(td.className.split(' ').filter(c=>c==='day-cell'||c==='rd').join(' ')+' '+k.c).trim();
+      td.innerHTML=k.h;
+      cells.push({el:td,saved});
+    });
+  });
+  tourDemo={cells,shown,rows};
   return true;
 }
-function tourLvDemoRestore(){
-  if(!tourLvDemo)return;
-  tourLvDemo.cells.forEach(({el,saved})=>{if(el.isConnected){
+function tourDemoRestore(){
+  if(!tourDemo)return;
+  tourDemo.cells.forEach(({el,saved})=>{if(el.isConnected){
     el.className=saved.cls;el.innerHTML=saved.html;
     if(saved.st==null)el.removeAttribute('style');else el.setAttribute('style',saved.st); // 原本有沒有 style 都照原樣
     if(el.getAttribute('style')==='')el.removeAttribute('style');
   }});
-  tourLvDemo=null;
+  tourDemo=null;
 }
+function tourDemoEl(fallback){ // 示範格（班表剛好重畫就再畫一次）；畫不出來就圈 fallback
+  if(tourDemo&&!tourDemo.cells.every(c=>c.el.isConnected))tourDemoApply(tourDemo.rows);
+  const cs=tourDemo?tourDemo.cells.map(c=>tourShown(c.el)).filter(Boolean):[];
+  return cs.length?cs:tourShown(fallback);
+}
+function tourStaff0(){return monthStaff()[0]||null} // 人員預覽：本月名單第一位
 function tourHM(t){const v=parseFloat(t);if(isNaN(v))return t;const h=Math.floor(v),m=Math.round((v-h)*60);return h+':'+String(m).padStart(2,'0')}
 function tourSteps(role){
   const $=q=>document.querySelector(q);
-  if(role==='lcfg'){ // 主管第一次打開「⚙ 開放設定」：每個欄位是什麼、怎麼設；沒按儲存都不會生效
+  const RED=t=>'<b style="color:var(--red)">'+t+'</b>';
+  const chainEnd=()=>!!(tourChain&&tourChain.role===role); // 第一次的新手教學：結束後接著問要不要看其他教學
+  if(role==='lcfg'){ // 主管第一次打開「⚙ 開放設定」：逐欄介紹；教學中按儲存不會真的改
     const on=()=>document.getElementById('lcOn').checked;
     const lab=id=>{const e=$('#'+id);return e?e.closest('label'):null};
     const shown=a=>a.map(tourShown).filter(Boolean);
     return [
       {el:()=>tourShown($('#ovLeaveCfg .m-title')),h:'開放劃假教學',
-        b:'每個月要讓夥伴劃假前，在這裡設定一次。跟著看一遍，大約 1 分鐘。<br>教學中可以放心點，<b>最後就算按了「儲存」，設定也不會真的改</b>。'},
-      {el:()=>tourShown(lab('lcOn')),act:1,need:on,auto:1,h:'① 打開「開放夥伴劃假」',
-        b:()=>on()?'已經打開了，下面的設定都出現了。':'<b>勾起來</b>，下面才會出現設定。勾好會自動到下一步。'},
+        b:'每月開放劃假前於此設定。以下逐項介紹，約 1 分鐘。<br>教學中按「儲存」不會實際變更設定。'},
+      {el:()=>tourShown(lab('lcOn')),act:1,need:on,auto:1,h:'① 開放夥伴劃假',
+        b:()=>on()?'已勾選，下方顯示各項設定。':'<b>勾選</b>後，下方才會顯示設定項目；勾選後自動進入下一步。'},
       {el:()=>tourShown(lab('lcYm')),act:1,h:'② 劃哪個月',
-        b:'通常選<b>下個月</b>。<br>一次只能開一個月；換月份時，原本那個月的劃假和候補會一起結束，存檔前會提醒你。'},
+        b:'通常選擇<b>下個月</b>。<br>一次僅能開放一個月份；更換月份時，原月份的劃假與候補一併結束，儲存前會再次提醒。'},
       {el:()=>shown([lab('lcFrom'),lab('lcTo')]),act:1,h:'③ 開放期間',
-        b:'夥伴從<b>開放起日</b>到<b>截止日</b>都能自由劃假，兩天都含當天。<br>以雲端時間為準，夥伴改手機時間也沒用。'},
+        b:'夥伴於<b>開放起日</b>至<b>截止日</b>期間可自由劃假，兩日皆包含當天。<br>以雲端時間判定，不受裝置時間影響。'},
       {el:()=>shown([lab('lcLate'),$('#lcLateLimBox'),$('#lcHint')]),act:1,h:'④ 截止後的候補',
-        b:'勾<b>「截止後仍可臨時劃假」</b>：截止後還能劃，但會標成「臨時」列為候補，可以在 🔔 依送出先後處理。<br>'+
-          '再勾<b>「候補也要限時」</b>，填候補截止日，過了就鎖定；不勾就一直開到你關閉或換月份。'},
+        b:'勾選<b>「截止後仍可臨時劃假」</b>：截止後仍可劃假，標示為「臨時」並列為候補，可於 🔔 依送出先後處理。<br>'+
+          '再勾選<b>「候補也要限時」</b>並填寫候補截止日，逾期即鎖定；未勾選則持續開放至關閉劃假或更換月份。'},
       {el:()=>shown([$('#lcPurgeInfo'),($('#lcKeep')||{}).parentElement]),h:'⑤ 劃假紀錄',
-        b:'雲端會留著每個月的劃假。這裡可以只保留最近幾個月，按「清除其餘」刪掉更早的；<b>正在開放的月份不會被刪</b>，班表本身也不受影響。'},
-      {el:()=>tourShown($('#ovLeaveCfg .m-actions')),act:1,need:()=>!document.getElementById('ovLeaveCfg').classList.contains('show'),h:'⑥ 最後按「儲存」',
-        b:'設定好按<b>「儲存」</b>才會生效，夥伴打開劃假就看得到；不想改就按「取消」。<br><b>現在按按看「儲存」</b>，看看儲存後會發生什麼（教學中不會真的改設定）。'}
+        b:'雲端保留每月的劃假紀錄。可設定僅保留最近幾個月，按「清除其餘」刪除較早的紀錄；<b>開放中的月份不會刪除</b>，班表不受影響。'},
+      {el:()=>tourShown($('#ovLeaveCfg .m-actions')),act:1,need:()=>!document.getElementById('ovLeaveCfg').classList.contains('show'),h:'⑥ 儲存',
+        b:'設定完成後按<b>「儲存」</b>才會生效；不變更則按「取消」。<br>請按「儲存」查看儲存後的畫面，教學中不會實際變更設定。'}
     ];
   }
-  if(role==='sched'){ // 主管第一次解鎖排班：點一格、認識排班視窗的每一區，跟著做
+  if(role==='sched'){ // 主管第一次解鎖排班：點一格、認識排班視窗各區；教學中排的格子不會存
     const cellOpen=()=>document.getElementById('ovCell').classList.contains('show');
     const now=new Date(),today=(state.y===now.getFullYear()&&state.m===now.getMonth()+1)?now.getDate():0;
     const inWrap=el=>tourInView(el);
@@ -5183,114 +5216,173 @@ function tourSteps(role){
     };
     const dayTh=()=>$('#sheet thead tr:nth-child(2) th[data-day="'+today+'"]')||$('#sheet thead tr:nth-child(2) th[data-day]');
     return [
-      {el:()=>tourShown($('#btnEdit')),h:'排班教學',b:'現在是<b>排班中</b>（已解鎖），格子點了就能排。跟著做一次，大約 1 分鐘。<br>教學中排的格子<b>不會真的存</b>，結束後會自動還原，可以放心點。'},
-      {el:()=>cellOpen()?null:tourShown(pick()),act:1,need:cellOpen,auto:1,h:'① 點一格',
-        b:'點任何一格，就能排那個人那天的班。<br><b>點這一格試試看</b>，點了會自動到下一步。'},
+      {el:()=>tourShown($('#btnEdit')),h:'排班教學',b:'目前為<b>排班中</b>（已解鎖），點選格子即可排班。以下依序操作一次，約 1 分鐘。<br>教學中排入的內容不會儲存，結束後自動還原。'},
+      {el:()=>cellOpen()?null:tourShown(pick()),act:1,need:cellOpen,auto:1,h:'① 點選格子',
+        b:'點選任一格，即可排該員當日的班。<br>請點選圈起處的格子，點選後自動進入下一步。'},
       {el:()=>tourShown($('#ovCell .cm-leave-box')),h:'② 假別',
-        b:'<b>△ 指定休息、╲ 排休、紅線</b>：點了直接排入。<br><b>特休、公差、事假、職災、颱風假</b>：先點（會反白），再選下面的班別或自訂時間，最後按「套用」。只請幾小時就勾「特定時段」。'},
+        b:'<b>△ 指定休息、╲ 排休、紅線</b>：點選即直接排入。<br><b>特休、公差、事假、職災、颱風假</b>：先點選（反白），再選擇班別或自訂時間，最後按「套用」；僅請部分時數時勾選「特定時段」。'},
       {el:()=>tourShown($('#cmPresets')),h:'③ 班別',
-        b:'常用的班段，點一下就直接排進這格，視窗自動關掉。<br>班段可以在後台設定的「班段」裡修改。'},
+        b:'常用班段，點選即排入此格並關閉視窗。<br>班段可於後台設定的「班段」修改。'},
       {el:()=>{const t=$('#tvS');return t?tourShown(t.closest('.stepper-row')):null},act:1,h:'④ 自訂時間',
-        b:'班別裡沒有的時間填這裡：直接輸入（例如 <b>1315</b> 就是 13:15），或按 ± 每次調 15 分鐘。可以點點看。'},
+        b:'班別以外的時間於此輸入，例如 <b>1315</b> 即 13:15；± 每次調整 15 分鐘。此區可直接點選試用。'},
       {el:()=>tourShown($('#cmBreaks')),act:1,h:'⑤ 休息時間',
-        b:'依班的長度自動帶入：超過 8.5 小時休 1 小時、超過 4 小時休 0.5 小時。<br>休 1 小時，或手動改成跟預設不一樣，格子右邊會註記「休○」。'},
+        b:'依班段長度自動帶入：超過 8.5 小時休 1 小時，超過 4 小時休 0.5 小時。<br>休息 1 小時，或手動改為與預設不同時，格子右側標註「休○」。'},
       {el:()=>tourShown($('#ovCell .cm-actions')),act:1,need:()=>!cellOpen(),auto:1,h:'⑥ 套用或退出',
-        b:'<b>套用</b>：存進這格。<b>清除此格</b>：變回沒排。<b>不儲存退出</b>：什麼都不改。<br><b>現在按一個試試看</b>（教學中不會真的存）。'},
-      {el:()=>tourShown($('#sheet td.day-cell.changed-mark')),h:'⑦ 剛改過的格子',
-        b:'這次排班改過的格子會變<b>淡藍色</b>，左下角的灰字是原本的內容；鎖定後會慢慢淡掉。'},
-      {el:()=>tourShown(dayTh()),h:'⑧ 點表頭的日期',
-        b:'排班中點表頭的日期，可以把這天手動設成紅字或黑字，或取個名字（例如店休、週年慶）。'},
-      {el:()=>tourShown($('#btnEdit')),act:1,need:()=>!editMode,h:'⑨ 排完記得鎖定',
-        b:'平常每一格改完都會<b>自動存檔</b>。排完按這裡<b>鎖定</b>，才會檢查人力：<b style="color:var(--red)">紅色！</b>是人力不符規則，<b class="c-amber">黃色！</b>是出勤天數超標。<br><b>現在按按看「鎖定」</b>。'}
+        b:'<b>套用</b>：排入此格。<b>清除此格</b>：改回未排班。<b>不儲存退出</b>：不做任何變更。<br>請擇一點選，教學中不會儲存。'},
+      {el:()=>tourShown($('#sheet td.day-cell.changed-mark')),h:'⑦ 已修改的格子',
+        b:'本次排班修改過的格子顯示為<b>淡藍色</b>，左下角灰字為原本內容；鎖定後逐漸淡去。'},
+      {el:()=>tourShown(dayTh()),h:'⑧ 表頭日期',
+        b:'排班中點選表頭日期，可將該日手動設為紅字或黑字，或加上名稱（例如店休、週年慶）。'},
+      {el:()=>tourShown($('#btnEdit')),act:1,need:()=>!editMode,h:'⑨ 鎖定',
+        b:'每格修改後即<b>自動存檔</b>。排班完成後按此<b>鎖定</b>，才會進行人力檢查：'+RED('紅色！')+'為人力不符規則，<b class="c-amber">黃色！</b>為出勤天數超標。<br>請按「鎖定」。'}
     ];
   }
-  if(role==='leave'){ // 在「我要劃假」裡一步步跟著做；②③④ 可以直接點
+  if(role==='leave'){ // 「我要劃假」裡依序操作；②③④ 可以直接點
     const brush=()=>{const b=$('#lvBody .lv-brush');return b?b.parentElement:null}; // 按鈕＋說明＋時間選單
     const who=()=>{const st=lvStaffOf(lvWho);return st?esc(st.name):''};
     const demo=()=>lvIsDemo();
     return [
       {el:()=>tourShown($('#lvSub')),h:'劃假教學',b:()=>demo()
-        ?'這是<b>練習畫面</b>，劃的假不會送出、也不會存，可以放心點。跟著做一次，大約 1 分鐘。'
-        :'跟著做一次，大約 1 分鐘。<br>上面這行寫著現在劃<b>幾月</b>的假、<b>什麼時候截止</b>。'},
-      {el:()=>tourShown($('#lvWhoSel')),act:1,need:()=>!!lvWho,auto:1,h:'① 先選你的名字',
+        ?'此為<b>練習畫面</b>，劃假內容不會送出或儲存。以下依序操作一次，約 1 分鐘。'
+        :'以下依序操作一次，約 1 分鐘。<br>上方顯示開放劃假的月份與截止日。'},
+      {el:()=>tourShown($('#lvWhoSel')),act:1,need:()=>!!lvWho,auto:1,h:'① 選擇姓名',
         b:()=>demo()
-          ?(lvWho?'選好了：<b>'+who()+'</b>。<br>真正劃假時，這裡要選<b>自己的名字</b>。':'練習時選<b>「練習用」</b>就好；真正劃假時要選<b>自己的名字</b>。選好會自動到下一步。')
-          :(lvWho?'選好了：<b>'+who()+'</b>。<br>記得選的是<b>自己</b>，劃的假才會算在你身上。':'點這裡選<b>自己的名字</b>，選好會自動到下一步。')},
-      {el:()=>tourShown(brush()),act:1,h:'② 選要填什麼',
-        b:'<b>整天不能上</b>：那天完全不能排。<br><b>只能上這段</b>：例如只能 10:00～17:00。<br><b>只能上到</b>：例如 15:00 前可以，之後不行。<br><b>幾點後才能上</b>：例如 15:00 以後才行。<br><b>清除</b>：把劃錯的取消。<br>選了要時間的，下面會出現時間選單。可以點點看。'},
-      {el:()=>tourShown($('#lvBody .lv-cal')),act:1,h:'③ 點日期',
-        b:()=>'點一下日期，就會套用②選的那種，<b>直接點點看</b>！<br>'+
+          ?(lvWho?'已選擇：<b>'+who()+'</b>。<br>實際劃假時，請選擇本人姓名。':'練習時選擇「練習用」；實際劃假時請選擇本人姓名。選擇後自動進入下一步。')
+          :(lvWho?'已選擇：<b>'+who()+'</b>。<br>請確認為本人姓名，劃假內容會記在此人名下。':'選擇本人姓名，選擇後自動進入下一步。')},
+      {el:()=>tourShown(brush()),act:1,h:'② 選擇劃假方式',
+        b:'<b>整天不能上</b>：當天不排班。<br><b>只能上這段</b>：僅指定時段可排，例如 10:00～17:00。<br><b>只能上到</b>：指定時間以前可排，例如 15:00 前。<br>'+
+          '<b>幾點後才能上</b>：指定時間以後可排，例如 15:00 後。<br><b>清除</b>：取消已劃的日期。<br>需要時間的方式，下方會出現時間選單。此區可直接點選試用。'},
+      {el:()=>tourShown($('#lvBody .lv-cal')),act:1,h:'③ 點選日期',
+        b:()=>'點選日期即套用②選擇的方式，可直接點選試用。<br>'+
           '<i class="lgc sw-all"></i>整天不能上　<i class="lgc sw-only"></i>只能上這段　<i class="lgc sw-part"></i>之前／之後<br>'+
-          '劃錯了，選「清除」再點那天就好。日期上的「國」是國定假日。'+
-          (lvCanEdit().late?'<br>現在已過截止日，劃的會標「臨」，列為候補。':'')},
-      {el:()=>tourShown($('#lvWdRow')),act:1,h:'④ 每週固定的，一次劃好',
-        b:'例如每週二都不行：點「二」，再按<b>套用</b>，整個月的星期二就一次劃好，用的是②選的那種。'},
-      {el:()=>tourShown($('#lvNote')),h:'⑤ 補充說明（選填）',b:'日曆寫不下的事寫這裡，例如「缺人的話這天可以支援」。只有主管看得到。'},
-      {el:()=>tourShown($('#ovLeave .m-actions')),act:1,need:()=>!document.getElementById('ovLeave').classList.contains('show'),h:'⑥ 最後一定要按「送出」',
-        b:()=>'劃好後一定要按<b>「送出」</b>，沒按不會存。之後想改，截止前打開劃假、選名字，改完再送出一次就好。<br>'+
-          (demo()?'<b>現在按按看「送出」</b>，看看送出後會發生什麼（練習不會真的送出）。':'')}
+          '劃錯時選「清除」後再點該日。日期上的「國」為國定假日。'+
+          (lvCanEdit().late?'<br>目前已過截止日，劃的日期標示「臨」並列為候補。':'')},
+      {el:()=>tourShown($('#lvWdRow')),act:1,h:'④ 依星期套用',
+        b:'每週固定無法上班時，選擇星期後按<b>套用</b>，即一次套用至當月所有該星期，方式依②的選擇。'},
+      {el:()=>tourShown($('#lvNote')),h:'⑤ 補充說明（選填）',b:'日曆無法表達的事項填寫於此，例如「缺人時此日可支援」。僅主管可見。'},
+      {el:()=>tourShown($('#ovLeave .m-actions')),act:1,need:()=>!document.getElementById('ovLeave').classList.contains('show'),h:'⑥ 送出',
+        b:()=>'劃假完成後須按<b>「送出」</b>，未送出不會儲存。截止前可重新開啟劃假、選擇姓名後修改，再次送出。'+
+          (demo()?'<br>請按「送出」查看送出後的畫面，練習內容不會實際送出。':'')}
     ];
   }
+  // 夥伴版、主管版共用的幾步
+  const SYM={enter:()=>tourDemoApply(SYM_DEMO_ROWS),leave:()=>tourDemoRestore(),
+    el:()=>tourDemoEl($('.sheet-wrap')),h:'班表記號',b:t=>{
+      const shown=(Array.isArray(t)&&tourDemo)?tourDemo.shown:null;
+      const line=(ks,label)=>(label?'<b>'+label+'</b>　':'')+ks.map(k=>k.lg).join('、');
+      const body=shown
+        ?shown.map((ks,i)=>line(ks,shown.length>1?(i?'第二排':'第一排'):'')).join('<br>')+
+          (shown.length<SYM_DEMO_ROWS.length?'<br><b>其他</b>　'+SYM_DEMO_ROWS.slice(shown.length).flat().map(k=>k.lg).join('、'):'')
+        :SYM_DEMO_ROWS.flat().map(k=>k.lg).join('、');
+      return (shown?'圈起處為各種記號的示範，由左至右：':'班表上的其他記號：')+'<br>'+body+'<br>記號說明可隨時於「？」查閱。';
+    }};
+  const OT={el:()=>tourShown(tourOtBtn()),h:'加班時數',b:'點選姓名旁的 <b>⋯</b> 可查看該員本月的<b>加班時數</b>，包含國定假日出勤、月休未休滿、單日超過 8 小時、出勤天數超標。<br>下方列出相關日期，點選即跳至班表該格。'};
   if(role==='edit')return [
-    {h:'歡迎使用我的班表 👋',b:'這是主管版的快速導覽，帶你認識排班、人員和劃假管理。<br>之後想再看，按右上角的「？」就能重看。'},
-    {el:()=>tourShown($('.sheet-wrap')),h:'這是班表',b:'一列一個人，<b>左右滑</b>可以看其他天，打開時會先停在今天。<br>表頭的「！」：<b style="color:var(--red)">紅色</b>是當天人力不符規則，<b class="c-amber">黃色</b>是有人出勤天數超標，點一下看原因。'},
-    {enter:()=>tourLvDemoApply(),leave:()=>tourLvDemoRestore(),
-      el:()=>{
-        if(tourLvDemo&&!tourLvDemo.cells.every(c=>c.el.isConnected))tourLvDemoApply(); // 班表剛好重畫了，再畫一次示範
-        const cs=tourLvDemo?tourLvDemo.cells.map(c=>tourShown(c.el)).filter(Boolean):[];
-        return cs.length?cs:tourShown($('.sheet-wrap'));
-      },h:'班表上的劃假',b:t=>{
-        const n=Array.isArray(t)?t.length:0;
-        const rows=[['sw-all','「假」整天不能上'],['sw-only','「限」只能上這段'],['sw-part','「~18」只能上到 18:00（「15~」是 15:00 後才能上）'],
-          ['sw-late','截止後才劃的<b>臨時（候補）</b>'],['sw-clash','紅框加「!」：排的班撞到劃假']];
-        return (n?'圈起來的這幾格是<b>示範</b>，讓你看看夥伴劃假後，班表上會長什麼樣子。從左到右：':'夥伴劃的假會直接顯示在班表上：')+'<br>'+
-          rows.slice(0,n||rows.length).map(r=>'<i class="lgc '+r[0]+'"></i>'+r[1]).join('<br>')+
-          (n&&n<rows.length?'<br>'+rows.slice(n).map(r=>'<i class="lgc '+r[0]+'"></i>'+r[1]).join('<br>'):'')+
-          '<br>只有主管看得到，夥伴看不到別人劃了什麼。已經排了班、又沒撞到的格子，不會顯示底色。'+
-          (n?'<br><b>示範而已，班表沒有動</b>，下一步就會恢復原樣。':'');
-      }},
-    {el:()=>tourShown($('#btnEdit')),h:'開始排班',b:'按這裡<b>解鎖</b>，點格子選班別、自訂時間或請假；排完再按一次<b>鎖定</b>。<br>鎖定後才會檢查人力，紅色「！」也是這時才出現。'},
-    {el:()=>tourShown($('#btnStaff')),h:'＋ 人員',b:'<b>新增</b>：按「＋ 新增人員」，填姓名、選正職／計時／支援；回鍋的舊夥伴可以從「過往人員」加回來，以前的班都還在。<br>'+
-      '<b>這個月不排</b>（請長假、留停）：在人員清單把他右邊的開關關掉，只影響這個月。<br>'+
-      '<b>離職</b>：點名字 →「離職」，可以先填<b>最後上班日</b>，那天之後自動畫紅線、下個月起自動移出；不填就從這個月起直接移出。之後可在 ⋯ 的「已隱藏人員」復原。<br>'+
-      '<b>打錯要刪</b>：點名字 →「刪除」，<b>所有月份的班會一起刪掉</b>，離職請不要用刪除。<br>'+
-      '月中才到職的，在排班格子選「紅線」標出還沒到職的日子；離職填了最後上班日就會自動畫。'},
-    {el:()=>tourShown($('#btnLeave')),h:'劃假管理',b:'看大家劃了哪些日子，也可以<b>代為修改</b>。<br>下方的「⚙ 開放設定」可以設定劃哪個月、截止日，以及截止後的候補。<br>'+
-      '想看夥伴是怎麼劃的？按「？」裡的<b>「🏖 劃假教學」</b>，用練習畫面跟著做一次；開放設定也有<b>「⚙ 開放劃假教學」</b>。'},
-    {el:()=>tourShown($('#btnNotice')),h:'劃假通知',b:'有人劃假或改假時，🔔 會出現<b style="color:var(--red)">紅點</b>；點開可以看最近異動和每位夥伴的備註。'},
-    {el:()=>tourShown($('#btnFilter')),h:'篩選日期',b:'只顯示某幾天，例如 1～15 號；也可以把這段日期存成<b>圖片</b>，方便傳到群組。'},
-    {el:()=>tourShown($('#btnMore')),h:'更多 ⋯',b:'<b>複製代碼</b>：把<b>夥伴代碼</b>傳給大家，他們就能看班表、劃假；主管代碼只給要一起排班的人。<br>'+
-      '<b>匯出或備份</b>：匯出 PDF／列印，或存成備份檔。<br><b>載入備份</b>：從備份檔還原。<br>'+
-      '<b>後台設定</b>：班段、人力規則、劃假、行事曆（要登入）。<br><b>已隱藏人員</b>：找回之前隱藏的人。<br>'+
-      '<b>加入現有代碼</b>、<b>建立新店家</b>：換店，或開一份新的班表。'},
-    {el:()=>tourShown(tourOtBtn()),h:'加班時數',b:'點名字旁的 <b>⋯</b>，看這個人這個月的<b>加班時數</b>：國定假日有上班、月休沒休滿、單天超過 8 小時、上班天數超標，都會算進來。<br>下面會列出是哪幾天，點日期就會跳到班表那一格。'},
-    {opt:1,el:()=>tourShown($('#btnReportTop')),h:'🏆 每月戰績',b:t=>(t?'<b>現在剛好看得到！</b>':'')+
-      '每個月<b>倒數第二天到下個月 3 號</b>，工具列會出現金色的<b>「🏆 ○月戰績」</b>按鈕，主管和夥伴都看得到，平常不會出現。<br>'+
-      '內容全部由班表和劃假紀錄算出來：開店王、收班王、最佳拍檔、最忙的一天……夥伴在那個月離職的話，最後還會附上道別卡。'},
-    {el:()=>tourShown($('#btnHelp')),h:'看不懂就按這裡',b:'符號、顏色和各種規則都寫在這裡。<br>最上方還有這些教學可以隨時看：<b>重看新手教學</b>、<b>預覽夥伴版</b>、<b>🏖 劃假教學</b>、<b>📝 排班教學</b>、<b>⚙ 開放劃假教學</b>。<br>新手教學到這裡結束，按「開始使用」就可以開始了 🎉'}
+    {h:'歡迎使用我的班表',b:'主管版導覽，依序介紹班表、排班、人員與劃假管理。<br>之後可於右上角「？」重看。'},
+    {el:()=>tourShown($('.sheet-wrap')),h:'班表',b:'一列為一位夥伴，<b>左右滑動</b>可查看其他日期，開啟時預設停在今天。<br>表頭「！」：'+RED('紅色')+'為當日人力不符規則，<b class="c-amber">黃色</b>為出勤天數超標，點選可查看原因。'},
+    SYM,
+    {enter:()=>tourDemoApply([LV_DEMO_KINDS]),leave:()=>tourDemoRestore(),
+      el:()=>tourDemoEl($('.sheet-wrap')),h:'班表上的劃假',b:t=>
+        (Array.isArray(t)?'圈起處為劃假在班表上的樣式，由左至右：':'夥伴的劃假直接顯示在班表上：')+'<br>'+
+        LV_DEMO_KINDS.map(k=>k.lg).join('<br>')+
+        '<br>僅主管可見，夥伴無法看到他人的劃假。已排班且未衝突的格子不顯示底色。'},
+    {el:()=>tourShown($('#btnEdit')),h:'開始排班',b:'按此<b>解鎖</b>後，點選格子即可排入班別、自訂時間或假別；完成後再按一次<b>鎖定</b>。<br>鎖定後才進行人力檢查，紅色「！」於此時顯示。'},
+    {el:()=>tourShown($('#btnStaff')),h:'＋ 人員',b:'人員的新增、編輯與離職皆於此處理。以下依序預覽各畫面，僅供查看，不會變更資料。'},
+    {enter:()=>{renderStaffList();document.getElementById('ovStaffList').classList.add('show')},
+     leave:()=>document.getElementById('ovStaffList').classList.remove('show'),
+     el:()=>tourShown($('#ovStaffList .modal')),h:'人員清單（預覽）',
+     b:()=>(monthStaff().length?'依正職、計時、支援分組，點選姓名進入編輯。<br>':'目前尚無人員，由下方「＋ 新增人員」開始建立。<br>')+
+       '右側<b>開關</b>決定該員<b>本月是否排班</b>：請長假、留職停薪或支援結束時關閉即可，人員資料與其他月份不受影響。'},
+    {enter:()=>openStaff(null),
+     leave:()=>document.getElementById('ovStaff').classList.remove('show'),
+     el:()=>tourShown($('#ovStaff .modal')),h:'新增人員（預覽）',
+     b:()=>'按「＋ 新增人員」開啟。填寫<b>姓名</b>並選擇<b>正職／計時／支援</b>，身分影響可選的班別；到職年月為選填。<br>'+
+       (tourShown($('#smArchivedWrap'))?'下方<b>「過往人員」</b>為曾在職、本月未排的夥伴，點選即加回本月，歷史班表保留。'
+         :'曾在職、本月未排的夥伴，會列於此畫面下方的「過往人員」，點選即加回本月，歷史班表保留。')},
+    {enter:()=>{const st=tourStaff0();if(st)openStaff(st.id)},
+     leave:()=>document.getElementById('ovStaff').classList.remove('show'),
+     el:()=>tourStaff0()?tourShown($('#ovStaff .modal')):null,h:'編輯人員（預覽）',
+     b:'點選清單中的姓名開啟。可修改姓名、身分，或以<b>上移／下移</b>調整班表上的順序。<br>'+
+       '<b>離職</b>：可先填<b>最後上班日</b>，該日之後自動畫紅線，次月起自動移出；未填則自當月起直接移出，之後可於 ⋯ 的「已隱藏人員」復原。<br>'+
+       '<b>刪除</b>：僅用於輸入錯誤，該員所有月份的班表一併刪除。<br>月中到職者，以排班格子的「紅線」標出到職前的日子。'},
+    {el:()=>tourShown($('#btnLeave')),h:'劃假管理',b:()=>'查看夥伴的劃假內容，並可<b>代為修改</b>。<br>下方「⚙ 開放設定」可設定開放月份、截止日與截止後的候補。'+
+      (chainEnd()?'':'<br>夥伴的劃假方式可於「？」的「🏖 劃假教學」以練習畫面查看；開放設定另有「⚙ 開放劃假教學」。')},
+    {el:()=>tourShown($('#btnNotice')),h:'劃假通知',b:'有夥伴劃假或修改時，🔔 顯示'+RED('紅點')+'；點開可查看最近異動與各夥伴的備註。'},
+    {el:()=>tourShown($('#btnFilter')),h:'篩選日期',b:'僅顯示指定的日期範圍，例如 1～15 號；也可將該範圍存成<b>圖片</b>。'},
+    {el:()=>tourShown($('#btnMore')),h:'更多 ⋯',b:'<b>複製代碼</b>：提供<b>夥伴代碼</b>給夥伴查看班表與劃假；主管代碼僅提供給共同排班的人。<br>'+
+      '<b>匯出或備份</b>：匯出 PDF／列印，或存成備份檔。<br><b>載入備份</b>：由備份檔還原。<br>'+
+      '<b>後台設定</b>：班段、人力規則、劃假、行事曆（需登入）。<br><b>已隱藏人員</b>：查看或復原已離職的人員。<br>'+
+      '<b>加入現有代碼</b>、<b>建立新店家</b>：切換門市或建立新的班表。'},
+    OT,
+    {opt:1,el:()=>tourShown($('#btnReportTop')),h:'🏆 每月戰績',b:t=>(t?'<b>目前正在顯示。</b>':'')+
+      '每月<b>倒數第二天至下月 3 號</b>，工具列出現金色「🏆 ○月戰績」按鈕，主管與夥伴皆可查看，其餘時間不顯示。<br>'+
+      '內容皆由班表與劃假紀錄計算，例如開店與收班次數、最常同班的組合、人數最多的一天；當月離職的夥伴會附上道別卡。'},
+    {el:()=>tourShown($('#btnHelp')),h:'說明',b:()=>'各記號、顏色與規則皆列於此。<br>頁面最上方可重看新手教學、預覽夥伴版，或進入劃假、排班、開放劃假的教學。<br>'+
+      (chainEnd()?'新手教學到此結束。':'新手教學到此結束，按「開始使用」即可開始。')}
   ];
   return [
-    {h:'歡迎使用我的班表 👋',b:'花 30 秒帶你認識一下怎麼看班表、怎麼劃假。<br>之後想再看，按右上角的「？」就能重看。'},
-    {el:()=>tourShown($('.sheet-wrap')),h:'這是班表',b:'一列一個人，<b>左右滑</b>可以看其他天，打開時會先停在今天。<br>表頭的紅字是週末和國定假日。'},
+    {h:'歡迎使用我的班表',b:'以下依序介紹班表的看法與劃假方式，約 30 秒。<br>之後可於右上角「？」重看。'},
+    {el:()=>tourShown($('.sheet-wrap')),h:'班表',b:'一列為一位夥伴，<b>左右滑動</b>可查看其他日期，開啟時預設停在今天。<br>表頭紅字為週末與國定假日。'},
     {el:()=>tourShown(tourCell()),h:'看懂一格班',b:td=>{
       const s=td.querySelector('.t-s').textContent,e=td.querySelector('.t-e').textContent;
       const ex=[s,e].find(x=>x.includes('.'))||'13.5'; // 拿有小數的當例子，看得出 .5 是半小時
       const bk=td.querySelector('.brk-tag');
-      return '這格是 <b>'+tourHM(s)+' 上班、'+tourHM(e)+' 下班</b>。左上是上班、右下是下班，用小時寫：'+ex+' 就是 '+tourHM(ex)+'。'+
-        (bk?'右邊的「'+esc(bk.textContent)+'」是休息時間。':'')+
-        '<br>╱ 是沒排班，✕ 是排休；格子中間寫「特」「事」這類字是請假。'}},
-    {el:()=>tourShown(tourOtBtn()),h:'看加班時數',b:'點名字旁的 <b>⋯</b>，看這個人這個月的<b>加班時數</b>：國定假日有上班、月休沒休滿、單天超過 8 小時、上班天數超標，都會算進來。<br>下面會列出是哪幾天，點日期就會跳到班表那一格。'},
-    {el:()=>[tourShown($('#selYear')),tourShown($('#selMonth'))].filter(Boolean),h:'切換月份',b:'點這裡可以看上個月、下個月的班表。'},
-    {el:()=>tourShown($('#btnLeave')),h:'劃假',b:'開放期間點這裡，標出不能上班的日子，最後按「送出」。<br>不知道怎麼劃？按「？」裡的<b>「🏖 劃假教學」</b>，用練習畫面跟著做一次，劃的不會送出。'},
-    {el:()=>tourShown($('#btnMore')),h:'更多 ⋯',b:'<b>匯出或備份</b>：把班表存成 PDF 或印出來。<br><b>複製代碼</b>：複製夥伴代碼，傳給新來的同事。<br><b>加入現有代碼</b>：換成別的代碼，例如去支援別家店。'},
-    {el:()=>tourShown($('#btnLook')),h:'調整外觀',b:'字的大小、顏色、深色模式都可以調，只會改你自己的手機。'},
-    {opt:1,el:()=>tourShown($('#btnReportTop')),h:'🏆 每月戰績',b:t=>(t?'<b>現在剛好看得到！</b>':'')+
-      '每個月<b>倒數第二天到下個月 3 號</b>，工具列會出現金色的<b>「🏆 ○月戰績」</b>按鈕，平常不會出現。<br>'+
-      '點開可以看這個月的小統計：誰最常開店、誰最常收班、哪兩個人最常同班、哪天店裡最擠……那幾天第一次打開 App 也會問你要不要看。'},
-    {el:()=>tourShown($('#btnHelp')),h:'看不懂就按這裡',b:'每個符號和顏色是什麼意思都寫在這裡。<br>最上方還有<b>「▶ 重看新手教學」</b>和<b>「🏖 劃假教學」</b>，劃假教學用練習畫面跟著做，劃的不會送出。<br>新手教學到這裡結束，按「開始使用」就可以開始了 🎉'}
+      return '此格為 <b>'+tourHM(s)+' 上班、'+tourHM(e)+' 下班</b>。左上為上班時間、右下為下班時間，以小時表示：'+ex+' 即 '+tourHM(ex)+'。'+
+        (bk?'右側「'+esc(bk.textContent)+'」為休息時間註記。':'')+
+        '<br>僅有斜線 ╱、沒有時間的格子，表示當天未排班。'}},
+    SYM,
+    OT,
+    {el:()=>[tourShown($('#selYear')),tourShown($('#selMonth'))].filter(Boolean),h:'切換月份',b:'於此切換查看其他月份的班表。'},
+    {el:()=>tourShown($('#btnLeave')),h:'劃假',b:()=>'開放期間於此標出無法上班的日子，完成後按「送出」。'+
+      (chainEnd()?'':'<br>操作方式可於「？」的<b>「🏖 劃假教學」</b>以練習畫面試做，練習內容不會送出。')},
+    {el:()=>tourShown($('#btnMore')),h:'更多 ⋯',b:'<b>匯出或備份</b>：將班表存成 PDF 或列印。<br><b>複製代碼</b>：複製夥伴代碼，提供給新進同事。<br><b>加入現有代碼</b>：切換至其他代碼，例如支援其他門市。'},
+    {el:()=>tourShown($('#btnLook')),h:'外觀設定',b:'可調整字級、顏色與深色模式，僅影響本裝置。'},
+    {opt:1,el:()=>tourShown($('#btnReportTop')),h:'🏆 每月戰績',b:t=>(t?'<b>目前正在顯示。</b>':'')+
+      '每月<b>倒數第二天至下月 3 號</b>，工具列出現金色「🏆 ○月戰績」按鈕，其餘時間不顯示。<br>'+
+      '內容為當月的小統計，例如開店與收班次數、最常同班的組合、人數最多的一天；期間首次開啟 App 時會詢問是否查看。'},
+    {el:()=>tourShown($('#btnHelp')),h:'說明',b:()=>'各記號與顏色的意義皆列於此。<br>頁面最上方可重看新手教學，或進入「🏖 劃假教學」。<br>'+
+      (chainEnd()?'新手教學到此結束。':'新手教學到此結束，按「開始使用」即可開始。')}
   ];
 }
 let tourList=null,tourIdx=0,tourRole='view',tourMO=null,tourRaf=0,tourOutcome=null; // tourOutcome：最後一步按了送出／儲存
+let tourChain=null; // 第一次自動開始的新手教學：{role,list,done}，結束後接著詢問其他教學；從「？」重看不接續
+const TOUR_MENU={
+  sched:['📝 排班教學','解鎖排班，實際點選一格操作，內容不會儲存。'],
+  lcfg:['⚙ 開放劃假教學','逐項介紹劃假的開放設定，設定不會變更。'],
+  leave:['🏖 劃假教學','以練習畫面操作一次劃假，內容不會送出。']
+};
+function tourChainLeft(){const ch=tourChain;return ch?ch.list.filter(r=>!ch.done.has(r)):[]}
+function tourChainOffer(){ // 一段教學結束時：還有沒看的就列出來，選了接著開始
+  const cur=tourList&&tourList[tourIdx],left=tourChainLeft();
+  if(!cur||cur.menu||!left.length)return false;
+  const first=tourRole===tourChain.role;
+  tourMarkRole(); // 走到選單就算看完這段（停在選單直接關掉 App，下次不會再從頭跳）
+  const b=(first?'可接著查看以下教學，各約 1 分鐘：':'尚未查看的教學：')+
+    '<div class="tt-menu">'+left.map(r=>'<button type="button" class="btn" data-t="chain" data-r="'+r+'"><b>'+TOUR_MENU[r][0]+'</b><small>'+TOUR_MENU[r][1]+'</small></button>').join('')+'</div>'+
+    '之後亦可於「？」個別查看。';
+  tourList=tourList.slice(0,tourIdx+1).concat([{h:first?'其他教學':'繼續查看其他教學',b,fin:1,menu:1}]);
+  tourGo(tourList.length-1,1);
+  return true;
+}
+function tourCloseOverlays(){ // 換下一段教學前，把上一段留下的視窗收掉
+  document.querySelectorAll('.overlay.show').forEach(o=>o.classList.remove('show'));
+  if(lvDemo){lvDemo=false;lvWho=null;lvDraft=null;lvOriginal=null;updateLeaveBadge()}
+}
+function tourChainGo(r){
+  const ch=tourChain;
+  endTour(); // 收掉目前這段（照常記為看過）
+  if(!ch)return;
+  tourChain=ch;ch.done.add(r);
+  tourCloseOverlays();
+  setTimeout(()=>runTour(r),300);
+}
+function runTour(r){ // 開始某一段教學（「？」的按鈕、新手教學後的接續共用）
+  const has=()=>!!document.getElementById('tour');
+  if(r==='leave'){openLeave(true);setTimeout(()=>{if(!has())startTour('leave')},400)} // 練習畫面：不管劃假有沒有開放都能練，名單也是假的
+  else if(r==='sched'){if(!editMode)document.getElementById('btnEdit').click();setTimeout(()=>{if(editMode&&!has())startTour('sched')},400)} // 第一次的話，解鎖時就會自己開始
+  else if(r==='lcfg'){openLeave();openLeaveCfg();setTimeout(()=>{if(!has())startTour('lcfg')},400)} // 第一次的話，打開設定時就會自己開始
+  else setTimeout(()=>{if(!has())startTour(r)},250);
+}
 function tourTarget(st){
   if(!st.el)return null;
   const t=st.el();
@@ -5308,7 +5400,7 @@ function startTour(role){
   if(tourRole==='sched'){tourHoldSave=true;tourSnapCells=new Map()}
   tourList=tourSteps(tourRole);
   // 主畫面的教學：這支手機上看不到的項目先拿掉。劃假教學的目標要等操作後才出現（例如選了名字才有日曆），走到那一步再判斷
-  if(tourRole==='view'||tourRole==='edit')tourList=tourList.filter(st=>!st.el||st.opt||tourTarget(st));
+  if(tourRole==='view'||tourRole==='edit')tourList=tourList.filter(st=>!st.el||st.opt||st.enter||tourTarget(st)); // enter：進到那一步才打開的畫面
   if(!tourList.length)return;
   const root=document.createElement('div');
   root.id='tour';root.className='tour';root.setAttribute('role','dialog');root.setAttribute('aria-modal','true');root.setAttribute('aria-label','新手教學');
@@ -5321,6 +5413,7 @@ function startTour(role){
   root.addEventListener('click',ev=>{
     const b=ev.target.closest('[data-t]');if(!b||b.disabled)return;
     if(b.dataset.t==='skip')endTour(true);
+    else if(b.dataset.t==='chain')tourChainGo(b.dataset.r);
     else if(b.dataset.t==='prev')tourGo(tourIdx-1,-1);
     else tourGo(tourIdx+1,1);
   });
@@ -5342,7 +5435,7 @@ function tourGo(i,dir){
   if(was&&was.leave&&was._in){was._in=false;was.leave()} // 離開這一步：把示範換回來
   while(i>=0&&i<tourList.length&&tourList[i].el&&!tourList[i].enter&&!tourList[i].opt&&!tourTarget(tourList[i]))i+=dir||1; // 目標還沒出現就往同方向跳過
   if(i<0){i=tourIdx}
-  if(i>=tourList.length){endTour();return}
+  if(i>=tourList.length){if(tourChainOffer())return;endTour();return}
   tourIdx=i;
   const st0=tourList[i];
   if(st0.enter&&!st0._in){st0._in=true;st0.enter()}
@@ -5359,21 +5452,21 @@ function tourEnding(){ // 劃假練習、開放設定：視窗關掉時，依按
   const o=tourOutcome||{};
   if(tourRole==='sched'){
     const touched=!!(tourSnapCells&&tourSnapCells.size);
-    tourFinish('排班教學到這裡結束 🎉','鎖定後，剛才改過的<b>淡藍色格子</b>會慢慢淡掉，表頭有問題的日子會出現「！」。<br>'+
-      (touched?'剛才教學中排的格子<b>不會存進班表</b>，等一下會自動還原成原本的樣子。<br>':'')+'之後想再看，按「？」裡的「📝 排班教學」。');
+    tourFinish('排班教學結束','鎖定後，淡藍色的已修改格子逐漸淡去；人力不符規則的日期，表頭顯示「！」。<br>'+
+      (touched?'教學中排入的內容<b>不會儲存</b>，稍後自動還原。<br>':'')+'可於「？」的「📝 排班教學」重看。');
     setTimeout(()=>{if(tourSnapCells)tourRestoreCells()},2300); // 等淡掉的動畫跑完再還原
     return;
   }
   if(tourRole==='leave'){
-    if(o.sent)tourFinish('送出成功 🎉','真正劃假時就是這樣：跳出「<b>已送出劃假 ✓</b>」的小通知，視窗自動關掉，主管那邊的 🔔 會出現紅點。<br>'+
-      '剛才是練習，<b>沒有真的送出</b>。<br>劃假教學到這裡結束，開放期間打開「劃假」就能正式劃了。');
-    else tourFinish('劃假教學到這裡結束','最後一步是按<b>「送出」</b>：沒按送出，劃的假不會存，主管也看不到。<br>'+
-      '剛才練習劃的都<b>沒有存</b>。想再練一次，按「？」裡的「🏖 劃假教學」。');
+    if(o.sent)tourFinish('送出完成','實際送出時，畫面顯示「<b>已送出劃假 ✓</b>」並關閉視窗，主管的 🔔 出現紅點。<br>'+
+      '本次為練習，<b>未實際送出</b>。<br>劃假教學到此結束；開放期間由「劃假」進入即可正式劃假。');
+    else tourFinish('劃假教學結束','最後一步為按<b>「送出」</b>；未送出的劃假不會儲存，主管也無法看到。<br>'+
+      '練習內容<b>未儲存</b>。可於「？」的「🏖 劃假教學」再次練習。');
   }else{
-    if(o.saved)tourFinish('儲存完成 🎉','真正儲存時就是這樣：跳出「<b>'+(o.on?'已開放劃假 ✓':'已關閉劃假')+'</b>」的小通知，設定視窗關掉'+
-      (o.on?'，夥伴打開劃假就能開始劃。':'。')+'<br>剛才是教學示範，<b>設定沒有真的改</b>。'+
-      (o.missing?'<br>（真的儲存時，開放起日或截止日沒填，會先提醒你補上。）':'')+'<br>開放劃假教學到這裡結束。');
-    else tourFinish('開放劃假教學到這裡結束','最後一步是按<b>「儲存」</b>，設定才會生效。<br>剛才的更動都<b>沒有儲存</b>，設定還是原本的樣子。<br>想再看一次，按「？」裡的「⚙ 開放劃假教學」。');
+    if(o.saved)tourFinish('儲存完成','實際儲存時，畫面顯示「<b>'+(o.on?'已開放劃假 ✓':'已關閉劃假')+'</b>」並關閉設定視窗'+
+      (o.on?'，夥伴即可開始劃假。':'。')+'<br>本次為教學示範，<b>設定未變更</b>。'+
+      (o.missing?'<br>（實際儲存時，開放起日或截止日未填寫會先提示補上。）':'')+'<br>開放劃假教學到此結束。');
+    else tourFinish('開放劃假教學結束','最後一步為按<b>「儲存」</b>，設定才會生效。<br>教學中的變更<b>皆未儲存</b>，設定維持原樣。<br>可於「？」的「⚙ 開放劃假教學」重看。');
   }
 }
 function tourText(){
@@ -5386,7 +5479,8 @@ function tourText(){
   const prev=root.querySelector('[data-t="prev"]'),next=root.querySelector('[data-t="next"]');
   const gated=!!(st.need&&!st.need());
   prev.style.display=(i&&!st.fin)?'':'none';
-  next.textContent=st.fin?'完成':gated?'下一步':i===0?'開始':(i===n-1?(tourRole==='view'||tourRole==='edit'?'開始使用':'我知道了'):'下一步');
+  const more=tourChainLeft().length>0; // 新手教學接續中：結束後還會列出其他教學
+  next.textContent=st.menu?'先不用':st.fin?(more?'下一步':'完成'):gated?'下一步':i===0?'開始':(i===n-1?(more?'下一步':tourRole==='view'||tourRole==='edit'?'開始使用':'我知道了'):'下一步');
   next.disabled=gated;
   if(st.fin)root.querySelector('.tt-n').textContent='';
   root.querySelector('.tt-skip').style.visibility=(i===n-1||st.fin)?'hidden':'';
@@ -5437,13 +5531,16 @@ function endTour(skipped){
   if(cur&&cur.leave&&cur._in){cur._in=false;cur.leave()}
   const root=document.getElementById('tour');if(root)root.remove();
   if(tourRole==='sched')tourRestoreCells();
-  if(skipped===true)showToast('已略過教學，之後可以在「？」重看',2800);
+  if(skipped===true)showToast('已略過教學，可於「？」重看',2800);
+  tourChain=null; // 略過、先不用、全部看完：接續到此為止（選了下一段會由 tourChainGo 接回）
   if(tourMO){tourMO.disconnect();tourMO=null}
   cancelAnimationFrame(tourRaf);
   window.removeEventListener('resize',tourSchedule);
   document.removeEventListener('scroll',tourSchedule,true);
   document.removeEventListener('keydown',tourKey);
-  // 只記「本人身分」看過的那一版；主管預覽夥伴版、劃假教學，不算夥伴看過
+  tourMarkRole();
+}
+function tourMarkRole(){ // 只記「本人身分」看過的那一版；主管預覽夥伴版、劃假教學，不算夥伴看過
   if(tourRole==='view'&&viewerMode)tourMark('view');
   else if(tourRole==='edit'&&!viewerMode)tourMark('edit');
   else if(tourRole==='leave'&&viewerMode)tourMark('leave');
@@ -5459,34 +5556,21 @@ function maybeStartTour(){ // 等開啟動畫結束、其他視窗（例如剛�
     if(document.getElementById('splash')||document.querySelector('.overlay.show')){if(++tries<240)setTimeout(tick,500);return}
     setTimeout(()=>{
       if(document.getElementById('splash')||document.querySelector('.overlay.show')){tick();return}
+      tourChain={role,list:role==='view'?['leave']:['sched','lcfg','leave'],done:new Set()};
       startTour(role);
+      if(!document.getElementById('tour'))tourChain=null;
     },400);
   };
   tick();
 }
-document.getElementById('btnTourReplay').addEventListener('click',()=>{
-  document.getElementById('ovHelp').classList.remove('show');
-  setTimeout(()=>startTour(viewerMode?'view':'edit'),250);
-});
-document.getElementById('btnTourLcfg').addEventListener('click',()=>{ // 打開劃假的開放設定，逐欄介紹
-  document.getElementById('ovHelp').classList.remove('show');
-  openLeave();openLeaveCfg(); // 第一次的話，打開時就會自己開始
-  setTimeout(()=>{if(!document.getElementById('tour'))startTour('lcfg')},400);
-});
-document.getElementById('btnTourSched').addEventListener('click',()=>{ // 解鎖排班，帶著排一格
-  document.getElementById('ovHelp').classList.remove('show');
-  if(!editMode)document.getElementById('btnEdit').click(); // 第一次的話，解鎖時就會自己開始
-  setTimeout(()=>{if(editMode&&!document.getElementById('tour'))startTour('sched')},400);
-});
-document.getElementById('btnTourLeave').addEventListener('click',()=>{ // 打開劃假，在「我要劃假」裡跟著做
-  document.getElementById('ovHelp').classList.remove('show');
-  openLeave(true); // 練習畫面：不管劃假有沒有開放都能練，名單也是假的
-  setTimeout(()=>startTour('leave'),400);
-});
-document.getElementById('btnTourMate').addEventListener('click',()=>{ // 主管預覽夥伴看到的版本
-  document.getElementById('ovHelp').classList.remove('show');
-  setTimeout(()=>startTour('view'),250);
-});
+// 「？」裡的教學按鈕：每段單獨重看，不接續其他教學
+[['btnTourReplay',()=>viewerMode?'view':'edit'],['btnTourLcfg','lcfg'],['btnTourSched','sched'],['btnTourLeave','leave'],['btnTourMate','view']].forEach(([id,r])=>
+  document.getElementById(id).addEventListener('click',()=>{
+    if(document.getElementById('tour'))return;
+    tourChain=null;
+    document.getElementById('ovHelp').classList.remove('show');
+    runTour(typeof r==='function'?r():r);
+  }));
 document.getElementById('btnHelp').addEventListener('click',()=>{
   const src='行事曆來源：'+calSourceText();
   document.getElementById('calStatus').textContent=src;
