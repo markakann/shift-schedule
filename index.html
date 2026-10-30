@@ -516,6 +516,10 @@ body.editing thead tr:nth-child(2) th:not(.corner){cursor:pointer}
   display:none;align-items:flex-end;justify-content:center;
 }
 .overlay.show{display:flex}
+/* 視窗開著時鎖住後面的頁面：視窗本身不需要捲動（或已捲到底）時，手指的滑動會「穿透」到後面的頁面，
+   所以開著視窗就讓頁面不能捲、也不會觸發下拉重整；視窗裡面需要捲的照常可以捲 */
+html.ov-open,html.ov-open body{overflow:hidden;overscroll-behavior:none}
+.overlay,.modal{overscroll-behavior:contain}
 #ovResign{z-index:95} /* 從人員視窗裡打開的，要疊在它上面 */
 .modal{
   background:var(--paper);width:100%;max-width:560px;
@@ -584,6 +588,8 @@ body.editing thead tr:nth-child(2) th:not(.corner){cursor:pointer}
 .rp-ic{font-size:19px;line-height:1.3;flex-shrink:0}
 .rp-txt{flex:1;min-width:0}
 .rp-t{font-size:14.5px;color:#7a5c14;font-weight:700;letter-spacing:.5px;line-height:1.35}
+.lv-off-tag{display:inline-block;margin-left:8px;padding:0 6px;border-radius:6px;font-size:11px;font-weight:700;color:#a85c07;border:1px solid #e0a05a;vertical-align:2px}
+html.dark .lv-off-tag{color:#f0b978;border-color:#a8743a}
 .rp-w{font-size:15px;font-weight:700;color:var(--blue);line-height:1.4;white-space:pre-line}
 .rp-d{font-size:10.5px;color:#a8a294;line-height:1.5;margin-top:1px}
 .rp-v{font-size:13px;font-weight:700;color:#7a5c14;white-space:nowrap;flex-shrink:0;padding-top:2px}
@@ -1998,6 +2004,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
         <li>例如班段 11:00～19:00、特休 15:00～16:00，記成上班 6.5 小時＋特休 1 小時。格子上下仍寫原本的班段（11、19），中間標「特1」與時段 15-16。</li>
         <li>計入時數：特休、職災、公差算進正職的已上時數；職災、公差也算進計時人員的本月時數；事假、颱風假不算。國定假日當天的假不另計時數。</li>
         <li>只請其中一段時，請假的時段不列入人力檢查與早／晚工時。</li>
+        <li>只請其中一段、實際上班不超過 4 小時時，上班那段不扣休息（勞基法第 35 條：繼續工作 4 小時應休息 30 分鐘），整段班的休息改算在請假那段，上班＋請假的合計仍等於原本整段班的時數。手動設定休息時，照手動設定扣在上班那段。</li>
         <li><b>紅線</b>　用於正職月中到職或離職。紅線天數依日期順序優先算成月休，補滿月休額度為止；國定假日照常另計；補不完的天數視為未在職，會反映在加班明細的「不足」時數。</li>
       </ul>
       <div class="hr"></div>
@@ -2804,8 +2811,18 @@ function workView(e){ // 實際在店的時段（扣掉特休）：{s 最早上�
 }
 function shiftHours(e){ // 實際上班計薪時數＝班段長度扣掉休息，再扣掉部分特休
   if(!e||e.s==null||e.e==null)return 0; // 缺時間的資料不列入，避免整欄變成 NaN
-  const r=fullRange(e);
-  return Math.max(0,paidSpan(r.s,r.e,e.brk)-(alRange(e)?leaveRawHours(e):0));
+  if(alRange(e))return alSplit(e).work;
+  return paidSpan(e.s,e.e,e.brk);
+}
+/* 只請其中一段：拆成實際上班、請假兩部分的計薪時數，兩者相加＝整段班的計薪時數。
+   實際上班不超過 4 小時就不用休息（勞基法第 35 條：繼續工作 4 小時，至少休息 30 分鐘），
+   整段班的休息改算在請假那段；有手動設定休息時，照手動的扣在上班那段 */
+function alSplit(e){
+  const r=fullRange(e),a=alRange(e),span=(r.e-r.s)/60,alLen=(a[1]-a[0])/60;
+  const paid=paidSpan(r.s,r.e,e.brk),work=span-alLen;
+  if(e.brk==null&&work<=4){const w=Math.max(0,Math.min(work,paid));return {work:w,leave:paid-w}}
+  const lv=Math.min(alLen,paid);
+  return {work:Math.max(0,paid-lv),leave:lv};
 }
 function leaveTypeOf(e){ // 這格的假別：整天／整段班就是 e.t；部分請假記在 e.lt（舊資料沒寫＝特休）
   if(!e)return null;
@@ -2817,8 +2834,7 @@ function leaveTypeOf(e){ // 這格的假別：整天／整段班就是 e.t；部
 function leaveRawHours(e){
   const t=leaveTypeOf(e);if(!t)return 0;
   if(e.t===t)return (e.s!=null&&e.e!=null)?paidSpan(e.s,e.e,e.brk):8;
-  const a=alRange(e),r=fullRange(e);
-  return Math.min((a[1]-a[0])/60,paidSpan(r.s,r.e,e.brk));
+  return alSplit(e).leave;
 }
 function annualRawHours(e){return leaveTypeOf(e)==='annual'?leaveRawHours(e):0}
 function leaveHours(e,d){return isNational(d)?0:leaveRawHours(e)} // 國定假日當天本來就不用上班，不另計
@@ -3183,7 +3199,7 @@ function syncYmSel(){ // 年月選單永遠跟著目前畫面上的月份（避�
   if(sy&&String(sy.value)!==String(state.y))sy.value=state.y;
   if(sm&&String(sm.value)!==String(state.m))sm.value=state.m;
 }
-function renderAll(){syncYmSel();ensureRoster();fitCells();renderSheet();renderNotes();watchSticky();fitSheetHeight();updateReportBtn();
+function renderAll(){syncYmSel();ensureRoster();fitCells();renderSheet();renderNotes();watchSticky();fitSheetHeight();updateReportBtn();lvOffRosterNotice();
   if(Date.now()<todayScrollUntil)scrollSheetToToday()}
 /* 打開 App 時左右自動捲到「今天」：看的是本月就盡量把今天排在名字欄右邊第一格（月底捲到底為止，畫面寬就停在今天看得到的位置），其他月份從 1 號開始。
    剛打開的幾秒內資料還在陸續載入、會重畫好幾次，這段時間每次重畫都對齊一次；一碰到表格就停，不跟使用者搶。 */
@@ -3384,7 +3400,12 @@ function fmtMd(ds){const p=String(ds||'').split('-');return p.length===3?(+p[1])
 let lvDemo=false;
 const LV_DEMO_STAFF=[{id:'demo',name:'Rich',type:'full'},{id:'demo2',name:'Amanda',type:'full'}]; // 示範用的名字，不用班表上真的夥伴
 function lvIsDemo(){return lvDemo&&document.getElementById('ovLeave').classList.contains('show')}
-function lvRoster(){return lvIsDemo()?LV_DEMO_STAFF:monthStaff()}
+function leaveStaff(ym){ // 劃假名單：該月仍在職的所有人（不看班表名單，留職停薪等本月沒排班的人也能劃下個月）
+  const p=parseYm(ym);
+  return state.staff.filter(st=>!st.hidden&&!staffGoneIn(st,p.y,p.m));
+}
+function rosterOfYm(ym){const p=parseYm(ym),md=state.months[p.y+'-'+p.m];return md&&Array.isArray(md.roster)?md.roster:null} // 該月班表名單（還沒建立＝null）
+function lvRoster(ym){return lvIsDemo()?LV_DEMO_STAFF:leaveStaff(ym)}
 function lvStaffOf(id){return (lvIsDemo()?LV_DEMO_STAFF:state.staff).find(x=>x.id===id)}
 function leaveWindow(){
   if(lvIsDemo())return {state:'open',L:{on:true,ym:leaveSuggestYm(),from:'',to:''},demo:true};
@@ -3543,12 +3564,26 @@ function buildLeaveLog(before,draft,late){ // 回傳要存的 log 陣列（最�
 }
 function leaveChanges(ym){ // 全員的異動，新到舊
   const out=[];
-  monthStaff().forEach(st=>{
+  leaveStaff(ym).forEach(st=>{
     const o=leaveOf(ym,st.id);
     if(!o||!o.log)return;
     o.log.forEach(e=>out.push(Object.assign({},e,{sid:st.id,name:st.name})));
   });
   return out.sort((a,b)=>(b.at||0)-(a.at||0));
+}
+function lvDaysCount(ym,sid){const o=leaveOf(ym,sid);return o?Object.keys(o.days||{}).length:0}
+const lvOffShown=new Set(); // 同一個月、同一批人，只提醒一次
+function lvOffRosterNotice(){ // 主管看某個月的班表時：有人劃了這個月的假，卻不在這個月的班表名單上，就用小通知提醒
+  if(viewerMode||tourSchedDemo||otDemo||document.getElementById('tour'))return;
+  const ym2=ymOf(state.y,state.m),ros=rosterOfYm(ym2);if(!ros)return;
+  const who=leaveStaff(ym2).filter(st=>!ros.includes(st.id)&&lvDaysCount(ym2,st.id));
+  if(!who.length)return;
+  const key=ym2+':'+who.map(x=>x.id).join(',');
+  if(lvOffShown.has(key))return;
+  lvOffShown.add(key);
+  const msg=state.m+' 月有 '+who.length+' 位不在班表上的夥伴已劃假：'+who.map(x=>x.name).join('、')+'。要排班時，可於「＋ 人員」將其加回本月。';
+  let n=0;const go=()=>{if(document.getElementById('splash')&&++n<40){setTimeout(go,500);return}showToast(msg,5500)}; // 開啟動畫播完再提醒
+  setTimeout(go,600);
 }
 function leaveSeenKey(){return 'paiban-leave-seen-'+(leaveDocCode()||'')}
 function leaveSeenAt(){try{return +localStorage.getItem(leaveSeenKey())||0}catch(e){return 0}}
@@ -3677,7 +3712,7 @@ function renderNotice(){
     });
     h+='</div>';
   }
-  const notes=monthStaff().map(st=>({st,o:leaveOf(ym,st.id)})).filter(x=>x.o&&String(x.o.note||'').trim());
+  const notes=leaveStaff(ym).map(st=>({st,o:leaveOf(ym,st.id)})).filter(x=>x.o&&String(x.o.note||'').trim());
   h+='<div class="nt-head" style="margin-top:16px"><b>夥伴備註</b><span class="lv-chg-n read">'+(notes.length?notes.length+' 位':'')+'</span></div>';
   h+=notes.length
     ?'<div class="nt-notes">'+notes.map(({st,o})=>'<div class="nt-note"><div class="who">'+esc(st.name)+
@@ -3758,7 +3793,7 @@ function renderLeaveBody(){
   document.getElementById('lvBody').innerHTML=lvTab==='mine'?lvMineHtml(ym,ce):lvAllHtml(ym);
 }
 function lvMineHtml(ym,ce){
-  const roster=lvRoster();
+  const roster=lvRoster(ym);
   if(!roster.length)return '<div class="lv-none">目前沒有人員名單。</div>';
   let h='<select class="txt" id="lvWhoSel"><option value="">— 選擇姓名 —</option>'+
     roster.map(st=>'<option value="'+st.id+'"'+(st.id===lvWho?' selected':'')+'>'+esc(st.name)+'</option>').join('')+
@@ -3838,8 +3873,8 @@ function lvOneHtml(ym,sid,readonly){ // 單一個人的目前劃假（唯讀顯�
   const o=leaveOf(ym,sid);
   return lvCalHtml(ym,o,true);
 }
-function lvAllHtml(ym){ // 全員總覽，臨時劃的另外標
-  const roster=monthStaff();
+function lvAllHtml(ym){ // 全員總覽，臨時劃的另外標；不在該月班表的人另外標出來
+  const roster=leaveStaff(ym),ros=rosterOfYm(ym);
   const rows=roster.map(st=>({st,o:leaveOf(ym,st.id)})).filter(x=>x.o&&(Object.keys(x.o.days||{}).length||String(x.o.note||'').trim()));
   const p=parseYm(ym);
   let h='';
@@ -3852,7 +3887,7 @@ function lvAllHtml(ym){ // 全員總覽，臨時劃的另外標
   h+='<div class="sec-label">目前的劃假</div>';
   rows.forEach(({st,o})=>{
     const lines=summarizeLeave(ym,o);
-    h+='<div class="lv-sum"><div class="who">'+esc(st.name)+'</div>'+
+    h+='<div class="lv-sum"><div class="who">'+esc(st.name)+(ros&&!ros.includes(st.id)?'<span class="lv-off-tag">未在 '+p.m+' 月班表</span>':'')+'</div>'+
       (lines.length?'':'<div class="lv-line"><span class="c-fade">沒有劃日期</span></div>')+
       lines.map(l=>'<div class="lv-line">'+(l.late?'<span class="lv-late-tag">臨時·候補</span>':'')+'<span>'+esc(l.text)+'</span></div>').join('')+
       (o.note?'<div class="lv-note-line">補充：'+esc(o.note)+'</div>':'')+
@@ -4544,7 +4579,8 @@ function renderStaffList(){
     prevType=st.type;
     const inMonth=roster.includes(st.id);
     html+='<div class="staff-row" data-sid="'+st.id+'">'+
-      '<span class="name-txt">'+esc(staffName(st))+(st.leaveDate?'<small class="c-fade" style="font-weight:400"> · '+fmtMd(st.leaveDate)+' 離職</small>':'')+'</span>'+
+      '<span class="name-txt">'+esc(staffName(st))+(st.leaveDate?'<small class="c-fade" style="font-weight:400"> · '+fmtMd(st.leaveDate)+' 離職</small>':'')+
+        (!inMonth&&lvDaysCount(ymOf(state.y,state.m),st.id)?'<small class="lv-off-tag" style="font-weight:700">已劃 '+lvDaysCount(ymOf(state.y,state.m),st.id)+' 天假</small>':'')+'</span>'+
       '<span class="badge '+st.type+'">'+TYPE_LABEL[st.type][0]+'</span>'+
       '<label class="mtoggle" title="是否列入本月班表" onclick="event.stopPropagation()">'+
         '<input type="checkbox" data-inmonth="'+st.id+'" '+(inMonth?'checked':'')+'><span class="mtoggle-track"></span>'+
@@ -5857,6 +5893,12 @@ document.getElementById('btnHelp').addEventListener('click',()=>{
   document.getElementById('ovHelp').classList.add('show');
 });
 document.getElementById('btnCloseHelp').addEventListener('click',()=>document.getElementById('ovHelp').classList.remove('show'));
+(function(){ // 有任何視窗開著，就在 <html> 加上 ov-open（不用改每個開關視窗的地方）
+  const sync=()=>document.documentElement.classList.toggle('ov-open',!!document.querySelector('.overlay.show'));
+  new MutationObserver(ms=>{if(ms.some(m=>m.target.classList&&m.target.classList.contains('overlay')))sync()})
+    .observe(document.body,{subtree:true,attributes:true,attributeFilter:['class']});
+  sync();
+})();
 async function copyStoreCode(){
   try{await navigator.clipboard.writeText(storeCode);alert('已複製主管代碼：'+storeCode)}
   catch(e){prompt('請手動複製主管代碼：',storeCode)}
