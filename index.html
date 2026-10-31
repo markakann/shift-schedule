@@ -2004,7 +2004,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
         <li>例如班段 11:00～19:00、特休 15:00～16:00，記成上班 6.5 小時＋特休 1 小時。格子上下仍寫原本的班段（11、19），中間標「特1」與時段 15-16。</li>
         <li>計入時數：特休、職災、公差算進正職的已上時數；職災、公差也算進計時人員的本月時數；事假、颱風假不算。國定假日當天的假不另計時數。</li>
         <li>只請其中一段時，請假的時段不列入人力檢查與早／晚工時。</li>
-        <li>只請其中一段、實際上班不超過 4 小時時，上班那段不扣休息（勞基法第 35 條：繼續工作 4 小時應休息 30 分鐘），整段班的休息改算在請假那段，上班＋請假的合計仍等於原本整段班的時數。手動設定休息時，照手動設定扣在上班那段。</li>
+        <li>只請其中一段時，請假照請的時段算足，休息依<b>實際上班</b>的時間自動選（上班不超過 4 小時不休息，勞基法第 35 條：繼續工作 4 小時應休息 30 分鐘）。例：13:30～22:00 請特休 17:30～22:00，上班 4 小時不休息，記成上班 4＋特休 4.5；請 18:00～22:00，上班 4.5 小時休 0.5，記成上班 4＋特休 4。手動設定休息時照手動的扣。</li>
         <li><b>紅線</b>　用於正職月中到職或離職。紅線天數依日期順序優先算成月休，補滿月休額度為止；國定假日照常另計；補不完的天數視為未在職，會反映在加班明細的「不足」時數。</li>
       </ul>
       <div class="hr"></div>
@@ -2791,8 +2791,14 @@ function reqHours(sid){ // 正職本月應上班時數＝(當月天數－月休�
 function autoBreak(span){ // 預設休息：4 小時以內不休；超過 4 小時休 0.5 小時；扣掉 0.5 休息後仍超過 8 小時（班段超過 8.5 小時）休 1 小時
   return span>8.5?1:span>4?0.5:0;
 }
-function brkTagOf(span,brk){ // 格子右上角的休息註記：休 1 小時，或跟預設不同時才標
-  const auto=autoBreak(span),eff=(brk==null)?auto:brk;
+function autoBreakOf(s,e,al){ // 這一班的預設休息：只請其中一段假時，依「實際上班」的時間判斷（請假的時段照請的算足）
+  const span=(e-s)/60;
+  return autoBreak(al?span-(al[1]-al[0])/60:span);
+}
+function autoBreakE(e){const r=fullRange(e);return autoBreakOf(r.s,r.e,alRange(e))}
+function brkTagOf(span,brk,auto){ // 格子右上角的休息註記：休 1 小時，或跟預設不同時才標
+  if(auto==null)auto=autoBreak(span);
+  const eff=(brk==null)?auto:brk;
   return (eff!==auto||eff>=1)?'休'+fmtH(eff):'';
 }
 function paidSpan(s,e,brk){ // 班段長度扣掉休息；brk 有值時以該班自己設定的休息為準
@@ -2814,15 +2820,14 @@ function shiftHours(e){ // 實際上班計薪時數＝班段長度扣掉休息�
   if(alRange(e))return alSplit(e).work;
   return paidSpan(e.s,e.e,e.brk);
 }
-/* 只請其中一段：拆成實際上班、請假兩部分的計薪時數，兩者相加＝整段班的計薪時數。
-   實際上班不超過 4 小時就不用休息（勞基法第 35 條：繼續工作 4 小時，至少休息 30 分鐘），
-   整段班的休息改算在請假那段；有手動設定休息時，照手動的扣在上班那段 */
+/* 只請其中一段：請假照請的時段算足，休息依實際上班的時間決定，從上班那段扣。
+   例：13:30～22:00 請特休 17:30～22:00 → 上班 4 小時不用休息（勞基法第 35 條：繼續工作 4 小時，至少休息 30 分鐘），上班 4＋特休 4.5；
+       請 18:00～22:00 → 上班 4.5 小時休 0.5，上班 4＋特休 4。有手動設定休息時照手動的扣 */
 function alSplit(e){
   const r=fullRange(e),a=alRange(e),span=(r.e-r.s)/60,alLen=(a[1]-a[0])/60;
-  const paid=paidSpan(r.s,r.e,e.brk),work=span-alLen;
-  if(e.brk==null&&work<=4){const w=Math.max(0,Math.min(work,paid));return {work:w,leave:paid-w}}
-  const lv=Math.min(alLen,paid);
-  return {work:Math.max(0,paid-lv),leave:lv};
+  const brk=(e.brk==null)?autoBreakOf(r.s,r.e,a):e.brk;
+  const lv=Math.min(alLen,Math.max(0,span-brk));
+  return {work:Math.max(0,span-brk-lv),leave:lv,brk};
 }
 function leaveTypeOf(e){ // 這格的假別：整天／整段班就是 e.t；部分請假記在 e.lt（舊資料沒寫＝特休）
   if(!e)return null;
@@ -2880,7 +2885,7 @@ function overtimeStats(sid){ // 本月加班時數統計：國定假日出勤／
     else workDays.push({d,hrs,al:Array.isArray(e.al)});
     const f=flagMap.get(d);
     if(f){streakHours+=hrs;streakDays.push(d)}
-    detail.push({d,s:fr.s,e:fr.e,span,brk:span-paidSpan(fr.s,fr.e,e.brk),hrs,nat,overStreak:!!f,streakTag:f?f.tag:'',alH:alRange(e)?ah:0,lt});
+    detail.push({d,s:fr.s,e:fr.e,span,brk:alRange(e)?alSplit(e).brk:span-paidSpan(fr.s,fr.e,e.brk),hrs,nat,overStreak:!!f,streakTag:f?f.tag:'',alH:alRange(e)?ah:0,lt});
   }
   let otHours=0,otDays=[],shortfall=0;
   if(isFull){
@@ -3280,7 +3285,7 @@ function renderSheet(){
           r.on&&(r.days||[]).includes(wd)&&(r.times||[]).includes(r.field==='end'?fr.e:fr.s));
         inner='<span class="t-s'+(anyWarn?' fs-warn':'')+'">'+fmtDec(fr.s)+'</span><span class="t-e'+(anyWarn?' fs-warn':'')+'">'+fmtDec(fr.e)+'</span>';
         const spanH=(fr.e-fr.s)/60; // 休息時間跟預設不同時標在右上角，避免同樣班段看不出差別
-        const bt=brkTagOf(spanH,e.brk);
+        const bt=brkTagOf(spanH,e.brk,autoBreakE(e));
         const al=alRange(e);
         if(al){ // 只請其中一段：中間標「假別＋時數」與時段；休息註記併在第一行，避免碰到上下班時間
           const lt=leaveTypeOf(e),mk=LEAVE_MARK[lt];
@@ -3572,16 +3577,22 @@ function leaveChanges(ym){ // 全員的異動，新到舊
   return out.sort((a,b)=>(b.at||0)-(a.at||0));
 }
 function lvDaysCount(ym,sid){const o=leaveOf(ym,sid);return o?Object.keys(o.days||{}).length:0}
-const lvOffShown=new Set(); // 同一個月、同一批人，只提醒一次
-function lvOffRosterNotice(){ // 主管看某個月的班表時：有人劃了這個月的假，卻不在這個月的班表名單上，就用小通知提醒
+function lvOffList(ym){ // 劃了該月的假、卻不在該月班表名單上的人（該月班表還沒建立就不算）
+  const ros=rosterOfYm(ym);if(!ros)return [];
+  return leaveStaff(ym).filter(st=>!ros.includes(st.id)&&lvDaysCount(ym,st.id));
+}
+const lvOffShown=new Set(); // 這次開啟已提醒過的（存不了本機時的備援）
+function lvOffKey(ym){return 'paiban-lvoff-'+(leaveDocCode()||storeCode||'local')+'-'+ym}
+function lvOffRosterNotice(){ // 主管看某個月的班表時：有人劃了這個月的假卻不在名單上，小通知只跳一次（同一支手機、同一批人）；之後都在 🔔 裡看得到
   if(viewerMode||tourSchedDemo||otDemo||document.getElementById('tour'))return;
-  const ym2=ymOf(state.y,state.m),ros=rosterOfYm(ym2);if(!ros)return;
-  const who=leaveStaff(ym2).filter(st=>!ros.includes(st.id)&&lvDaysCount(ym2,st.id));
+  const ym2=ymOf(state.y,state.m),who=lvOffList(ym2);
   if(!who.length)return;
-  const key=ym2+':'+who.map(x=>x.id).join(',');
-  if(lvOffShown.has(key))return;
-  lvOffShown.add(key);
-  const msg=state.m+' 月有 '+who.length+' 位不在班表上的夥伴已劃假：'+who.map(x=>x.name).join('、')+'。要排班時，可於「＋ 人員」將其加回本月。';
+  let told=[];try{told=JSON.parse(localStorage.getItem(lvOffKey(ym2))||'[]')}catch(e){}
+  const fresh=who.filter(x=>!told.includes(x.id)&&!lvOffShown.has(ym2+':'+x.id)); // 只有出現沒提醒過的人才再跳
+  if(!fresh.length)return;
+  who.forEach(x=>lvOffShown.add(ym2+':'+x.id));
+  try{localStorage.setItem(lvOffKey(ym2),JSON.stringify([...new Set(told.concat(who.map(x=>x.id)))]))}catch(e){}
+  const msg=state.m+' 月有 '+who.length+' 位不在班表上的夥伴已劃假：'+who.map(x=>x.name).join('、')+'。要排班時，可於「＋ 人員」將其加回本月；之後可在 🔔 查看。';
   let n=0;const go=()=>{if(document.getElementById('splash')&&++n<40){setTimeout(go,500);return}showToast(msg,5500)}; // 開啟動畫播完再提醒
   setTimeout(go,600);
 }
@@ -3711,6 +3722,13 @@ function renderNotice(){
        '</div>';
     });
     h+='</div>';
+  }
+  const off=lvOffList(ym);
+  if(off.length){ // 不在班表上的劃假：一直列著，不算未讀
+    h+='<div class="nt-head" style="margin-top:16px"><b>不在 '+p.m+' 月班表上的劃假</b><span class="lv-chg-n read">'+off.length+' 位</span></div>'+
+       '<div class="nt-notes">'+off.map(st=>'<div class="nt-note"><div class="who">'+esc(st.name)+'<span class="lv-off-tag">已劃 '+lvDaysCount(ym,st.id)+' 天假</span></div>'+
+         '<div class="nt-text">'+esc(summarizeLeave(ym,leaveOf(ym,st.id)).map(l=>l.text).join('；'))+'</div></div>').join('')+'</div>'+
+       '<div class="small-note" style="margin-top:4px">要排班時，可於「＋ 人員」打開該員本月的開關，劃假會直接顯示在班表上。</div>';
   }
   const notes=leaveStaff(ym).map(st=>({st,o:leaveOf(ym,st.id)})).filter(x=>x.o&&String(x.o.note||'').trim());
   h+='<div class="nt-head" style="margin-top:16px"><b>夥伴備註</b><span class="lv-chg-n read">'+(notes.length?notes.length+' 位':'')+'</span></div>';
@@ -4174,7 +4192,7 @@ function openCell(sid,day){
   let curText='';
   if(e){
     if(e.t==='shift'){
-      const brkH=fmtH(e.brk==null?autoBreak((fr.e-fr.s)/60):e.brk);
+      const brkH=fmtH(alPart?alSplit(e).brk:(e.brk==null?autoBreak((fr.e-fr.s)/60):e.brk));
       const ln=alPart?LEAVE_SHORT[leaveTypeOf(e)]:'';
       curText=alPart
         ?fmtHM(fr.s)+'～'+fmtHM(fr.e)+'（休 '+brkH+'h），其中'+ln+' '+fmtHM(e.al[0])+'～'+fmtHM(e.al[1])+'：上班 '+fmtH(shiftHours(e))+'h＋'+ln+' '+fmtH(leaveRawHours(e))+'h'
@@ -4252,6 +4270,7 @@ function syncAl(){
   }
   document.getElementById('alSub').textContent=sub;
   document.getElementById('alNote').textContent=note;
+  syncBreakChips(); // 調了請假時段，實際上班時間變了，休息的自動選項跟著變
   document.getElementById('cmPresetLabel').textContent=t?'班別（點選帶入時間，再按下方「套用」）':'班別（點選即排入）';
 }
 function commitAlInput(which){ // 特定時段「從／到」的直接輸入
@@ -4276,14 +4295,18 @@ function applyCurrent(){ // 套用：有選假別就依假別與特定時段記�
   else en=withBreak({t:'shift',s:cur.s,e:cur.e});
   setEntry(en);cur.leaveTag=null;
 }
-function syncBreakChips(){ // 反白目前的休息時間：沒手動選時跟著班段長度自動選
-  const eff=(cur.brk==null)?autoBreak((cur.e-cur.s)/60):cur.brk;
+function curAutoBrk(){ // 視窗裡這一班的預設休息：只請其中一段時看實際上班的時間
+  const part=alActive()&&!(cur.as===cur.s&&cur.ae===cur.e);
+  return part?autoBreakOf(cur.s,cur.e,[cur.as,cur.ae]):autoBreak((cur.e-cur.s)/60);
+}
+function syncBreakChips(){ // 反白目前的休息時間：沒手動選時自動選（只請一段假時依實際上班時間）
+  const eff=(cur.brk==null)?curAutoBrk():cur.brk;
   document.querySelectorAll('#cmBreaks .brk-chip').forEach(c=>c.classList.toggle('on',parseFloat(c.dataset.brk)===eff));
 }
 document.getElementById('cmBreaks').addEventListener('click',ev=>{
   const c=ev.target.closest('.brk-chip');if(!c)return;
   const v=parseFloat(c.dataset.brk);
-  cur.brk=(v===autoBreak((cur.e-cur.s)/60))?null:v; // 選的剛好是預設值＝跟著班段自動
+  cur.brk=(v===curAutoBrk())?null:v; // 選的剛好是預設值＝跟著自動
   syncBreakChips();syncAl();
 });
 function fmtDigits(min){ // 4碼數字格式，如 0900／1330／2400，用於輸入框顯示
@@ -4329,7 +4352,8 @@ function commitTimeInput(which){ // which: 's' 或 'e'；驗證通過回傳true�
 function withBreak(entry){ // 手動選的休息跟預設不同才寫進這一筆；跟預設相同就不寫（沿用預設規則）
   if(cur.brk!=null){
     const span=(entry.s!=null&&entry.e!=null)?(entry.e-entry.s)/60:null;
-    if(span==null||cur.brk!==autoBreak(span))entry.brk=cur.brk;
+    const auto=span==null?null:(Array.isArray(entry.al)?autoBreakOf(entry.s,entry.e,entry.al):autoBreak(span));
+    if(auto==null||cur.brk!==auto)entry.brk=cur.brk;
   }
   return entry;
 }
@@ -5394,7 +5418,7 @@ function tourSteps(role,full){ // full：完整新手教學，走到排班、開
       {enter:()=>{cmOpen();keep()},cm:cmOpen,el:()=>{const t=$('#tvS');return t?tourShown(t.closest('.stepper-row')):null},act:1,h:'④ 自訂時間',
         b:'班別以外的時間於此輸入，例如 <b>1315</b> 即 13:15；± 每次調整 15 分鐘。<br>調整後按最下方「套用」排入。此區可直接點選試用。'},
       {enter:cmOpen,cm:cmOpen,el:()=>tourShown($('#cmBreaks')),act:1,h:'⑤ 休息時間',
-        b:'依班段長度自動帶入：超過 8.5 小時休 1 小時，超過 4 小時休 0.5 小時，也可手動改。<br>休息 1 小時，或與預設不同時，格子右側標註「休○」。'},
+        b:'依班段長度自動帶入：超過 8.5 小時休 1 小時，超過 4 小時休 0.5 小時，也可手動改；只請一段假時，依實際上班的時間判斷。<br>休息 1 小時，或與預設不同時，格子右側標註「休○」。'},
       {enter:()=>{cmOpen();if(cur.leaveTag){cur.leaveTag=null;syncLeaveTag();syncAl()}},cm:cmOpen,
         el:()=>chips(['desig','rest']),act:1,need:()=>{const e=ent();return !cellOpen()&&!!e&&(e.t==='rest'||e.t==='desig')},auto:1,h:'⑥ 排休、指定休息',
         b:'<b>△ 指定休息</b>、<b>╲ 排休</b>為整天不上班：點選後<b>直接排入</b>並關閉視窗，不需按「套用」。<br>請點選其中一個。<br>另有「紅線」用於到職前、離職後，可一次畫到指定日期。'},
