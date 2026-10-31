@@ -600,6 +600,7 @@ html.dark .lv-off-tag{color:#f0b978;border-color:#a8743a}
 .up-ver{margin-top:14px;padding-bottom:4px;border-bottom:1px solid var(--line,#ddd);display:flex;align-items:baseline;gap:8px}
 .up-ver b{font-size:15px}
 .up-ver .up-vn{font-size:12px;color:#8a8378;font-variant-numeric:tabular-nums;letter-spacing:.02em}
+.up-ver .up-major{font-size:11px;font-weight:700;color:#fff;background:var(--blue);border-radius:6px;padding:1px 6px}
 .up-ver .up-now{font-size:11px;font-weight:700;color:var(--blue);border:1px solid var(--blue);border-radius:6px;padding:0 6px}
 .up-sec{display:inline-block;margin:8px 0 0;padding:0 8px;border-radius:6px;font-size:12px;font-weight:700;color:#fff}
 .up-sec.add{background:var(--blue)}
@@ -1865,7 +1866,6 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
   <div class="modal">
     <div class="m-title">更新日誌</div>
     <div class="m-sub" id="upSub"></div>
-    <div class="small-note" style="margin-top:2px">版本號＝大版本．民國年月日．更新次數。大版本：1 建置、2 後台登入、3 劃假；更新次數自大版本上線起累計。</div>
     <div id="upBody"></div>
     <div class="m-actions">
       <button class="btn" id="btnCloseUpdates">關閉</button>
@@ -5187,10 +5187,10 @@ document.getElementById('btnCloseNote').addEventListener('click',()=>document.ge
    更新次數自目前大版本上線起，每上傳一次 index.html 加 1（劃假上線那次為 000）。
    每次更新：APP_VERSION 改成「3.115MMDD.次數」，CHANGELOG 最上面同一天的那筆 ver 跟著改；新的一天加一筆。
    add＝新增功能，fix＝問題改善；項目寫成 [文字, 1] 表示只有主管會用到（夥伴代碼不顯示） */
-const APP_VERSION='3.1151101.067';
+const APP_VERSION='3.1151101.068';
 const CHANGELOG=[
-  {v:'2026.11.01',ver:'3.1151101.067',add:[
-    ['後台設定新增「更新日誌」：自 7.15 第一版起，逐日列出新增功能與問題改善。',1],
+  {v:'2026.11.01',ver:'3.1151101.068',add:[
+    ['後台設定新增「更新日誌」：自 7.15 第一版起，逐日列出新增功能與問題改善，並標示 1.0、2.0、3.0 大版本更新。',1],
     ['「⋯ 更多」最下方顯示目前版本號（大版本．民國年月日．更新次數）。']
   ],fix:[
     ['小通知的結尾改為中性說明的寫法。']
@@ -5307,7 +5307,7 @@ const CHANGELOG=[
   {v:'2026.09.28',ver:'3.1150928.007',fix:[
     ['劃假選項改以「能上班的時間」描述：只能上到、之後才能上、只能上這段；點已劃的日期可取消。']
   ]},
-  {v:'2026.09.27',ver:'3.1150927.006',add:[
+  {v:'2026.09.27',ver:'3.1150927.006',major:'3.0',note:'劃假功能上線。',add:[
     ['劃假上線：開放期間內，夥伴選自己的名字後在日曆上劃不能上班的日子（整天、某時之前或之後、只能上某段），可整批套用到星期，並可附補充說明。'],
     ['截止後可設定是否開放臨時劃假，臨時劃假標示為候補。',1],
     ['排班時，有劃假的空格以淡紫底標「假」，排到不能上的時段以紅框「！」提示；「全員總覽」可一次查看並代為修改。',1],
@@ -5330,7 +5330,7 @@ const CHANGELOG=[
   {v:'2026.09.18',ver:'2.1150918.005',fix:[
     ['表格高度隨螢幕剩餘空間調整，人多時才在框內捲動。']
   ]},
-  {v:'2026.09.17',ver:'2.1150917.004',add:[
+  {v:'2026.09.17',ver:'2.1150917.004',major:'2.0',note:'後台設定（管理者帳號登入）上線。',add:[
     ['後台設定（管理者帳號登入）：班段、行事曆來源、覆蓋檢查規則，每組店家代碼各自設定。',1],
     ['時段提醒：排入指定的時間時以粉色標示，提示可能的輸入錯誤。',1]
   ],fix:[
@@ -5409,7 +5409,7 @@ const CHANGELOG=[
   ],fix:[
     ['未排與排休的斜線改為實心線條，窄格與列印時不再變粗、糊邊。']
   ]},
-  {v:'2026.07.15',ver:'1.1150715.004',note:'第一版上線。',add:[
+  {v:'2026.07.15',ver:'1.1150715.004',major:'1.0',note:'第一版上線。',add:[
     ['班表：依月份列出所有人員的逐日班表，按「🔒 排班」解鎖後編輯，再按一次鎖定。'],
     ['排班視窗：常用班別、以 ± 調整的自訂時間；假別含指定休息、排休、特休、公差、颱風假。',1],
     ['國定假日自動取得線上資料，表頭以紅黑字區分，也可點日期手動改紅黑字；正職顯示月休天數與額度。'],
@@ -5429,7 +5429,7 @@ function renderUpdates(){
   document.getElementById('upBody').innerHTML=CHANGELOG.map(e=>{
     const body=e.base?sec('已具備的功能','base',e.add):sec('新增功能','add',e.add)+sec('問題改善','fix',e.fix);
     if(!body)return '';
-    return '<div class="up-ver"><b>'+esc(e.v)+'</b>'+(e.ver?'<span class="up-vn">'+esc(e.ver)+'</span>':'')+(e.ver===APP_VERSION?'<span class="up-now">目前版本</span>':'')+'</div>'+
+    return '<div class="up-ver"><b>'+esc(e.v)+'</b>'+(e.ver?'<span class="up-vn">'+esc(e.ver)+'</span>':'')+(e.major?'<span class="up-major">'+esc(e.major)+' 更新</span>':'')+(e.ver===APP_VERSION?'<span class="up-now">目前版本</span>':'')+'</div>'+
       (e.note?'<div class="small-note" style="margin:4px 0 0">'+esc(e.note)+'</div>':'')+body;
   }).join('');
 }
