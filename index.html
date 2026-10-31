@@ -301,10 +301,17 @@ body.print-sizing .btn.gold{animation:none}
 #toast{
   position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(12px);
   background:#2b2b2b;color:#fff;padding:10px 20px;border-radius:24px;
-  font-size:14px;font-weight:600;z-index:9500; /* 教學的暗幕上面也看得到 */
+  font-size:calc(14px*var(--uiFS,1));font-weight:600;z-index:9500; /* 教學的暗幕上面也看得到；字級跟著外觀設定 */
+  max-width:calc(100vw - 32px);box-sizing:border-box;
   opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;
 }
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+/* 多行的小通知：標題、重點（例如名單）、補充說明分行排 */
+#toast.multi{border-radius:14px;text-align:left;width:min(calc(340px*var(--uiFS,1)),calc(100vw - 32px));padding:12px 16px;line-height:1.55}
+#toast .ts-h{font-weight:700}
+#toast .ts-k{font-size:calc(15px*var(--uiFS,1));font-weight:700;color:#ffd98a;margin:3px 0}
+#toast .ts-n{font-size:calc(12px*var(--uiFS,1));font-weight:500;opacity:.82}
+#toast .ts-tag{display:inline-block;margin-left:6px;padding:0 6px;border-radius:6px;border:1px solid #f0b978;color:#f0b978;font-size:calc(11px*var(--uiFS,1));vertical-align:2px}
 /* 後台規則編輯卡片 */
 .rule-card{
   border:1px solid #ddd;border-radius:6px;padding:10px;margin-top:8px;
@@ -3592,8 +3599,10 @@ function lvOffRosterNotice(){ // 主管看某個月的班表時：有人劃了�
   if(!fresh.length)return;
   who.forEach(x=>lvOffShown.add(ym2+':'+x.id));
   try{localStorage.setItem(lvOffKey(ym2),JSON.stringify([...new Set(told.concat(who.map(x=>x.id)))]))}catch(e){}
-  const msg=state.m+' 月有 '+who.length+' 位不在班表上的夥伴已劃假：'+who.map(x=>x.name).join('、')+'。要排班時，可於「＋ 人員」將其加回本月；之後可在 🔔 查看。';
-  let n=0;const go=()=>{if(document.getElementById('splash')&&++n<40){setTimeout(go,500);return}showToast(msg,5500)}; // 開啟動畫播完再提醒
+  const msg='<div class="ts-h">'+state.m+' 月有 '+who.length+' 位不在班表上的夥伴已劃假</div>'+
+    '<div class="ts-k">'+who.map(x=>esc(x.name)).join('、')+'</div>'+
+    '<div class="ts-n">可於「＋ 人員」加回本月；之後也能在 🔔 查看。</div>';
+  let n=0;const go=()=>{if(document.getElementById('splash')&&++n<40){setTimeout(go,500);return}showToast(msg,6000,true)}; // 開啟動畫播完再提醒
   setTimeout(go,600);
 }
 function leaveSeenKey(){return 'paiban-leave-seen-'+(leaveDocCode()||'')}
@@ -3621,8 +3630,14 @@ function updateLeaveBadge(){ // 工具列 🔔 的紅點：有幾筆還沒看過
   const ntOpenNow=document.getElementById('ovNotice').classList.contains('show');
   if(ntOpenNow)renderNotice();
   if(lastUnseenCount!==null&&n>lastUnseenCount&&!ntOpenNow&&!document.getElementById('ovLeave').classList.contains('show')){
-    const latest=unseenLeaveChanges()[0];
-    if(latest)showToast(latest.name+' 剛剛調整了劃假，可按 🔔 查看',4000);
+    const fresh=unseenLeaveChanges().slice(0,n-lastUnseenCount),ym=leaveTargetYm(); // 這次新進來的幾筆（新到舊）
+    if(fresh.length){ // 分行排：誰、改了什麼、去哪裡看
+      const names=[...new Set(fresh.map(c=>c.name))];
+      const one=fresh.length===1?changeSummary(ym,fresh[0]):null;
+      showToast('<div class="ts-h">🔔 劃假有新的異動</div>'+
+        '<div class="ts-k">'+names.map(esc).join('、')+(fresh.some(c=>c.late)?'<span class="ts-tag">臨時</span>':'')+'</div>'+
+        '<div class="ts-n">'+(one?esc(changeDatesText(ym,fresh[0]))+(one.bad?'　⚠ 與已排的班衝突':'')+'<br>':fresh.length+' 筆異動<br>')+'可按 🔔 查看。</div>',5000,true);
+    }
   }
   lastUnseenCount=n;
 }
@@ -3648,6 +3663,14 @@ function fmtLogTime(ms){
 }
 let lvLogSort='time';        // 🔔 最近異動的排序：time=依時間（先送先處理）／name=依姓名
 function logKey(c){return c.sid+':'+(c.at||0)}
+function changeDatesText(ym,c){ // 小通知用：直接寫出哪幾天
+  const mm=parseYm(ym).m,ds=a=>a.map(x=>mm+'/'+x.d).join('、'),parts=[];
+  if(c.add.length)parts.push('新增 '+ds(c.add));
+  if(c.chg.length)parts.push('修改 '+ds(c.chg));
+  if(c.del.length)parts.push('取消 '+ds(c.del));
+  if(c.note)parts.push('改了補充說明');
+  return parts.join('・');
+}
 function changeSummary(ym,c){ // 收合時那一列的摘要
   const parts=[];
   if(c.add.length)parts.push('新增 '+c.add.length+' 天');
@@ -6079,9 +6102,10 @@ async function doAdminLogin(){
     msg.style.display='';
   }
 }
-function showToast(msg,ms){ // 畫面下方的短暫提示，預設2秒後消失
+function showToast(msg,ms,html){ // 畫面下方的短暫提示，預設2秒後消失；html：多行排版（標題／重點／說明）
   const t=document.getElementById('toast');
-  t.textContent=msg;t.classList.add('show');
+  if(html)t.innerHTML=msg;else t.textContent=msg;
+  t.classList.toggle('multi',!!html);t.classList.add('show');
   clearTimeout(showToast._t);
   showToast._t=setTimeout(()=>t.classList.remove('show'),ms||2000);
 }
