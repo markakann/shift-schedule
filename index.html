@@ -3601,7 +3601,7 @@ function lvOffRosterNotice(){ // 主管看某個月的班表時：有人劃了�
   try{localStorage.setItem(lvOffKey(ym2),JSON.stringify([...new Set(told.concat(who.map(x=>x.id)))]))}catch(e){}
   const msg='<div class="ts-h">'+state.m+' 月有 '+who.length+' 位不在班表上的夥伴已劃假</div>'+
     '<div class="ts-k">'+who.map(x=>esc(x.name)).join('、')+'</div>'+
-    '<div class="ts-n">可於「＋ 人員」加回本月；之後也能在 🔔 查看。</div>';
+    '<div class="ts-n">可於「＋ 人員」加回本月；名單另列於 🔔 通知。</div>';
   let n=0;const go=()=>{if(document.getElementById('splash')&&++n<40){setTimeout(go,500);return}showToast(msg,6000,true)}; // 開啟動畫播完再提醒
   setTimeout(go,600);
 }
@@ -3636,7 +3636,7 @@ function updateLeaveBadge(){ // 工具列 🔔 的紅點：有幾筆還沒看過
       const one=fresh.length===1?changeSummary(ym,fresh[0]):null;
       showToast('<div class="ts-h">🔔 劃假有新的異動</div>'+
         '<div class="ts-k">'+names.map(esc).join('、')+(fresh.some(c=>c.late)?'<span class="ts-tag">臨時</span>':'')+'</div>'+
-        '<div class="ts-n">'+(one?esc(changeDatesText(ym,fresh[0]))+(one.bad?'　⚠ 與已排的班衝突':'')+'<br>':fresh.length+' 筆異動<br>')+'可按 🔔 查看。</div>',5000,true);
+        '<div class="ts-n">'+(one?esc(changeDatesText(ym,fresh[0]))+(one.bad?'　⚠ 與已排的班衝突':'')+'<br>':fresh.length+' 筆異動<br>')+'詳細內容列於 🔔 通知。</div>',5000,true);
     }
   }
   lastUnseenCount=n;
