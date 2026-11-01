@@ -3823,7 +3823,8 @@ function changeLinesHtml(ym,c){ // 展開後的逐項明細
 /* ────────── 🔔 劃假通知 ────────── */
 let ntOpenMap={}; // 每筆異動的展開狀態；沒點過時，未讀的預設展開
 function noticeYm(){return leaveTargetYm()||ymOf(state.y,state.m)}
-function renderNotice(){
+function renderNotice(fresh){ // fresh＝剛打開或換排序：清單從最上面開始；其餘（標示已讀、資料更新）維持原本捲到的位置
+  const oldList=document.querySelector('#ntBody .nt-list'),keepTop=(!fresh&&oldList)?oldList.scrollTop:0;
   const ym=noticeYm(),p=parseYm(ym),w=leaveWindow(),L=w.L||{};
   const stTxt={off:'目前沒有開放劃假',before:fmtMd(L.from)+' 開放',open:'開放中，'+fmtMd(L.to)+' 截止',
     late:fmtMd(L.to)+' 已截止，之後劃的列為候補'+(L.lateLimit&&L.lateTo?'（候補 '+fmtMd(L.lateTo)+' 截止）':''),
@@ -3875,10 +3876,17 @@ function renderNotice(){
        '<div class="nt-text">'+esc(o.note)+'</div></div>').join('')+'</div>'
     :'<div class="nt-empty">'+p.m+' 月還沒有人寫備註。</div>';
   document.getElementById('ntBody').innerHTML=h;
+  const nl=document.querySelector('#ntBody .nt-list');if(nl&&keepTop)nl.scrollTop=keepTop;
+}
+function ntReveal(el){ // 展開後讓這則（含明細）留在清單可見範圍內，標題優先
+  const list=el.closest('.nt-list');if(!list)return;
+  const lr=list.getBoundingClientRect(),er=el.getBoundingClientRect();
+  if(er.top<lr.top)list.scrollTop-=lr.top-er.top+4;
+  else if(er.bottom>lr.bottom)list.scrollTop+=Math.min(er.bottom-lr.bottom+4,er.top-lr.top-4);
 }
 function openNotice(){
   if(needServerClock())syncServerClock();
-  renderNotice();
+  renderNotice(true);
   document.getElementById('ovNotice').classList.add('show');
 }
 document.getElementById('btnNotice').addEventListener('click',openNotice);
@@ -3887,12 +3895,21 @@ document.getElementById('btnNoticeLeave').addEventListener('click',()=>{document
 document.getElementById('ntBody').addEventListener('click',ev=>{
   if(ev.target.closest('#btnNoticeSeen')){markLeaveSeen();renderNotice();return}
   const sb=ev.target.closest('[data-ntsort]');
-  if(sb){lvLogSort=sb.dataset.ntsort;renderNotice();return}
+  if(sb){lvLogSort=sb.dataset.ntsort;renderNotice(true);return}
   const lg=ev.target.closest('[data-ntlog]');
-  if(lg){
-    const k=lg.dataset.ntlog,el=lg.closest('.lv-chg');
-    ntOpenMap[k]=!(el&&el.classList.contains('open'));
-    renderNotice();
+  if(lg){ // 就地展開／收合，不重畫整份清單，捲動位置不變
+    const k=lg.dataset.ntlog,el=lg.closest('.lv-chg');if(!el)return;
+    const open=!el.classList.contains('open');
+    ntOpenMap[k]=open;
+    el.classList.toggle('open',open);
+    const caret=lg.querySelector('.lv-caret');if(caret)caret.textContent=open?'▾':'▸';
+    let det=el.querySelector('.lv-chg-detail');
+    if(open&&!det){
+      const ym=noticeYm(),c=leaveChanges(ym).find(x=>logKey(x)===k);
+      if(c){det=document.createElement('div');det.className='lv-chg-detail';det.innerHTML=changeLinesHtml(ym,c);el.appendChild(det)}
+    }
+    if(!open&&det)det.remove();
+    if(open)ntReveal(el);
   }
 });
 
@@ -5287,14 +5304,15 @@ document.getElementById('btnCloseNote').addEventListener('click',()=>document.ge
    更新次數自目前大版本上線起，每上傳一次 index.html 加 1（劃假上線那次為 000）。
    每次更新：APP_VERSION 改成「3.115MMDD.次數」，CHANGELOG 最上面同一天的那筆 ver 跟著改；新的一天加一筆。
    add＝新增功能，fix＝問題改善；項目寫成 [文字, 1] 表示只有主管會用到（夥伴代碼不顯示） */
-const APP_VERSION='3.1151102.069';
+const APP_VERSION='3.1151102.070';
 const CHANGELOG=[
-  {v:'2026.11.02',ver:'3.1151102.069',add:[
+  {v:'2026.11.02',ver:'3.1151102.070',add:[
     ['截止後修改劃假時，保留截止前的劃法：排班視窗列出「截止前：…」，劃假「全員總覽」列出每一天「截止前 → 現在」。',1],
     ['截止後取消的劃假保留紀錄，班表空格標「取消」。',1]
   ],fix:[
     ['截止後的臨時劃假不再直接蓋掉截止前的劃法。',1],
-    ['截止後畫回截止前的樣子，不再標成臨時；同一行的劃假不再把準時與臨時的日子混在一起。']
+    ['截止後畫回截止前的樣子，不再標成臨時；同一行的劃假不再把準時與臨時的日子混在一起。'],
+    ['🔔 點選異動展開明細時，清單不再跳回最上方；展開的那則保持在畫面中。',1]
   ]},
   {v:'2026.11.01',ver:'3.1151101.068',add:[
     ['後台設定新增「更新日誌」：自 7.15 第一版起，逐日列出新增功能與問題改善，並標示 1.0、2.0、3.0 大版本更新。',1],
