@@ -544,6 +544,7 @@ html.ov-open,html.ov-open body{overflow:hidden;overscroll-behavior:none}
   margin:0 0 10px;border:1.5px solid #c9a3e0;background:#f6effb;color:#6b3a8a;
 }
 .lv-warn.late{border-color:#e0a05a;background:#fff4e6;color:#a85c07}
+.lv-warn .lv-pre{font-weight:500;font-size:12.5px;margin-top:3px;opacity:.9}
 /* 班表上的劃假提示（排班用，夥伴代碼看不到別人劃了哪天） */
 .viewer-boot .day-cell.lv-all,.viewer-boot .day-cell.lv-only,
 .viewer-boot .day-cell.lv-part,.viewer-boot .day-cell.lv-late{background-color:var(--cbg,transparent)!important}
@@ -704,6 +705,13 @@ html.dark .lv-off-tag{color:#f0b978;border-color:#a8743a}
 .lv-sum{border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin-top:8px;background:var(--paper3)}
 .lv-sum .who{font-weight:700;color:var(--blue);font-size:14px}
 .lv-line{font-size:13px;margin-top:3px;display:flex;gap:6px;align-items:center}
+.lv-late-box{margin:6px 0 2px;padding:5px 8px;border-left:3px solid #e0a05a;background:#fff8ef;border-radius:0 6px 6px 0;font-size:12.5px;line-height:1.6}
+.lv-late-h{font-weight:700;color:#a85c07;font-size:12px}
+.lv-late-row{display:flex;flex-wrap:wrap;gap:0 6px;align-items:baseline}
+.lv-late-row b{font-weight:700;min-width:5.2em}
+.lv-late-row .ar{color:#a85c07}
+html.dark .lv-late-box{background:#2e2418;border-left-color:#8a6633}
+html.dark .lv-late-h,html.dark .lv-late-row .ar{color:#f0b978}
 .lv-late-tag{font-size:10px;font-weight:700;color:#a85c07;background:#ffe3c2;border:1px solid #e0a05a;border-radius:3px;padding:0 4px;flex-shrink:0}
 .lv-none{color:#999;font-size:13px;text-align:center;padding:14px 0}
 .lv-note-in{width:100%}
@@ -1995,6 +2003,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
         <span><i class="lgc sw-only"></i>只能上這段</span>
         <span><i class="lgc sw-part"></i>之前／之後</span>
         <span><i class="lgc sw-late"></i>臨時（候補）</span>
+        <span><i class="lgc sw-late"></i>「取消」＝截止後取消的劃假</span>
       </div>
     </div>
     <div class="sec-label" style="margin-top:8px">格子的框線</div>
@@ -2095,6 +2104,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
       <li>開放起日與截止日<b>均包含當天</b>。</li>
       <li>以<b>雲端時間</b>判定，不受裝置日期設定影響；取不到雲端時間時改以裝置時間判定，並於視窗內註明。</li>
       <li>截止後若仍開放，所劃日期標示為<b class="c-orange">臨時</b>並列入候補。</li>
+      <li class="edit-only">截止後的修改保留截止前的劃法：排班視窗列出「截止前：…」，「全員總覽」列出「截止後的修改」；截止後取消的劃假，班表空格標「取消」。改回截止前的樣子，就不再列為臨時。</li>
       <li class="edit-only">一次只開放一個月份。把「劃哪個月」換成別的月份時，原本的月份就不能再劃；若原本的月份還在開放或候補中，存檔前會先提醒。已劃好的資料會保留，班表上照常顯示。</li>
       <li class="edit-only">候補可選擇是否限時：不勾「候補也要限時」＝一直開放到關閉劃假或換月份為止；勾選後填<b>候補截止日</b>（含當天），過了就鎖定，夥伴僅能檢視。預設帶入劃假月份的前一天，可自行修改。</li>
     </ul>
@@ -3347,6 +3357,11 @@ function renderSheet(){
         if(prevLabel)inner+='<span class="prev-value">'+esc(prevLabel)+'</span>';
       }
       const lvx=leaveDayOf(st.id,state.y,state.m,d); // 這天有沒有劃假
+      const lvCut=(!lvx&&!e&&!viewerMode)?lvLateCutOf(ymOf(state.y,state.m),st.id,d):null; // 截止後取消的劃假
+      if(lvCut){
+        cls+=' lv-late';
+        inner+='<span class="lv-cell-tag" title="臨時取消劃假（截止前：'+esc(leaveDayText(lvCut))+'）">取消</span>';
+      }
       if(lvx){
         const bad=leaveConflict(st.id,d,e);
         if(bad){cls+=' lv-clash';inner+='<span class="lv-cell-tag bad" title="撞到劃假：'+esc(bad)+'">!</span>';}
@@ -3389,7 +3404,8 @@ function renderNotes(){
 
 /* ────────── 劃假：資料層 ────────── */
 /* 劃假存在雲端 leaves/{夥伴代碼}，跟班表本體分開，夥伴用夥伴代碼寫入也不會被店長存檔蓋掉。
-   結構：{ "2026-11": { 人員id: {name, json, at} } }，json 內是 {days:{日:{m,t,late}}, note} */
+   結構：{ "2026-11": { 人員id: {name, json, at} } }，json 內是 {days:{日:{m,t,late}}, note, log, pre}
+   pre：截止後改過的日子，記下「截止前」的劃法 {日: 規則 或 null（截止前沒劃）}；改回原樣就移除。臨時取消的劃假也靠它留下紀錄 */
 let leaveData={};          // 目前這個代碼的全部劃假資料
 let unsubLeave=null;
 /* 夥伴習慣講「我可以上到幾點」，所以一律用能上班的角度描述，不要寫成「幾點之後不能上」 */
@@ -3477,6 +3493,76 @@ function leaveDayText(x){ // 單格劃假的短說明
   if(x.m==='only')return '只能上 '+fmtHM(x.t)+'～'+fmtHM(x.t2);
   return x.m==='after'?('只能上到 '+fmtHM(x.t)):(fmtHM(x.t)+' 之後才能上');
 }
+function lvRule(x){ // 只留規則本身（去掉臨時標記），null 代表沒劃
+  if(!x)return null;
+  const r={m:x.m};
+  if(x.m!=='all')r.t=x.t;
+  if(x.m==='only')r.t2=x.t2;
+  return r;
+}
+function lvSame(x,y){return (!x&&!y)||(!!x&&!!y&&sameDayRule(x,y))}
+function lvLegacyPre(o,d){ // 舊資料沒有 pre：從異動紀錄找這天第一次在截止後被改之前的劃法；查不到回傳 undefined
+  for(const r of (o.log||[])){
+    if(!r.late)continue;
+    if((r.add||[]).some(x=>x.d==d))return null;
+    const c=(r.chg||[]).find(x=>x.d==d)||(r.del||[]).find(x=>x.d==d);
+    if(c)return (c.from&&c.from.late)?undefined:lvRule(c.from);
+  }
+  return undefined;
+}
+function lvPreOf(o,d){ // 截止前這天的劃法：規則、null（截止前沒劃）、undefined（查不到）
+  if(!o)return undefined;
+  if(o.pre&&Object.prototype.hasOwnProperty.call(o.pre,d))return o.pre[d];
+  const x=(o.days||{})[d];
+  if(x&&!x.late)return lvRule(x);
+  return lvLegacyPre(o,d);
+}
+function lvBaseOf(o,d){ // 送出時比對用：沒有截止後的紀錄、這天也沒劃 → 截止前就是沒劃
+  const p=lvPreOf(o,d);if(p!==undefined)return p;
+  return (o&&o.days&&o.days[d])?undefined:null;
+}
+function lvLateList(o){ // 截止後改過、目前跟截止前不同的日子：[{d,pre,now}]；pre 為 undefined 表示查不到截止前的劃法
+  if(!o)return [];
+  const ds=new Set();
+  Object.keys(o.pre||{}).forEach(k=>ds.add(+k));
+  Object.keys(o.days||{}).forEach(k=>{if(o.days[k].late)ds.add(+k)});
+  (o.log||[]).forEach(r=>{if(r.late)['add','del','chg'].forEach(t=>(r[t]||[]).forEach(x=>ds.add(+x.d)))});
+  const out=[];
+  [...ds].sort((x,y)=>x-y).forEach(d=>{
+    const cur=(o.days||{})[d],now=lvRule(cur),pre=lvPreOf(o,d);
+    if(pre===undefined){if(cur&&cur.late)out.push({d,pre,now});return}
+    if(!lvSame(pre,now))out.push({d,pre,now});
+  });
+  return out;
+}
+const lvCutMemo=new Map();
+function lvLateCutOf(ym,sid,d){ // 截止後取消的劃假：回傳截止前的劃法（沒有就 null）
+  const rec=(leaveData[ym]||{})[sid];
+  if(!rec||!rec.json)return null;
+  const key=sid+'|'+rec.json;
+  let m=lvCutMemo.get(key);
+  if(!m){
+    m={};
+    lvLateList(leaveOf(ym,sid)).forEach(x=>{if(x.pre&&!x.now)m[x.d]=x.pre});
+    if(lvCutMemo.size>300)lvCutMemo.clear();
+    lvCutMemo.set(key,m);
+  }
+  return m[d]||null;
+}
+function lvPreText(pre){return pre===undefined?'查無紀錄':pre?leaveDayText(pre):'未劃假'}
+function lvSettle(orig,draft,late){ // 送出前整理：截止後的修改記下截止前的劃法；改回截止前的樣子就恢復，不再算臨時
+  const od=(orig&&orig.days)||{},nd=draft.days,pre=Object.assign({},(orig&&orig.pre)||{});
+  new Set([...Object.keys(od),...Object.keys(nd)]).forEach(k=>{
+    const o=od[k]||null,n=nd[k]||null;
+    if(lvSame(lvRule(o),lvRule(n))){if(o)nd[k]=o;return} // 沒改：維持原本那筆（含臨時標記）
+    if(!late){delete pre[k];if(n)delete n.late;return}   // 開放期間內改的：以新的為準
+    const b=Object.prototype.hasOwnProperty.call(pre,k)?pre[k]:lvBaseOf(orig,k);
+    if(b===undefined){if(n)n.late=1;return}              // 舊資料查不到截止前的劃法
+    if(lvSame(b,lvRule(n))){delete pre[k];if(n)nd[k]=lvRule(n);return} // 改回截止前的樣子
+    pre[k]=b;if(n)n.late=1;
+  });
+  if(Object.keys(pre).length)draft.pre=pre;else delete draft.pre;
+}
 function leaveConflict(sid,d,e){ // 排這一班會不會撞到劃假；回傳說明字串或 null
   if(!e||(e.t!=='shift'&&e.t!=='injury'))return null;
   if(e.t==='shift')e=workView(e); // 部分特休：以實際上班時段判斷
@@ -3530,13 +3616,13 @@ function summarizeLeave(ym,obj){
   const groups={};
   Object.keys(obj.days).forEach(k=>{
     const x=obj.days[k];
-    const key=x.m+(x.m==='all'?'':'@'+x.t+(x.m==='only'?'-'+x.t2:''));
+    const key=(x.late?'L':'')+'|'+x.m+(x.m==='all'?'':'@'+x.t+(x.m==='only'?'-'+x.t2:'')); // 臨時與準時分開成不同行
     (groups[key]=groups[key]||[]).push(+k);
   });
   const out=[];
   Object.keys(groups).forEach(key=>{
     let days=groups[key].sort((a,b)=>a-b);
-    const [mode,tRaw]=key.split('@');
+    const [mode,tRaw]=key.split('|')[1].split('@');
     let label;
     if(mode==='all')label='整天不能上';
     else if(mode==='only'){const tt=tRaw.split('-');label='只能上 '+fmtHM(+tt[0])+'～'+fmtHM(+tt[1])}
@@ -3942,16 +4028,24 @@ function lvOneHtml(ym,sid,readonly){ // 單一個人的目前劃假（唯讀顯�
   const o=leaveOf(ym,sid);
   return lvCalHtml(ym,o,true);
 }
+function lvLateHtml(ym,o){ // 截止後的修改：每天「截止前 → 現在」
+  const list=lvLateList(o);if(!list.length)return '';
+  const {y,m}=parseYm(ym);
+  return '<div class="lv-late-box"><div class="lv-late-h">截止後的修改</div>'+list.map(x=>
+    '<div class="lv-late-row"><b>'+m+'/'+x.d+'（'+WD[new Date(y,m-1,x.d).getDay()]+'）</b>'+
+    '<span>截止前：'+esc(lvPreText(x.pre))+'</span><span class="ar">→</span>'+
+    '<span>'+(x.now?esc(leaveDayText(x.now)):'取消（可以上班）')+'</span></div>').join('')+'</div>';
+}
 function lvAllHtml(ym){ // 全員總覽，臨時劃的另外標；不在該月班表的人另外標出來
   const roster=leaveStaff(ym),ros=rosterOfYm(ym);
-  const rows=roster.map(st=>({st,o:leaveOf(ym,st.id)})).filter(x=>x.o&&(Object.keys(x.o.days||{}).length||String(x.o.note||'').trim()));
+  const rows=roster.map(st=>({st,o:leaveOf(ym,st.id)})).filter(x=>x.o&&(Object.keys(x.o.days||{}).length||String(x.o.note||'').trim()||lvLateList(x.o).length));
   const p=parseYm(ym);
   let h='';
   const unseen=leaveChanges(ym).filter(c=>(c.at||0)>leaveSeenAt()).length; // 異動統一在 🔔 看，這裡只提醒一行
   if(unseen)h+='<button type="button" class="lv-to-nt" id="btnLvToNotice">🔔 有 '+unseen+' 筆未讀異動<span>查看 ›</span></button>';
-  const lateAll=rows.filter(x=>Object.keys(x.o.days).some(d=>x.o.days[d].late));
+  const lateAll=rows.filter(x=>lvLateList(x.o).length);
   if(lateAll.length)h+='<div class="small-note" class="c-orange" style="font-weight:700;margin-bottom:6px">⚑ 有 '+lateAll.length+
-     ' 位夥伴在截止後才劃假，下方標「臨時」的日期請當候補處理。</div>';
+     ' 位夥伴在截止後修改劃假，標「臨時」的日期請當候補處理；「截止後的修改」列出截止前的劃法。</div>';
   if(!rows.length)return h+'<div class="lv-none">'+p.m+' 月目前沒有人劃假。</div>';
   h+='<div class="sec-label">目前的劃假</div>';
   rows.forEach(({st,o})=>{
@@ -3959,6 +4053,7 @@ function lvAllHtml(ym){ // 全員總覽，臨時劃的另外標；不在該月�
     h+='<div class="lv-sum"><div class="who">'+esc(st.name)+(ros&&!ros.includes(st.id)?'<span class="lv-off-tag">未在 '+p.m+' 月班表</span>':'')+'</div>'+
       (lines.length?'':'<div class="lv-line"><span class="c-fade">沒有劃日期</span></div>')+
       lines.map(l=>'<div class="lv-line">'+(l.late?'<span class="lv-late-tag">臨時·候補</span>':'')+'<span>'+esc(l.text)+'</span></div>').join('')+
+      lvLateHtml(ym,o)+
       (o.note?'<div class="lv-note-line">補充：'+esc(o.note)+'</div>':'')+
       '<button class="btn" data-lvedit="'+st.id+'" style="padding:3px 10px;font-size:12px;margin-top:6px">代為修改</button>'+
       '</div>';
@@ -4178,7 +4273,7 @@ function paintDay(d){
   const x={m:lvBrush.m};
   if(lvBrush.m!=='all')x.t=lvBrush.t;
   if(lvBrush.m==='only')x.t2=lvBrush.t2;
-  if(late)x.late=1;
+  if(late){const b=lvBaseOf(lvOriginal,d);if(!(b!==undefined&&lvSame(b,x)))x.late=1}
   lvDraft.days[d]=x;
 }
 function lvBrushValid(){ // only 模式的起訖要合理，否則等於整天不能上
@@ -4214,6 +4309,7 @@ document.getElementById('btnLeaveSave').addEventListener('click',async()=>{
   const ce=lvCanEdit();
   if(!ce.ok){showToast(ce.msg);return}
   const ym=(leaveWindow().L||{}).ym||ymOf(state.y,state.m);
+  lvSettle(lvOriginal,lvDraft,ce.late); // 截止後的修改：記下截止前的劃法
   lvDraft.log=buildLeaveLog(lvOriginal,lvDraft,ce.late); // 留下這次改了什麼，取消劃假也記得住
   const ok=await saveLeave(ym,lvWho,lvDraft);
   if(ok){
@@ -4257,10 +4353,14 @@ function openCell(sid,day){
     (curText?'　目前：'+curText:'');
   const lvx=leaveDayOf(sid,state.y,state.m,day); // 這天本人有劃假就先提醒，避免不小心排上去
   const lvBox=document.getElementById('cmLeave');
-  if(lvx){
+  const lvLate=lvLateList(leaveOf(ymOf(state.y,state.m),sid)).find(x=>x.d===day); // 截止後改過：一併列出截止前的劃法
+  if(lvx||(lvLate&&lvLate.pre)){
     lvBox.style.display='';
-    lvBox.className='lv-warn'+(lvx.late?' late':'');
-    lvBox.textContent=(lvx.late?'⚑ 臨時劃假（候補）：':'🏖 這天有劃假：')+leaveDayText(lvx);
+    lvBox.className='lv-warn'+((lvx&&lvx.late)||lvLate?' late':'');
+    lvBox.innerHTML=(lvx
+        ?(lvx.late?'⚑ 臨時劃假（候補）：':'🏖 這天有劃假：')+esc(leaveDayText(lvx))
+        :'⚑ 臨時取消劃假（候補）：改為可以上班')+
+      (lvLate?'<div class="lv-pre">截止前：'+esc(lvPreText(lvLate.pre))+'</div>':'');
   }else lvBox.style.display='none';
   let chips=cfg().presetsCommon.map(p=>'<button class="chip" data-s="'+p[0]+'" data-e="'+p[1]+'">'+fmtHM(p[0])+'～'+fmtHM(p[1])+'</button>').join('');
   if(st.type!=='full')
@@ -5187,8 +5287,15 @@ document.getElementById('btnCloseNote').addEventListener('click',()=>document.ge
    更新次數自目前大版本上線起，每上傳一次 index.html 加 1（劃假上線那次為 000）。
    每次更新：APP_VERSION 改成「3.115MMDD.次數」，CHANGELOG 最上面同一天的那筆 ver 跟著改；新的一天加一筆。
    add＝新增功能，fix＝問題改善；項目寫成 [文字, 1] 表示只有主管會用到（夥伴代碼不顯示） */
-const APP_VERSION='3.1151101.068';
+const APP_VERSION='3.1151102.069';
 const CHANGELOG=[
+  {v:'2026.11.02',ver:'3.1151102.069',add:[
+    ['截止後修改劃假時，保留截止前的劃法：排班視窗列出「截止前：…」，劃假「全員總覽」列出每一天「截止前 → 現在」。',1],
+    ['截止後取消的劃假保留紀錄，班表空格標「取消」。',1]
+  ],fix:[
+    ['截止後的臨時劃假不再直接蓋掉截止前的劃法。',1],
+    ['截止後畫回截止前的樣子，不再標成臨時；同一行的劃假不再把準時與臨時的日子混在一起。']
+  ]},
   {v:'2026.11.01',ver:'3.1151101.068',add:[
     ['後台設定新增「更新日誌」：自 7.15 第一版起，逐日列出新增功能與問題改善，並標示 1.0、2.0、3.0 大版本更新。',1],
     ['「⋯ 更多」最下方顯示目前版本號（大版本．民國年月日．更新次數）。']
