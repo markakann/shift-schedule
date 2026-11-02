@@ -2204,6 +2204,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
       <ul class="hul">
         <li>同一組主管代碼共用一份班表並即時同步。</li>
         <li>夥伴代碼僅可查看、無法修改，供夥伴端使用。</li>
+        <li>夥伴代碼可換發：後台設定 →「管理主管代碼」→ 夥伴代碼「更改」，留空按確定＝自動產生隨機代碼。舊代碼立即失效，使用中的手機會清空畫面；已劃的假與異動紀錄一起搬到新代碼。</li>
       </ul>
 
       <div class="hr"></div>
@@ -2531,7 +2532,12 @@ async function connectStore(code,isNew,silent){
     const d=s.data().data;
     if(d&&d!==lastWritten){ // 其他裝置的更新
       lastWritten=d;
-      tourRealDo(()=>applyPayload(d));
+      let viewChanged=false;
+      tourRealDo(()=>{const pv=state.viewCode;applyPayload(d);viewChanged=!!pv&&state.viewCode!==pv});
+      if(viewChanged){ // 夥伴代碼在其他裝置換發了：劃假改看新代碼
+        tourRealDo(()=>watchLeave());
+        cloudStatus='雲端已連線｜主管代碼：'+code+'｜夥伴代碼：'+state.viewCode;
+      }
       renderAll();
       setHint('已同步其他裝置的更新 ✓');
     }
@@ -2571,7 +2577,28 @@ async function connectViewer(code,silent){ // 以夥伴代碼連線：唯讀，�
   try{localStorage.setItem('paiban-store-code',code);localStorage.setItem('paiban-mode','view')}catch(e){}
   if(unsubCloud)unsubCloud();
   unsubCloud=FB.onSnapshot(vref,s=>{
-    if(!s.exists())return;
+    if(!s.exists()){
+      if(s.metadata&&s.metadata.fromCache)return; // 離線時的快取不算
+      if(storeCode!==code||!viewerMode)return;   // 已經換到別的代碼
+      // 夥伴代碼已失效（主管換發新代碼或刪除）：不能停在舊畫面，也不能再劃假到舊代碼
+      storeCode=null;
+      try{localStorage.removeItem('paiban-store-code');localStorage.removeItem('paiban-mode')}catch(e){}
+      if(unsubCloud){unsubCloud();unsubCloud=null}
+      if(unsubLeave){unsubLeave();unsubLeave=null}
+      leaveData={};
+      ['ovLeave','ovNotice','ovCell'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.remove('show')});
+      state.store='';state.title='排班表';state.corner='';state.viewCode='';
+      state.staff=[];state.months={};state.calCache={};state.config={};
+      document.getElementById('storeName').value='';
+      document.getElementById('sheetTitle').value='排班表';
+      viewerMode=false;applyViewerUI();
+      renderAll();
+      cloudStatus='雲端已連線（尚未輸入代碼）';
+      setHint('夥伴代碼已失效');
+      alert('夥伴代碼「'+code+'」已失效，畫面已清空。\n請向主管索取新的夥伴代碼。');
+      openFirstSetup();
+      return;
+    }
     const d=s.data().data;
     if(d&&d!==lastWritten){
       lastWritten=d;
@@ -5304,15 +5331,17 @@ document.getElementById('btnCloseNote').addEventListener('click',()=>document.ge
    更新次數自目前大版本上線起，每上傳一次 index.html 加 1（劃假上線那次為 000）。
    每次更新：APP_VERSION 改成「3.115MMDD.次數」，CHANGELOG 最上面同一天的那筆 ver 跟著改；新的一天加一筆。
    add＝新增功能，fix＝問題改善；項目寫成 [文字, 1] 表示只有主管會用到（夥伴代碼不顯示） */
-const APP_VERSION='3.1151102.070';
+const APP_VERSION='3.1151102.071';
 const CHANGELOG=[
-  {v:'2026.11.02',ver:'3.1151102.070',add:[
+  {v:'2026.11.02',ver:'3.1151102.071',add:[
     ['截止後修改劃假時，保留截止前的劃法：排班視窗列出「截止前：…」，劃假「全員總覽」列出每一天「截止前 → 現在」。',1],
     ['截止後取消的劃假保留紀錄，班表空格標「取消」。',1]
   ],fix:[
     ['截止後的臨時劃假不再直接蓋掉截止前的劃法。',1],
     ['截止後畫回截止前的樣子，不再標成臨時；同一行的劃假不再把準時與臨時的日子混在一起。'],
-    ['🔔 點選異動展開明細時，清單不再跳回最上方；展開的那則保持在畫面中。',1]
+    ['🔔 點選異動展開明細時，清單不再跳回最上方；展開的那則保持在畫面中。',1],
+    ['更改夥伴代碼時，已劃的假與異動紀錄一起搬到新代碼；其他主管裝置自動改看新代碼的劃假。',1],
+    ['夥伴代碼更改或刪除後，正在使用舊代碼的手機立即清空畫面並提示，無法再劃假到舊代碼。']
   ]},
   {v:'2026.11.01',ver:'3.1151101.068',add:[
     ['後台設定新增「更新日誌」：自 7.15 第一版起，逐日列出新增功能與問題改善，並標示 1.0、2.0、3.0 大版本更新。',1],
@@ -6920,19 +6949,41 @@ document.getElementById('btnMgrRenameView').addEventListener('click',async()=>{
     const vSnap=await FB.getDoc(FB.doc(FB.db,'views',newCode));
     if(vSnap.exists()){alert('此代碼已被其他夥伴代碼使用，請換一個。');return}
     const oldCode=state.viewCode;
+    // 劃假掛在夥伴代碼底下：先把整份劃假（含異動紀錄）複製到新代碼，換完再清掉舊的，劃假才不會不見
+    const ls=await FB.getDoc(FB.doc(FB.db,'leaves',oldCode));
+    const lv=ls.exists()?Object.assign({},ls.data()):null;
+    if(lv){delete lv.clock;delete lv.clockNonce;await FB.setDoc(FB.doc(FB.db,'leaves',newCode),lv)}
     state.viewCode=newCode;
     const p=payloadStr();
-    await FB.setDoc(FB.doc(FB.db,'stores',storeCode),{data:p,updatedAt:FB.serverTimestamp()});
+    try{
+      await FB.setDoc(FB.doc(FB.db,'stores',storeCode),{data:p,updatedAt:FB.serverTimestamp()});
+    }catch(e){state.viewCode=oldCode;throw e}
     await FB.setDoc(FB.doc(FB.db,'views',newCode),{data:p,updatedAt:FB.serverTimestamp()});
-    await FB.deleteDoc(FB.doc(FB.db,'views',oldCode));
+    await FB.deleteDoc(FB.doc(FB.db,'views',oldCode)); // 舊代碼立即失效：正在用舊代碼的夥伴會被登出
+    try{await FB.deleteDoc(FB.doc(FB.db,'leaves',oldCode))}
+    catch(e){try{await FB.setDoc(FB.doc(FB.db,'leaves',oldCode),{})}catch(e2){}} // 刪不掉就清空，舊代碼查不到任何劃假
     lastWritten=p;
+    moveCodeKeys(oldCode,newCode);
+    watchLeave(); // 改看新代碼底下的劃假
     cloudStatus='雲端已連線｜主管代碼：'+storeCode+'｜夥伴代碼：'+state.viewCode;
     document.getElementById('mgrViewCode').textContent=state.viewCode;
-    alert('夥伴代碼已改為「'+newCode+'」。\n舊的夥伴代碼已失效，請把新的重新發給夥伴。');
+    alert('夥伴代碼已改為「'+newCode+'」。\n舊的夥伴代碼已失效，請把新的重新發給夥伴。\n已劃的假與異動紀錄都已搬到新代碼。');
   }catch(e){
     alert('更改失敗，請確認網路連線與 Firestore 設定。');
   }
 });
+function moveCodeKeys(oldCode,newCode){ // 換夥伴代碼：這台裝置的劃假已讀、已提醒紀錄跟著搬，不會整批又變未讀
+  try{
+    const ks=[];for(let i=0;i<localStorage.length;i++)ks.push(localStorage.key(i));
+    ks.forEach(k=>{
+      const pre=['paiban-leave-seen-','paiban-lvoff-'].find(x=>k&&k.startsWith(x+oldCode));
+      if(!pre)return;
+      const rest=k.slice((pre+oldCode).length);
+      if(rest&&rest[0]!=='-')return; // 只搬完全同一個代碼的
+      localStorage.setItem(pre+newCode+rest,localStorage.getItem(k));localStorage.removeItem(k);
+    });
+  }catch(e){}
+}
 function renderMgrList(){
   const hist=getCodeHistory();
   const box=document.getElementById('mgrList');
