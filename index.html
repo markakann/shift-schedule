@@ -426,7 +426,13 @@ tr.sum-row .sum-label{font-weight:700;font-size:calc(11px*var(--uiFS));line-heig
 .mtot{display:block;font-size:calc(12px*var(--uiFS));color:var(--blue);margin-bottom:1px}
 tr.sum-row .sum-cell{background:var(--sumbg);height:34px!important}
 tr.sum-row .sum-cell::before{content:none}
-tr.sum-row .t-s,tr.sum-row .t-e{font-weight:700;color:#6b5a1e;font-size:10px}
+tr.sum-row .t-s,tr.sum-row .t-e,tr.sum-row .seg-lines{font-weight:700;color:#6b5a1e;font-size:10px}
+tr.sum-row .seg-names{display:block}
+tr.sum-row .seg-names .sn{white-space:nowrap}
+tr.sum-row .seg-lines{position:absolute;inset:1px 3px;display:flex;flex-direction:column;justify-content:space-between;line-height:1.05;text-align:center}
+tr.sum-row.segs-3 .sum-cell,tr.sum-row.segs-3 td.name-cell{height:40px!important}
+tr.sum-row.segs-4 .sum-cell,tr.sum-row.segs-4 td.name-cell{height:50px!important}
+tr.sum-row.segs-off .sum-cell,tr.sum-row.segs-off td.name-cell{height:26px!important}
 .day-cell::before{ /* 未排：底線／，任何班別都保留。用實心旋轉短條取代漸層，列印才不會糊邊 */
   content:'';position:absolute;left:50%;top:50%;width:170%;height:1px;
   background:var(--pencil);transform:translate(-50%,-50%) rotate(-45deg);
@@ -723,6 +729,13 @@ html.dark .lv-late-h,html.dark .lv-late-row .ar{color:#f0b978}
 .cfg-item small{font-weight:600;font-size:11px;color:#999;margin-left:auto;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%}
 .cfg-item small.on{color:var(--blue)}
 .cfg-row{display:flex;align-items:center;gap:8px;font-size:14px;margin-top:8px}
+.split-seg{display:flex;align-items:center;gap:8px;margin-top:10px}
+.split-seg .split-no{font-size:12px;color:#888;width:3.4em;flex-shrink:0;white-space:nowrap}
+#cfgSplitList .split-seg input.txt{flex:1;min-width:0;width:auto}
+.split-seg .split-range{font-size:13px;color:#666;white-space:nowrap;font-variant-numeric:tabular-nums}
+.split-cut{display:flex;align-items:center;gap:8px;margin:8px 0 0 3.4em;padding-left:8px;font-size:13px;color:#a85c07;white-space:nowrap}
+#cfgSplitList .split-cut select.txt{width:7.5em;flex:0 0 auto}
+html.dark .split-seg .split-range{color:var(--fade2)}
 .cfg-row input[type=checkbox]{width:20px;height:20px;flex-shrink:0}
 .cfg-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
 .cfg-grid label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:#666}
@@ -990,7 +1003,7 @@ html.dark .mark.brown,html.dark .c-brown{color:#d6a273}
 html.dark .mark.sky,html.dark .c-sky,html.dark .typhoon-note{color:#62c1ef}
 /* 表格 */
 html.dark tr.sum-row td.name-cell{background:var(--paper2)}
-html.dark tr.sum-row .t-s,html.dark tr.sum-row .t-e{color:#cbb478}
+html.dark tr.sum-row .t-s,html.dark tr.sum-row .t-e,html.dark tr.sum-row .seg-lines{color:#cbb478}
 html.dark body.editing .day-cell:active{background-color:#3b3520}
 html.dark .day-cell.changed-mark{background-color:#1f2c3f!important}
 html.dark .day-cell.marked{outline-color:#39b5c7;background-color:#1b3b42!important}
@@ -1101,7 +1114,7 @@ body.print-sizing .name-sub{margin-top:0}
     --sumbg:#f8f6ee;--thbg:#fffdf7;--rdbg:#fffdf7;--rdthbg:#fffdf7;--tcol:#2b2b2b;
   }
   html.dark tr.sum-row td.name-cell{background:#f2efe4}
-  html.dark tr.sum-row .t-s,html.dark tr.sum-row .t-e{color:#6b5a1e}
+  html.dark tr.sum-row .t-s,html.dark tr.sum-row .t-e,html.dark tr.sum-row .seg-lines{color:#6b5a1e}
   html.dark .hours-line{color:#8a7a4a}
   html.dark .rest-count{color:#555}
   html.dark .badge{color:#777}
@@ -1729,6 +1742,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
       <button class="btn cfg-item" data-cfgpanel="ovCfgRules"><span>覆蓋檢查規則</span><small id="sumRules"></small></button>
       <button class="btn cfg-item" data-cfgpanel="ovCfgWarn"><span>時段提醒</span><small id="sumWarn"></small></button>
       <button class="btn cfg-item" data-cfgpanel="ovCfgLeave"><span>劃假</span><small id="sumLeave"></small></button>
+      <button class="btn cfg-item" data-cfgpanel="ovCfgSplit"><span>分段工時</span><small id="sumSplit"></small></button>
       <button class="btn cfg-item" id="btnOpenCalCfg"><span>行事曆</span><small id="sumCal"></small></button>
     </div>
     <div class="cfg-menu" style="margin-top:8px">
@@ -1777,6 +1791,24 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
     <div class="small-note">排入這些時間時以粉色標示，提示可能的輸入錯誤。時間可輸入多組，逗號或頓號皆可。</div>
     <div id="cfgWarnList"></div>
     <button class="btn" id="btnAddWarnRule" style="width:100%;margin-top:8px">＋ 新增提醒</button>
+    <div class="m-actions"><button class="btn primary cfg-back">完成</button></div>
+  </div>
+</div>
+
+<!-- 後台：分段工時 -->
+<div class="overlay" id="ovCfgSplit">
+  <div class="modal">
+    <div class="m-title">分段工時</div>
+    <div class="m-sub">班表最下方一列，依分界時間加總每日各段的工時。</div>
+    <div class="small-note">工時含休息時間；只請一段假時，請假的時段不列入。可分 2～4 段，名稱可自訂。</div>
+    <label class="cfg-row"><input type="checkbox" id="cfgSplitOn"><span>顯示分段工時</span></label>
+    <div id="cfgSplitBox">
+      <div id="cfgSplitList"></div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn" id="btnSplitAdd" style="flex:1">＋ 新增一段</button>
+        <button class="btn" id="btnSplitDel" style="flex:1">刪除最後一段</button>
+      </div>
+    </div>
     <div class="m-actions"><button class="btn primary cfg-back">完成</button></div>
   </div>
 </div>
@@ -2046,7 +2078,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
         <li>計時、支援的班段不是 8 小時時，「特定時段」會自動勾選並鎖定。沒勾選時欄位裡的時間一律不套用，不需要手動清掉。</li>
         <li>例如班段 11:00～19:00、特休 15:00～16:00，記成上班 6.5 小時＋特休 1 小時。格子上下仍寫原本的班段（11、19），中間標「特1」與時段 15-16。</li>
         <li>計入時數：特休、職災、公差算進正職的已上時數；職災、公差也算進計時人員的本月時數；事假、颱風假不算。國定假日當天的假不另計時數。</li>
-        <li>只請其中一段時，請假的時段不列入人力檢查與早／晚工時。</li>
+        <li>只請其中一段時，請假的時段不列入人力檢查與分段工時。</li>
         <li>只請其中一段時，請假照請的時段算足，休息依<b>實際上班</b>的時間自動選（上班不超過 4 小時不休息，勞基法第 35 條：繼續工作 4 小時應休息 30 分鐘）。例：13:30～22:00 請特休 17:30～22:00，上班 4 小時不休息，記成上班 4＋特休 4.5；請 18:00～22:00，上班 4.5 小時休 0.5，記成上班 4＋特休 4。手動設定休息時照手動的扣。</li>
         <li><b>紅線</b>　用於正職月中到職或離職。紅線天數依日期順序優先算成月休，補滿月休額度為止；國定假日照常另計；補不完的天數視為未在職，會反映在加班明細的「不足」時數。</li>
       </ul>
@@ -2074,9 +2106,10 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
     </ul>
 
     <div class="hr"></div>
-    <div class="sec-label">早／晚工時列　·　月總工時</div>
+    <div class="sec-label">分段工時列　·　月總工時</div>
     <ul class="hul">
-      <li>表格最下方一列為每日早晚班總工時，以 16:00 分界，<b>含</b>休息時間。</li>
+      <li>表格最下方一列為每日各段的總工時，預設為早班／晚班、以 16:00 分界，<b>含</b>休息時間。</li>
+      <li class="edit-only">後台設定「分段工時」可關閉此列，或改為 2～4 段並自訂名稱與分界時間（例如早班、午班、晚班、夜班）。</li>
       <li>該列最左側的<b style="color:var(--blue)">月總 ○h</b>為全店本月工時，每班已<b>扣</b>除休息；職災、公差的時數也算在內，特休、事假、颱風假不算。</li>
       <li>點選月總可查看正職／計時／支援分組與各員時數。</li>
     </ul>
@@ -2224,7 +2257,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
       <div class="sec-label">後台設定</div>
       <ul class="hul">
         <li>需管理者帳號登入。</li>
-        <li>採選單形式，各項分別設定，右側顯示目前內容：班段、覆蓋檢查規則、時段提醒、劃假、行事曆。</li>
+        <li>採選單形式，各項分別設定，右側顯示目前內容：班段、覆蓋檢查規則、時段提醒、劃假、分段工時、行事曆。</li>
         <li>「更新日誌」逐日列出各版本的新增功能與問題改善；目前版本號另顯示於「⋯ 更多」最下方。</li>
         <li>修改後需按「儲存設定」。有未儲存的變更時按鈕顯示 ●；未儲存即關閉將出現確認提示。</li>
         <li>每組主管代碼各有獨立設定，亦可於此設定其他主管代碼。行事曆例外：所有主管代碼共用，儲存後套用到全部主管代碼。</li>
@@ -2266,13 +2299,26 @@ const DEFAULT_WARN_RULES = [
 /* 劃假開放設定：ym=開放劃哪個月，from/to=開放期間，lateOn=期間過後是否仍可臨時劃假，
    lateLimit=候補是否限時、lateTo=候補截止日（含當天；不限時就一直開到關閉劃假為止） */
 const DEFAULT_LEAVE = {on:false, ym:'', from:'', to:'', lateOn:true, lateLimit:false, lateTo:''};
+/* 分段工時列：on=是否顯示，names=各段名稱（2～4 段），cuts=分界時間（分鐘，遞增，比段數少一個） */
+const DEFAULT_SPLIT = {on:true, names:['早班','晚班'], cuts:[960]};
+function normSplit(s){ // 補齊並檢查分段設定，不合理就回到預設
+  const d=DEFAULT_SPLIT;
+  if(!s||typeof s!=='object')return {on:d.on,names:d.names.slice(),cuts:d.cuts.slice()};
+  let names=Array.isArray(s.names)?s.names.map(x=>String(x||'').trim()).slice(0,4):d.names.slice();
+  let cuts=Array.isArray(s.cuts)?s.cuts.map(Number):d.cuts.slice();
+  const ok=names.length>=2&&cuts.length===names.length-1&&cuts.every((c,i)=>c>0&&c<1440&&(i===0||c>cuts[i-1]));
+  if(!ok){names=d.names.slice();cuts=d.cuts.slice()}
+  names=names.map((n,i)=>n||('第'+(i+1)+'段'));
+  return {on:s.on!==false,names,cuts};
+}
 const DEFAULT_CONFIG = {
   presetsCommon: PRESETS_COMMON.map(p=>p.slice()),
   presetsPart:   PRESETS_PART.map(p=>p.slice()),
   calUrl: 'https://cdn.jsdelivr.net/gh/ruyut/TaiwanCalendar/data/{year}.json',
   rules: DEFAULT_RULES.map(r=>Object.assign({},r,{times:r.times.slice()})),
   warnRules: DEFAULT_WARN_RULES.map(r=>Object.assign({},r,{days:r.days.slice(),times:r.times.slice()})),
-  leave: Object.assign({},DEFAULT_LEAVE)
+  leave: Object.assign({},DEFAULT_LEAVE),
+  split: normSplit(DEFAULT_SPLIT)
 };
 function migrateWarnRules(c){ // 舊版設定(warn物件)自動轉成新的提醒規則清單，行為完全不變
   if(Array.isArray(c.warnRules))return c.warnRules;
@@ -2304,7 +2350,8 @@ function cfg(){ // 取得目前設定，缺漏的欄位自動以預設值補齊�
     calUrl:        c.calUrl||d.calUrl,
     rules:         migrateRules(c),
     warnRules:     migrateWarnRules(c),
-    leave:         Object.assign({},DEFAULT_LEAVE,c.leave||{})
+    leave:         Object.assign({},DEFAULT_LEAVE,c.leave||{}),
+    split:         normSplit(c.split)
   };
 }
 function ruleLabel(r){ // 規則沒被滿足時顯示的說明文字
@@ -3038,6 +3085,17 @@ function dailySplitHours(d){ // 當天早／晚班總工時（分鐘，含休息
   }
   return {morning,evening};
 }
+function dailySegHours(d,cuts){ // 當天各段總工時（分鐘，含休息時間），依後台「分段工時」的分界切開，全店已排班人員加總
+  const b=[0].concat(cuts,[Infinity]),out=cuts.map(()=>0).concat([0]);
+  for(const st of monthStaff()){
+    const e=entryOf(st.id,d);
+    if(e&&e.t==='shift'){
+      for(const [ps,pe] of workView(e).pieces) // 部分特休的時段不算
+        for(let i=0;i<out.length;i++)out[i]+=Math.max(0,Math.min(pe,b[i+1])-Math.max(ps,b[i]));
+    }
+  }
+  return out;
+}
 function fmtHM(min){const h=Math.floor(min/60),m=min%60;return h+':'+String(m).padStart(2,'0')}
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 let tourHoldSave=false,tourSnapCells=null; // 排班教學中：不存檔；動到的格子先記原本的樣子，教學結束還原
@@ -3404,14 +3462,19 @@ function renderSheet(){
   }
   if(visible.length){
     const mt=monthTotalHours();
-    h+='<tr class="sum-row"><td class="name-cell sum-label" id="monthTotalCell" title="全店本月實際工時（每班已扣休息），點一下看細項">'+
-       '<span class="mtot">月總 '+fmtH(mt.total)+'h</span>早／晚工時</td>';
+    const sp=cfg().split,ns=sp.names.length;
+    h+='<tr class="sum-row'+(sp.on?' segs-'+ns:' segs-off')+'"><td class="name-cell sum-label" id="monthTotalCell" title="全店本月實際工時（每班已扣休息），點一下看細項">'+
+       '<span class="mtot">月總 '+fmtH(mt.total)+'h</span>'+(sp.on?'<span class="seg-names">'+sp.names.map(n=>'<span class="sn">'+esc(n)+'</span>').join('／')+'</span>':'')+'</td>';
     for(let d=1;d<=N;d++){
-      const sp=dailySplitHours(d);
-      h+='<td class="day-cell sum-cell" data-day="'+d+'">'+
-         (sp.morning>0?'<span class="t-s">'+fmtDec(sp.morning)+'</span>':'')+
-         (sp.evening>0?'<span class="t-e">'+fmtDec(sp.evening)+'</span>':'')+
-         '</td>';
+      let inner='',tip='';
+      if(sp.on){
+        const v=dailySegHours(d,sp.cuts);
+        tip=v.some(x=>x>0)?sp.names.map((n,i)=>n+' '+fmtDec(v[i])+'h').join('／'):'';
+        inner=ns===2 // 兩段：沿用上下兩角的寫法
+          ?(v[0]>0?'<span class="t-s">'+fmtDec(v[0])+'</span>':'')+(v[1]>0?'<span class="t-e">'+fmtDec(v[1])+'</span>':'')
+          :'<span class="seg-lines">'+v.map(x=>'<span>'+(x>0?fmtDec(x):'&nbsp;')+'</span>').join('')+'</span>';
+      }
+      h+='<td class="day-cell sum-cell" data-day="'+d+'"'+(tip?' title="'+esc(tip)+'"':'')+'>'+inner+'</td>';
     }
     h+='</tr>';
   }
@@ -5331,11 +5394,12 @@ document.getElementById('btnCloseNote').addEventListener('click',()=>document.ge
    更新次數自目前大版本上線起，每上傳一次 index.html 加 1（劃假上線那次為 000）。
    每次更新：APP_VERSION 改成「3.115MMDD.次數」，CHANGELOG 最上面同一天的那筆 ver 跟著改；新的一天加一筆。
    add＝新增功能，fix＝問題改善；項目寫成 [文字, 1] 表示只有主管會用到（夥伴代碼不顯示） */
-const APP_VERSION='3.1151102.071';
+const APP_VERSION='3.1151102.072';
 const CHANGELOG=[
-  {v:'2026.11.02',ver:'3.1151102.071',add:[
+  {v:'2026.11.02',ver:'3.1151102.072',add:[
     ['截止後修改劃假時，保留截止前的劃法：排班視窗列出「截止前：…」，劃假「全員總覽」列出每一天「截止前 → 現在」。',1],
-    ['截止後取消的劃假保留紀錄，班表空格標「取消」。',1]
+    ['截止後取消的劃假保留紀錄，班表空格標「取消」。',1],
+    ['後台設定新增「分段工時」：班表最下方的工時列可關閉，或分為 2～4 段並自訂名稱與分界時間（預設早班／晚班、16:00）。',1]
   ],fix:[
     ['截止後的臨時劃假不再直接蓋掉截止前的劃法。',1],
     ['截止後畫回截止前的樣子，不再標成臨時；同一行的劃假不再把準時與臨時的日子混在一起。'],
@@ -6696,6 +6760,8 @@ function fillCfgFields(c){
   cfgWarnRules=(c.warnRules||[]).map(r=>Object.assign({},r,{days:(r.days||[]).slice(),times:(r.times||[]).slice()}));
   renderWarnEditor();
   fillLeaveCfg(c.leave||DEFAULT_LEAVE);
+  cfgSplit=normSplit(c.split);cfgSplit.names=cfgSplit.names.slice();cfgSplit.cuts=cfgSplit.cuts.slice();
+  renderSplitEditor();
   renderCfgSummary();
   markCfgSaved();
 }
@@ -6737,6 +6803,48 @@ document.getElementById('cfgLeaveYm').addEventListener('change',()=>resetLateTo(
   const el=document.getElementById(id);
   if(el)el.addEventListener('change',syncLeaveCfgBox);
 });
+let cfgSplit=normSplit(DEFAULT_SPLIT); // 後台編輯中的分段工時
+function renderSplitEditor(){
+  document.getElementById('cfgSplitOn').checked=!!cfgSplit.on;
+  document.getElementById('cfgSplitBox').style.display=cfgSplit.on?'':'none';
+  const b=[0].concat(cfgSplit.cuts,[1440]);
+  let h='';
+  cfgSplit.names.forEach((n,i)=>{
+    h+='<div class="split-seg"><span class="split-no">第 '+(i+1)+' 段</span>'+
+       '<input class="txt split-name" data-i="'+i+'" maxlength="6" value="'+esc(n)+'" placeholder="名稱">'+
+       '<span class="split-range">'+fmtHM(b[i])+'～'+fmtHM(b[i+1])+'</span></div>';
+    if(i<cfgSplit.cuts.length)h+='<div class="split-cut">分界<select class="txt split-cutsel" data-i="'+i+'">'+timeOptions(cfgSplit.cuts[i]).replace(/<option value="(0|1440)"[^>]*>[^<]*<\/option>/g,'')+'</select></div>';
+  });
+  document.getElementById('cfgSplitList').innerHTML=h;
+  document.getElementById('btnSplitAdd').disabled=cfgSplit.names.length>=4;
+  document.getElementById('btnSplitDel').disabled=cfgSplit.names.length<=2;
+}
+document.getElementById('cfgSplitOn').addEventListener('change',e=>{cfgSplit.on=e.target.checked;renderSplitEditor();renderCfgSummary()});
+document.getElementById('cfgSplitList').addEventListener('input',e=>{
+  const t=e.target.closest('.split-name');if(!t)return;
+  cfgSplit.names[+t.dataset.i]=t.value;renderCfgSummary();
+});
+document.getElementById('cfgSplitList').addEventListener('change',e=>{
+  const t=e.target.closest('.split-cutsel');if(!t)return;
+  const i=+t.dataset.i,v=+t.value,c=cfgSplit.cuts;
+  const lo=i>0?c[i-1]:0,hi=i<c.length-1?c[i+1]:1440;
+  if(v<=lo||v>=hi){alert('分界要介於 '+fmtHM(lo)+' 與 '+fmtHM(hi)+' 之間。');renderSplitEditor();return}
+  c[i]=v;renderSplitEditor();renderCfgSummary();
+});
+document.getElementById('btnSplitAdd').addEventListener('click',()=>{
+  const c=cfgSplit.cuts;if(cfgSplit.names.length>=4)return;
+  const last=c.length?c[c.length-1]:0;
+  if(1440-last<60){alert('最後一段不到 1 小時，請先把最後一個分界往前調，再新增。');return}
+  c.push(Math.round((last+(1440-last)/2)/30)*30); // 新的分界放在最後一段的中間
+  cfgSplit.names.push('第'+(cfgSplit.names.length+1)+'段');
+  renderSplitEditor();renderCfgSummary();
+});
+document.getElementById('btnSplitDel').addEventListener('click',()=>{
+  if(cfgSplit.names.length<=2)return;
+  cfgSplit.names.pop();cfgSplit.cuts.pop();
+  renderSplitEditor();renderCfgSummary();
+});
+function splitFromFields(){return {on:!!cfgSplit.on,names:cfgSplit.names.map((n,i)=>String(n||'').trim()||('第'+(i+1)+'段')),cuts:cfgSplit.cuts.slice()}}
 function mergeCfg(raw){ // 把任意設定物件補齊成完整設定（同 cfg() 的補齊邏輯，但對象可以是別的店家）
   const c=raw||{},d=DEFAULT_CONFIG;
   return {
@@ -6745,7 +6853,8 @@ function mergeCfg(raw){ // 把任意設定物件補齊成完整設定（同 cfg(
     calUrl:c.calUrl||d.calUrl,
     rules:migrateRules(c),
     warnRules:migrateWarnRules(c),
-    leave:Object.assign({},DEFAULT_LEAVE,c.leave||{})
+    leave:Object.assign({},DEFAULT_LEAVE,c.leave||{}),
+    split:normSplit(c.split)
   };
 }
 function renderCfgTargetOptions(){
@@ -6802,7 +6911,7 @@ document.querySelectorAll('.cfg-back').forEach(b=>b.addEventListener('click',()=
   b.closest('.overlay').classList.remove('show');
   renderCfgSummary();
 }));
-document.querySelectorAll('#ovCfgShifts,#ovCfgRules,#ovCfgWarn,#ovCfgLeave').forEach(ov=>{
+document.querySelectorAll('#ovCfgShifts,#ovCfgRules,#ovCfgWarn,#ovCfgLeave,#ovCfgSplit').forEach(ov=>{
   new MutationObserver(()=>{if(!ov.classList.contains('show'))renderCfgSummary()})
     .observe(ov,{attributes:true,attributeFilter:['class']}); // 返回鍵關掉時摘要也要更新
 });
@@ -6818,6 +6927,8 @@ function renderCfgSummary(){ // 選單上每一項右邊顯示目前設定，不
   const L=leaveFromFields();
   put('sumLeave',!L.on?'未開放':(L.ym?(parseYm(L.ym).m+'月　'+(fmtMd(L.from)||'?')+'–'+(fmtMd(L.to)||'?')+
     (L.lateOn&&L.lateLimit&&L.lateTo?'　候補至 '+fmtMd(L.lateTo):'')):'開放中'),L.on);
+  const SP=splitFromFields();
+  put('sumSplit',SP.on?(SP.names.join('／')+'　'+SP.cuts.map(fmtHM).join('／')):'不顯示',SP.on);
   if(typeof calSummaryText==='function')put('sumCal',calSummaryText(),Object.keys(calView().manual||{}).length);
 }
 document.getElementById('btnCloseAdmin').addEventListener('click',()=>{
@@ -6830,7 +6941,7 @@ function cfgSnapshot(){
   try{return JSON.stringify({
     c:parsePairList(document.getElementById('cfgPresetsCommon').value),
     p:parsePairList(document.getElementById('cfgPresetsPart').value),
-    r:cfgRules,w:cfgWarnRules,l:leaveFromFields()})}catch(e){return ''}
+    r:cfgRules,w:cfgWarnRules,l:leaveFromFields(),s:splitFromFields()})}catch(e){return ''}
 }
 function cfgDirty(){return !!(cfgSavedSnapshot&&cfgSnapshot()!==cfgSavedSnapshot)||calDraftChanged()} // 行事曆是全部代碼共用，另外比對，切換編輯對象也不會遺失
 function markCfgSaved(){cfgSavedSnapshot=cfgSnapshot();syncCfgSaveBtn()}
@@ -6868,7 +6979,8 @@ function collectCfgFromFields(){ // 從表單欄位讀出設定物件；格式�
     presetsPart:part,
     rules:cfgRules.map(r=>({id:r.id,on:!!r.on,name:r.name||'',kind:r.kind,times:(r.times||[]).slice(),min:Math.max(1,r.min||1)})),
     warnRules:cfgWarnRules.map(r=>({id:r.id,on:!!r.on,name:r.name||'',days:(r.days||[]).slice(),field:r.field,times:(r.times||[]).slice()})),
-    leave:lv
+    leave:lv,
+    split:splitFromFields()
   };
 }
 function leaveFromFields(){
