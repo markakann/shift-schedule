@@ -1541,7 +1541,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
         <select class="txt" id="lcSoloWho"></select>
         <select class="txt" id="lcSoloYm"></select>
         <label class="late-to">截止日<input class="txt" type="date" id="lcSoloTo"></label>
-        <button class="btn" id="btnLcSoloAdd">＋ 個別開放</button>
+        <button class="btn primary" id="btnLcSoloAdd">儲存個別開放</button>
       </div>
     </div>
 
@@ -2183,7 +2183,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
         <li>位置：劃假視窗下方的「⚙ 開放設定」。</li>
         <li>可設定開放劃假的月份、開放起日與截止日。</li>
         <li>可決定截止後是否允許臨時劃假。</li>
-        <li>個別開放：可單獨為某位夥伴開放某個月的劃假並設定截止日（例如新進夥伴）；期間內劃的假視為準時，全體未開放或已截止時也可使用。</li>
+        <li>個別開放：選擇人員、月份與截止日，按「儲存個別開放」即生效（例如新進夥伴）；期間內劃的假視為準時，全體未開放或已截止時也可使用。按「移除」可提早結束。</li>
         <li>下方「劃假紀錄」可清除舊月份，保留月數可選 1／2／3／6 個月；開放中的月份一律保留。</li>
       </ul>
 
@@ -4229,19 +4229,44 @@ function renderLcSolo(){
   document.getElementById('lcSoloWho').innerHTML='<option value="">— 選擇人員 —</option>'+
     state.staff.filter(st=>!st.hidden).map(st=>'<option value="'+st.id+'">'+esc(st.name)+(used.has(st.id)?'（重新設定）':'')+'</option>').join('');
 }
+function lcSoloForm(){ // 個別開放的填寫欄：沒選人回傳 null；選了但不完整回傳錯誤訊息
+  const sid=document.getElementById('lcSoloWho').value,ym=document.getElementById('lcSoloYm').value,to=document.getElementById('lcSoloTo').value;
+  if(!sid)return null;
+  if(!ym)return {err:'請選擇月份。'};
+  if(!to)return {err:'請填截止日。'};
+  if(to<todayStr())return {err:'截止日不能早於今天。'};
+  return {sid,ym,to};
+}
+function lcSoloResetForm(){ // 存好之後清空，接著可以填下一位
+  document.getElementById('lcSoloWho').value='';
+  const ys=document.getElementById('lcSoloYm');if(ys.options.length)ys.selectedIndex=0;
+  document.getElementById('lcSoloTo').value=isoDay(new Date(nowMs()+7*864e5));
+}
+function lcSoloPersist(){ // 個別開放直接存檔：只動個別開放，上方其他欄位還沒按「儲存」的修改不受影響
+  if(document.getElementById('tour')&&tourRole==='lcfg')return false; // 教學示範不實際變更
+  const L=Object.assign({},cfg().leave,{solo:lcSolo.filter(s=>s.to>=todayStr()).map(s=>Object.assign({},s))});
+  state.config=Object.assign({},state.config||{},{leave:L});
+  scheduleSave();
+  if(srvState!=='ok')syncServerClock();
+  if(document.getElementById('ovLeave').classList.contains('show'))renderLeaveBody();
+  return true;
+}
+const lcSoloName=sid=>{const st=state.staff.find(x=>x.id===sid);return st?st.name:''};
 document.getElementById('lcSoloList').addEventListener('click',ev=>{
   const b=ev.target.closest('[data-solodel]');if(!b)return;
+  const s=lcSolo[+b.dataset.solodel];if(!s)return;
+  if(!confirm('移除「'+lcSoloName(s.sid)+'」的個別開放？'))return;
   lcSolo.splice(+b.dataset.solodel,1);renderLcSolo();
+  showToast(lcSoloPersist()?'已移除個別開放':'已移除（教學示範，設定未變更）');
 });
 document.getElementById('btnLcSoloAdd').addEventListener('click',()=>{
-  const sid=document.getElementById('lcSoloWho').value,ym=document.getElementById('lcSoloYm').value,to=document.getElementById('lcSoloTo').value;
-  if(!sid){alert('請選擇要個別開放的人員。');return}
-  if(!ym){alert('請選擇月份。');return}
-  if(!to){alert('請填截止日。');return}
-  if(to<todayStr()){alert('截止日不能早於今天。');return}
-  lcSolo=lcSolo.filter(s=>s.sid!==sid).concat([{sid,ym,to}]);
-  renderLcSolo();
-  showToast('按「儲存」後生效');
+  const f=lcSoloForm();
+  if(!f){alert('請選擇要個別開放的人員。');return}
+  if(f.err){alert(f.err);return}
+  lcSolo=lcSolo.filter(s=>s.sid!==f.sid).concat([f]);
+  renderLcSolo();lcSoloResetForm();
+  const ok=lcSoloPersist();
+  showToast('已儲存「'+lcSoloName(f.sid)+'」的個別開放　'+fmtMd(f.to)+' 截止'+(ok?' ✓':'（教學示範，設定未變更）'),3000);
 });
 function openLeaveCfg(){
   const L=cfg().leave;
@@ -4383,6 +4408,9 @@ document.getElementById('btnLeaveCfgSave').addEventListener('click',()=>{
     lateOn:document.getElementById('lcLate').checked
   };
   Object.assign(nl,lateFields('lc'));
+  const sf=lcSoloForm(); // 填了個別開放、還沒按「儲存個別開放」：一併存
+  if(sf&&sf.err){alert('個別開放：'+sf.err);return}
+  if(sf){lcSolo=lcSolo.filter(s=>s.sid!==sf.sid).concat([sf]);renderLcSolo();lcSoloResetForm()}
   nl.solo=lcSolo.filter(s=>s.to>=todayStr()); // 已結束的個別開放存檔時順手清掉
   if(nl.on){
     if(!nl.ym){alert('請選擇要開放劃哪一個月。');return}
@@ -5480,11 +5508,13 @@ document.getElementById('btnCloseNote').addEventListener('click',()=>document.ge
    更新次數自目前大版本上線起，每上傳一次 index.html 加 1（劃假上線那次為 000）。
    每次更新：APP_VERSION 改成「3.115MMDD.次數」，CHANGELOG 最上面同一天的那筆 ver 跟著改；新的一天加一筆。
    add＝新增功能，fix＝問題改善；項目寫成 [文字, 1] 表示只有主管會用到（夥伴代碼不顯示） */
-const APP_VERSION='3.1151104.073';
+const APP_VERSION='3.1151104.074';
 const CHANGELOG=[
-  {v:'2026.11.04',ver:'3.1151104.073',add:[
+  {v:'2026.11.04',ver:'3.1151104.074',add:[
     ['劃假「⚙ 開放設定」新增「個別開放」：可單獨為某位夥伴開放某個月的劃假並設定截止日，期間內劃的假視為準時，不列為臨時。',1],
     ['劃假日曆上，紅線的日子（到職前／離職後）標示「未在職」，無法選取。']
+  ],fix:[
+    ['個別開放改為按「儲存個別開放」直接生效，存好後欄位清空、可接著填下一位；填好後直接按下方「儲存」也會一併存入。',1]
   ]},
   {v:'2026.11.02',ver:'3.1151102.072',add:[
     ['截止後修改劃假時，保留截止前的劃法：排班視窗列出「截止前：…」，劃假「全員總覽」列出每一天「截止前 → 現在」。',1],
@@ -5993,7 +6023,7 @@ function tourSteps(role,full){ // full：完整新手教學，走到排班、開
         b:'勾選<b>「截止後仍可臨時劃假」</b>：截止後仍可劃假，標示為「臨時」並列為候補，可於 🔔 依送出先後處理。<br>'+
           '再勾選<b>「候補也要限時」</b>並填寫候補截止日，逾期即鎖定；未勾選則持續開放至關閉劃假或更換月份。'},
       {el:()=>tourShown($('#lcSoloSec')),h:'⑤ 個別開放',
-        b:'單獨為某位夥伴開放劃假，例如新進夥伴：選擇人員、月份與截止日，按「＋ 個別開放」，再按「儲存」。<br>期間內劃的假視為準時，不列為臨時；全體未開放或已截止時也可使用。'},
+        b:'單獨為某位夥伴開放劃假，例如新進夥伴：選擇人員、月份與截止日，按<b>「儲存個別開放」</b>即生效，欄位清空後可接著填下一位。<br>期間內劃的假視為準時，不列為臨時；全體未開放或已截止時也可使用。'},
       {el:()=>shown([$('#lcPurgeInfo'),($('#lcKeep')||{}).parentElement]),h:'⑥ 劃假紀錄',
         b:'雲端保留每月的劃假紀錄。可設定僅保留最近幾個月，按「清除其餘」刪除較早的紀錄；<b>開放中的月份不會刪除</b>，班表不受影響。'},
       {el:()=>tourShown($('#ovLeaveCfg .m-actions')),act:1,need:()=>!document.getElementById('ovLeaveCfg').classList.contains('show'),h:'⑦ 儲存',
