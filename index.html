@@ -17,6 +17,14 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="我的班表">
 <script>
+/* LINE 內建瀏覽器：無法安裝到手機，輸入的代碼也不會留到手機的瀏覽器。
+   先加上 openExternalBrowser=1 交給手機的預設瀏覽器開啟（只試一次）；在一般瀏覽器裡則把這個參數拿掉 */
+var IN_LINE=/\bLine\//i.test(navigator.userAgent||'');
+try{(function(){
+  var u=new URL(location.href),p=u.searchParams.get('openExternalBrowser');
+  if(IN_LINE&&p!=='1'){u.searchParams.set('openExternalBrowser','1');location.replace(u.toString())}
+  else if(!IN_LINE&&p!==null){u.searchParams.delete('openExternalBrowser');history.replaceState(null,'',u.pathname+u.search+u.hash)}
+})()}catch(e){}
 /* 在第一次繪製前就決定身分，唯讀使用者重新載入時才不會閃過一瞬間的編輯介面 */
 try{if(localStorage.getItem('paiban-mode')==='view')document.documentElement.classList.add('viewer-boot')}catch(e){}
 /* 外觀設定：也要在第一次繪製前套好，深色模式才不會先閃一下白底。
@@ -604,6 +612,10 @@ html.ov-open,html.ov-open body{overflow:hidden;overscroll-behavior:none}
 .rp-t{font-size:14.5px;color:#7a5c14;font-weight:700;letter-spacing:.5px;line-height:1.35}
 .lv-off-tag{display:inline-block;margin-left:8px;padding:0 6px;border-radius:6px;font-size:11px;font-weight:700;color:#a85c07;border:1px solid #e0a05a;vertical-align:2px}
 html.dark .lv-off-tag{color:#f0b978;border-color:#a8743a}
+.line-banner{display:flex;gap:8px;align-items:flex-start;background:#fff4e6;border-bottom:1.5px solid #e0a05a;color:#a85c07;font-size:13px;line-height:1.5;padding:8px 12px}
+.line-banner span{flex:1}
+.line-banner button{border:none;background:transparent;color:inherit;font-size:16px;line-height:1;padding:2px 4px;cursor:pointer}
+html.dark .line-banner{background:#3d2f1c;border-color:#8a6633;color:#f0b978}
 .ins-status{font-size:13px;color:#666;margin:6px 0 8px}
 .ins-tabs{display:flex;gap:6px;margin-bottom:8px}
 .ins-tab{flex:1;padding:7px 0;border:1.5px solid var(--grid);border-radius:8px;background:var(--paper);color:var(--ink);font:inherit;font-size:14px;font-weight:700;cursor:pointer}
@@ -1287,6 +1299,10 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
 </script>
 
 <div id="exportArea">
+<div id="lineBanner" class="line-banner" style="display:none">
+  <span>⚠ 目前在 LINE 內開啟：無法安裝到手機，輸入的代碼也不會保留到手機的瀏覽器。請點 LINE 畫面上的「⋮」或「⋯」選單，選「以預設瀏覽器開啟」。</span>
+  <button type="button" id="btnLineBannerX" aria-label="關閉">✕</button>
+</div>
 <header class="topbar">
   <input id="storeName" class="store-name" value="" placeholder="店名" aria-label="店名">
   <select id="selYear" class="ym-sel" aria-label="年份" autocomplete="off"></select>
@@ -1737,6 +1753,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
     <div class="m-actions" style="flex-direction:column">
       <button class="btn primary" id="btnCopyChoiceStore">複製主管代碼</button>
       <button class="btn" id="btnCopyChoiceView">複製夥伴代碼</button>
+      <button class="btn" id="btnCopyChoiceInvite">複製邀請訊息（LINE 用）</button>
       <button class="btn" id="btnCloseCopyChoice">取消</button>
     </div>
   </div>
@@ -2132,6 +2149,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
       <li class="edit-only">「📝 排班教學」實際點選一格，依序操作班別、自訂時間、排休、特休等假別與特定時段；教學中排入的內容不會儲存，結束後自動還原。班表尚無人員時以示範班表練習。未看過時，第一次按「🔒 排班」解鎖會自動開始。</li>
       <li class="edit-only">「⚙ 開放劃假教學」逐項介紹開放劃假的設定（月份、期間、候補、個別開放、紀錄保留），最後可實際按一次「儲存」查看結果，設定不會變更。未看過時，第一次開啟劃假的「⚙ 開放設定」會自動開始。</li>
       <li>本頁最上方的「📲 安裝到手機」：Android 與 iPhone／iPad 的安裝步驟示意圖；Android 的 Chrome 可直接按「直接安裝」。安裝後由主畫面的「我的班表」圖示開啟。</li>
+      <li>LINE 內建的瀏覽器無法安裝，代碼也不會保留到手機的瀏覽器。從 LINE 點網址時會自動改用預設瀏覽器開啟；仍在 LINE 內時，畫面上方會提示改用「以預設瀏覽器開啟」。<span class="edit-only">傳網址給夥伴時，可用「⋯ → 複製代碼 → 複製邀請訊息（LINE 用）」，網址與夥伴代碼一起複製。</span></li>
       <li>App 啟動或下拉重整時會播開啟動畫，點一下畫面可跳過。從其他 App 切回來不會重播，畫面維持在原本的位置。</li>
       <li>啟動或下拉重整時，表格從最上面開始。看的是本月時，左右自動捲動，讓今天出現在畫面中；其他月份從 1 號開始。整個月份一次放得下時（例如電腦的大螢幕）不捲動。</li>
     </ul>
@@ -5590,7 +5608,9 @@ function insIosHtml(){
 }
 function renderInstall(){
   const pf=devicePlatform();
-  document.getElementById('insStatus').innerHTML=isStandaloneApp()
+  document.getElementById('insStatus').innerHTML=IN_LINE
+    ?'<b class="c-orange">⚠ 目前在 LINE 內開啟，無法安裝。</b>請點 LINE 畫面上的「⋮」或「⋯」選單，選「以預設瀏覽器開啟」，再依下方步驟安裝。'
+    :isStandaloneApp()
     ?'<b class="c-green">✓ 目前已從主畫面開啟（已安裝）。</b>'
     :pf?'目前的裝置：<b>'+(pf==='ios'?'iPhone／iPad':'Android')+'</b>':'目前為電腦；以下為手機上的安裝方式。';
   document.querySelectorAll('#ovInstall .ins-tab').forEach(t=>t.classList.toggle('on',t.dataset.ins===insTab));
@@ -5622,6 +5642,8 @@ const APP_VERSION='3.1151104.076';
 const CHANGELOG=[
   {v:'2026.11.04',ver:'3.1151104.076',add:[
     ['新增「安裝到手機」：Android 與 iPhone／iPad 的安裝步驟示意圖，Android 的 Chrome 可直接按「直接安裝」；位於「？」與新手教學（手機上、尚未安裝時）。'],
+    ['從 LINE 點網址開啟時，自動改用手機的預設瀏覽器開啟；仍在 LINE 內時，畫面上方提示改用「以預設瀏覽器開啟」。'],
+    ['「複製代碼」新增「複製邀請訊息（LINE 用）」：網址加上自動用預設瀏覽器開啟的設定，連同夥伴代碼一起複製。',1],
     ['劃假「⚙ 開放設定」新增「個別開放」：可單獨為某位夥伴開放某個月的劃假並設定截止日，期間內劃的假視為準時，不列為臨時。',1],
     ['劃假日曆上，紅線的日子（到職前／離職後）標示「未在職」，無法選取。']
   ],fix:[
@@ -6240,7 +6262,7 @@ function tourSteps(role,full){ // full：完整新手教學，走到排班、開
     enter:()=>{openInstall();document.getElementById('ovInstall').classList.add('in-tour')},
     leave:()=>{const o=document.getElementById('ovInstall');o.classList.remove('show','in-tour')},
     el:()=>tourShown($('#ovInstall .modal')),act:1,h:'安裝到手機',
-    b:()=>'安裝後可從主畫面直接開啟，以全螢幕顯示。<br>畫面為'+(devicePlatform()==='ios'?'iPhone／iPad':'Android')+'的安裝步驟'+
+    b:()=>(IN_LINE?'<b>目前在 LINE 內開啟，需先改用預設瀏覽器開啟才能安裝。</b><br>':'')+'安裝後可從主畫面直接開啟，以全螢幕顯示。<br>畫面為'+(devicePlatform()==='ios'?'iPhone／iPad':'Android')+'的安裝步驟'+
       (pwaPrompt?'，可直接按「📲 直接安裝」':'')+'；上方可切換手機類型。<br>之後可於「？」的「📲 安裝到手機」再次查看。'}]:[];
   const SUMROW=mgr=>blank({el:()=>tourShown($('#sheet tr.sum-row')),h:'最下方一列',b:()=>{ // 月總與分段工時
     const sp=cfg().split;
@@ -6722,6 +6744,23 @@ document.getElementById('btnCopyChoiceView').addEventListener('click',()=>{
   document.getElementById('ovCopyChoice').classList.remove('show');
   copyViewCode();
 });
+function inviteUrl(){ // 傳到 LINE 的網址：加上 openExternalBrowser=1，點了直接用手機的預設瀏覽器開啟
+  try{const u=new URL(location.href);u.search='';u.hash='';u.searchParams.set('openExternalBrowser','1');return u.toString()}catch(e){return location.href}
+}
+async function copyInvite(){
+  const txt='我的班表\n'+inviteUrl()+(state.viewCode?'\n夥伴代碼：'+state.viewCode:'')+
+    '\n\n在 LINE 點上方網址，會直接用手機的瀏覽器開啟；輸入夥伴代碼後，可依「？」→「📲 安裝到手機」安裝。';
+  try{await navigator.clipboard.writeText(txt);alert('已複製邀請訊息，可直接貼到 LINE：\n\n'+txt)}
+  catch(e){prompt('請手動複製邀請訊息：',txt)}
+}
+document.getElementById('btnCopyChoiceInvite').addEventListener('click',()=>{
+  document.getElementById('ovCopyChoice').classList.remove('show');
+  copyInvite();
+});
+if(IN_LINE){ // 還在 LINE 裡（自動改用預設瀏覽器沒有成功）：上方提示
+  document.getElementById('lineBanner').style.display='';
+  document.getElementById('btnLineBannerX').addEventListener('click',()=>{document.getElementById('lineBanner').style.display='none'});
+}
 document.getElementById('btnCloseCopyChoice').addEventListener('click',()=>document.getElementById('ovCopyChoice').classList.remove('show'));
 document.getElementById('btnCloseMore').addEventListener('click',()=>document.getElementById('ovMore').classList.remove('show'));
 
