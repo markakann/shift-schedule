@@ -604,6 +604,39 @@ html.ov-open,html.ov-open body{overflow:hidden;overscroll-behavior:none}
 .rp-t{font-size:14.5px;color:#7a5c14;font-weight:700;letter-spacing:.5px;line-height:1.35}
 .lv-off-tag{display:inline-block;margin-left:8px;padding:0 6px;border-radius:6px;font-size:11px;font-weight:700;color:#a85c07;border:1px solid #e0a05a;vertical-align:2px}
 html.dark .lv-off-tag{color:#f0b978;border-color:#a8743a}
+.ins-status{font-size:13px;color:#666;margin:6px 0 8px}
+.ins-tabs{display:flex;gap:6px;margin-bottom:8px}
+.ins-tab{flex:1;padding:7px 0;border:1.5px solid var(--grid);border-radius:8px;background:var(--paper);color:var(--ink);font:inherit;font-size:14px;font-weight:700;cursor:pointer}
+.ins-tab.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.ins-now{width:100%;margin:2px 0 8px}
+.ins-step{display:grid;grid-template-columns:118px 1fr;gap:10px;align-items:center;padding:8px 0;border-bottom:1px dotted var(--line)}
+.ins-step:last-of-type{border-bottom:none}
+.ins-step p{margin:0;font-size:13.5px;line-height:1.6}
+.ins-step p b.no{display:inline-block;min-width:1.4em;color:var(--blue)}
+.im{position:relative;height:92px;border:2px solid #555;border-radius:12px;background:var(--paper);overflow:hidden;font-size:9px;line-height:1.3;color:var(--ink)}
+.im .ln{height:5px;border-radius:3px;background:var(--line);margin:5px 8px 0}
+.im .ln.s{width:55%}
+.im-bar{display:flex;align-items:center;gap:4px;padding:4px 5px;background:var(--paper2);border-bottom:1px solid var(--line)}
+.im-bar.bot{position:absolute;left:0;right:0;bottom:0;border-top:1px solid var(--line);border-bottom:none}
+.im-url{flex:1;background:var(--paper);border-radius:6px;padding:1px 5px;color:#888;white-space:nowrap;overflow:hidden}
+.im-hl{background:var(--blue);color:#fff!important;border-radius:4px;padding:0 4px;font-weight:700;box-shadow:0 0 0 2px rgba(30,75,184,.25)}
+.im-menu{position:absolute;right:4px;top:4px;width:78px;background:var(--paper);border:1px solid #aaa;border-radius:5px;box-shadow:0 2px 6px rgba(0,0,0,.2);padding:2px 0}
+.im-menu.up{top:auto;bottom:24px;right:4px}
+.im-menu div{padding:2px 6px;white-space:nowrap}
+.im-sheet{position:absolute;left:0;right:0;bottom:0;background:var(--paper2);border-top:1px solid #aaa;border-radius:8px 8px 0 0;padding:3px 0}
+.im-sheet div{padding:2px 8px;border-bottom:1px solid var(--line)}
+.im-sheet div:last-child{border-bottom:none}
+.im-dlg{position:absolute;left:8px;right:8px;top:18px;background:var(--paper);border:1px solid #aaa;border-radius:7px;box-shadow:0 2px 8px rgba(0,0,0,.25);padding:6px}
+.im-app{display:flex;align-items:center;gap:5px;font-weight:700;margin:3px 0 6px}
+.im-app img,.im-app i{width:18px;height:18px;border-radius:4px;flex-shrink:0}
+.im-app i{background:var(--blue);display:inline-block}
+.im-btns{display:flex;justify-content:flex-end;gap:6px}
+.im-top{display:flex;justify-content:space-between;align-items:center;padding:4px 6px;background:var(--paper2);border-bottom:1px solid var(--line)}
+.im-tg{display:flex;justify-content:space-between;align-items:center;margin:4px 8px 0;color:#666}
+.im-tg span{width:18px;height:10px;border-radius:6px;background:#34a853;display:inline-block}
+#ovInstall.in-tour .m-actions{visibility:hidden}
+html.dark .im{border-color:#999}
+html.dark .ins-status{color:var(--fade2)}
 .up-ver{margin-top:14px;padding-bottom:4px;border-bottom:1px solid var(--line,#ddd);display:flex;align-items:baseline;gap:8px}
 .up-ver b{font-size:15px}
 .up-ver .up-vn{font-size:12px;color:#8a8378;font-variant-numeric:tabular-nums;letter-spacing:.02em}
@@ -1926,6 +1959,18 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
   </div>
 </div>
 
+<!-- 安裝到手機：Android／iPhone 的安裝步驟示意 -->
+<div class="overlay" id="ovInstall">
+  <div class="modal">
+    <div class="m-title">安裝到手機</div>
+    <div class="m-sub">安裝後可從主畫面直接開啟，以全螢幕顯示，不需每次輸入網址。</div>
+    <div class="ins-status" id="insStatus"></div>
+    <div class="ins-tabs"><button class="ins-tab" data-ins="android">Android</button><button class="ins-tab" data-ins="ios">iPhone／iPad</button></div>
+    <div id="insBody"></div>
+    <div class="m-actions"><button class="btn" id="btnCloseInstall">關閉</button></div>
+  </div>
+</div>
+
 <!-- 更新日誌：版本號、新增功能與問題改善 -->
 <div class="overlay" id="ovUpdates">
   <div class="modal">
@@ -2037,6 +2082,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
       <button class="btn edit-only" id="btnTourSched" style="flex:1 1 40%">📝 排班教學</button>
       <button class="btn edit-only" id="btnTourLcfg" style="flex:1 1 40%">⚙ 開放劃假教學</button>
       <button class="btn" id="btnTourLeave" style="flex:1 1 40%">🏖 劃假教學</button>
+      <button class="btn" id="btnInstallGuide" style="flex:1 1 40%">📲 安裝到手機</button>
     </div>
     <div class="sec-label">表格符號</div>
     <div class="legend">
@@ -2085,6 +2131,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
       <li>本頁最上方的「🏖 劃假教學」開啟<b>練習畫面</b>，依序操作一次劃假（選擇姓名、劃假方式、日期、送出）：名單為示範用的 Rich、Amanda，劃假未開放時亦可練習，內容不會送出或儲存。</li>
       <li class="edit-only">「📝 排班教學」實際點選一格，依序操作班別、自訂時間、排休、特休等假別與特定時段；教學中排入的內容不會儲存，結束後自動還原。班表尚無人員時以示範班表練習。未看過時，第一次按「🔒 排班」解鎖會自動開始。</li>
       <li class="edit-only">「⚙ 開放劃假教學」逐項介紹開放劃假的設定（月份、期間、候補、個別開放、紀錄保留），最後可實際按一次「儲存」查看結果，設定不會變更。未看過時，第一次開啟劃假的「⚙ 開放設定」會自動開始。</li>
+      <li>本頁最上方的「📲 安裝到手機」：Android 與 iPhone／iPad 的安裝步驟示意圖；Android 的 Chrome 可直接按「直接安裝」。安裝後由主畫面的「我的班表」圖示開啟。</li>
       <li>App 啟動或下拉重整時會播開啟動畫，點一下畫面可跳過。從其他 App 切回來不會重播，畫面維持在原本的位置。</li>
       <li>啟動或下拉重整時，表格從最上面開始。看的是本月時，左右自動捲動，讓今天出現在畫面中；其他月份從 1 號開始。整個月份一次放得下時（例如電腦的大螢幕）不捲動。</li>
     </ul>
@@ -5506,13 +5553,75 @@ document.getElementById('btnDelNote').addEventListener('click',()=>{
 });
 document.getElementById('btnCloseNote').addEventListener('click',()=>document.getElementById('ovNote').classList.remove('show'));
 
+/* 安裝到手機：Android 的 Chrome 可直接跳出安裝視窗；iPhone／iPad 只能從分享選單「加入主畫面」，以示意圖說明 */
+let pwaPrompt=null,insTab=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();pwaPrompt=e;if(document.getElementById('ovInstall').classList.contains('show'))renderInstall()});
+window.addEventListener('appinstalled',()=>{pwaPrompt=null;showToast('已安裝到主畫面 ✓');if(document.getElementById('ovInstall').classList.contains('show'))renderInstall()});
+function isStandaloneApp(){try{return matchMedia('(display-mode: standalone)').matches||navigator.standalone===true}catch(e){return false}}
+function devicePlatform(){ // ios／android／''（電腦）
+  const u=navigator.userAgent||'';
+  if(/iPhone|iPad|iPod/.test(u)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1))return 'ios';
+  return /Android/i.test(u)?'android':'';
+}
+const IM_ICON='<img src="./icon-192.png?v=2" alt="" onerror="this.replaceWith(document.createElement(\'i\'))">';
+const IM_PAGE='<div class="ln"></div><div class="ln s"></div><div class="ln"></div>';
+function insAndroidHtml(){
+  return (pwaPrompt?'<button class="btn primary ins-now" id="btnInsNow">📲 直接安裝</button><div class="small-note" style="margin:-2px 0 6px">此瀏覽器可直接安裝，不用找選單。</div>':'')+
+    '<div class="ins-step"><div class="im"><div class="im-bar"><span class="im-url">shift-schedule</span><span class="im-hl">⋮</span></div>'+IM_PAGE+'</div>'+
+      '<p><b class="no">①</b>用 <b>Chrome</b> 開啟班表網址，點右上角的「<b>⋮</b>」。</p></div>'+
+    '<div class="ins-step"><div class="im"><div class="im-bar"><span class="im-url">shift-schedule</span><span>⋮</span></div>'+IM_PAGE+
+      '<div class="im-menu"><div>新分頁</div><div>書籤</div><div class="im-hl">安裝應用程式</div><div>設定</div></div></div>'+
+      '<p><b class="no">②</b>選「<b>安裝應用程式</b>」；沒有這一項時，選「<b>加到主畫面</b>」。</p></div>'+
+    '<div class="ins-step"><div class="im">'+IM_PAGE+'<div class="im-dlg">安裝應用程式？<div class="im-app">'+IM_ICON+'我的班表</div>'+
+      '<div class="im-btns"><span>取消</span><span class="im-hl">安裝</span></div></div></div>'+
+      '<p><b class="no">③</b>按「<b>安裝</b>」。主畫面出現「我的班表」圖示，之後由圖示開啟。</p></div>'+
+    '<div class="small-note" style="margin-top:6px">三星網際網路：點下方「≡」→「新增頁面至」→「主畫面」。選單名稱依瀏覽器版本可能略有不同。</div>';
+}
+function insIosHtml(){
+  return '<div class="ins-step"><div class="im">'+IM_PAGE+'<div class="im-menu up"><div class="im-hl">分享</div><div>加入書籤</div></div>'+
+      '<div class="im-bar bot"><span>‹</span><span class="im-url">shift-schedule</span><span class="im-hl">⋯</span></div></div>'+
+      '<p><b class="no">①</b>用 <b>Safari</b> 開啟班表網址，點網址列旁的「<b>⋯</b>」，再點「<b>分享</b>」。<br><span class="c-fade">較舊的 iOS：直接點畫面下方的分享按鈕（方框加向上箭頭）。</span></p></div>'+
+    '<div class="ins-step"><div class="im">'+IM_PAGE+'<div class="im-sheet"><div>拷貝</div><div>加入書籤</div><div class="im-hl">加入主畫面</div></div></div>'+
+      '<p><b class="no">②</b>分享選單往下滑，選「<b>加入主畫面</b>」。</p></div>'+
+    '<div class="ins-step"><div class="im"><div class="im-top"><span>取消</span><b>加入主畫面</b><span class="im-hl">加入</span></div>'+
+      '<div class="im-app" style="margin:6px 8px 0">'+IM_ICON+'我的班表</div><div class="im-tg">網頁 App<span></span></div></div>'+
+      '<p><b class="no">③</b>名稱為「我的班表」；出現「網頁 App」開關時保持開啟，按右上角「<b>加入</b>」。</p></div>'+
+    '<div class="small-note" style="margin-top:6px">建議使用 Safari。其他瀏覽器的分享選單中若有「加入主畫面」，也可照同樣方式加入。</div>';
+}
+function renderInstall(){
+  const pf=devicePlatform();
+  document.getElementById('insStatus').innerHTML=isStandaloneApp()
+    ?'<b class="c-green">✓ 目前已從主畫面開啟（已安裝）。</b>'
+    :pf?'目前的裝置：<b>'+(pf==='ios'?'iPhone／iPad':'Android')+'</b>':'目前為電腦；以下為手機上的安裝方式。';
+  document.querySelectorAll('#ovInstall .ins-tab').forEach(t=>t.classList.toggle('on',t.dataset.ins===insTab));
+  document.getElementById('insBody').innerHTML=insTab==='ios'?insIosHtml():insAndroidHtml();
+}
+function openInstall(){
+  insTab=insTab||devicePlatform()||'android';
+  renderInstall();
+  document.getElementById('ovInstall').classList.add('show');
+  const m=document.querySelector('#ovInstall .modal');if(m)m.scrollTop=0;
+}
+document.querySelectorAll('#ovInstall .ins-tab').forEach(t=>t.addEventListener('click',()=>{insTab=t.dataset.ins;renderInstall()}));
+document.getElementById('insBody').addEventListener('click',async ev=>{
+  if(!ev.target.closest('#btnInsNow')||!pwaPrompt)return;
+  const pr=pwaPrompt;
+  try{pr.prompt();const r=await pr.userChoice;if(r&&r.outcome==='accepted')pwaPrompt=null}catch(e){}
+  renderInstall();
+});
+document.getElementById('btnCloseInstall').addEventListener('click',()=>document.getElementById('ovInstall').classList.remove('show'));
+document.getElementById('btnInstallGuide').addEventListener('click',()=>{
+  if(document.getElementById('tour'))return;
+  document.getElementById('ovHelp').classList.remove('show');openInstall();
+});
 /* 版本與更新日誌：版本號＝大版本．民國年月日．更新次數（3 碼）。大版本 1＝建置（7/15）、2＝後台登入（9/17）、3＝劃假（9/27）。
    更新次數自目前大版本上線起，每上傳一次 index.html 加 1（劃假上線那次為 000）。
    每次更新：APP_VERSION 改成「3.115MMDD.次數」，CHANGELOG 最上面同一天的那筆 ver 跟著改；新的一天加一筆。
    add＝新增功能，fix＝問題改善；項目寫成 [文字, 1] 表示只有主管會用到（夥伴代碼不顯示） */
-const APP_VERSION='3.1151104.075';
+const APP_VERSION='3.1151104.076';
 const CHANGELOG=[
-  {v:'2026.11.04',ver:'3.1151104.075',add:[
+  {v:'2026.11.04',ver:'3.1151104.076',add:[
+    ['新增「安裝到手機」：Android 與 iPhone／iPad 的安裝步驟示意圖，Android 的 Chrome 可直接按「直接安裝」；位於「？」與新手教學（手機上、尚未安裝時）。'],
     ['劃假「⚙ 開放設定」新增「個別開放」：可單獨為某位夥伴開放某個月的劃假並設定截止日，期間內劃的假視為準時，不列為臨時。',1],
     ['劃假日曆上，紅線的日子（到職前／離職後）標示「未在職」，無法選取。']
   ],fix:[
@@ -6127,6 +6236,12 @@ function tourSteps(role,full){ // full：完整新手教學，走到排班、開
     ];
   }
   // 夥伴版、主管版共用的幾步
+  const INSTALL=(!isStandaloneApp()&&devicePlatform())?[{ // 手機上、還不是從主畫面開啟時才介紹
+    enter:()=>{openInstall();document.getElementById('ovInstall').classList.add('in-tour')},
+    leave:()=>{const o=document.getElementById('ovInstall');o.classList.remove('show','in-tour')},
+    el:()=>tourShown($('#ovInstall .modal')),act:1,h:'安裝到手機',
+    b:()=>'安裝後可從主畫面直接開啟，以全螢幕顯示。<br>畫面為'+(devicePlatform()==='ios'?'iPhone／iPad':'Android')+'的安裝步驟'+
+      (pwaPrompt?'，可直接按「📲 直接安裝」':'')+'；上方可切換手機類型。<br>之後可於「？」的「📲 安裝到手機」再次查看。'}]:[];
   const SUMROW=mgr=>blank({el:()=>tourShown($('#sheet tr.sum-row')),h:'最下方一列',b:()=>{ // 月總與分段工時
     const sp=cfg().split;
     return '<b>月總</b>：全店本月工時（每班已扣休息），點選可查看正職／計時／支援分組與各員時數。<br>'+
@@ -6231,7 +6346,8 @@ function tourSteps(role,full){ // full：完整新手教學，走到排班、開
     {opt:1,el:()=>tourShown($('#btnReportTop')),h:'🏆 每月戰績',b:t=>(t?'<b>目前正在顯示。</b>':'')+
       '每月<b>倒數第二天至下月 3 號</b>，工具列出現金色「🏆 ○月戰績」按鈕，主管與夥伴皆可查看，其餘時間不顯示。<br>'+
       '內容皆由班表與劃假紀錄計算，例如開店與收班次數、最常同班的組合、人數最多的一天；當月離職的夥伴會附上道別卡。'},
-    {el:()=>tourShown($('#btnHelp')),h:'說明',b:()=>'各記號、顏色與規則皆列於此。<br>頁面最上方可重看完整新手教學，或個別查看功能介紹、排班、開放劃假、劃假教學。<br>'+
+    ...INSTALL,
+    {el:()=>tourShown($('#btnHelp')),h:'說明',b:()=>'各記號、顏色與規則皆列於此。<br>頁面最上方可重看完整新手教學，或個別查看功能介紹、排班、開放劃假、劃假教學與安裝到手機。<br>'+
       NAME+'到此結束，按「開始使用」即可開始。'}
   ];
   return [
@@ -6258,7 +6374,8 @@ function tourSteps(role,full){ // full：完整新手教學，走到排班、開
     {opt:1,el:()=>tourShown($('#btnReportTop')),h:'🏆 每月戰績',b:t=>(t?'<b>目前正在顯示。</b>':'')+
       '每月<b>倒數第二天至下月 3 號</b>，工具列出現金色「🏆 ○月戰績」按鈕，其餘時間不顯示。<br>'+
       '內容為當月的小統計，例如開店與收班次數、最常同班的組合、人數最多的一天；期間首次開啟 App 時會詢問是否查看。'},
-    {el:()=>tourShown($('#btnHelp')),h:'說明',b:()=>'各記號與顏色的意義皆列於此。<br>頁面最上方可重看完整新手教學，或個別查看功能介紹、劃假教學。<br>'+
+    ...INSTALL,
+    {el:()=>tourShown($('#btnHelp')),h:'說明',b:()=>'各記號與顏色的意義皆列於此。<br>頁面最上方可重看完整新手教學，或個別查看功能介紹、劃假教學與安裝到手機。<br>'+
       NAME+'到此結束，按「開始使用」即可開始。'}
   ];
 }
@@ -7890,7 +8007,7 @@ document.getElementById('sheetTitle').addEventListener('input',scheduleSave);
 /* 點空白處：純選單／說明類視窗＝按它的「關閉」鈕（走同一套流程）；其他有輸入或設定的視窗一律不關，避免誤觸放棄修改 */
 const BACKDROP_CLOSE={ovNotice:'btnCloseNotice',ovMore:'btnCloseMore',ovHelp:'btnCloseHelp',ovHidden:'btnCloseHidden',ovStaffList:'btnCloseStaffList',
   ovOT:'btnCloseOT',ovTotal:'btnCloseTotal',ovCoverage:'btnCloseCoverage',ovReport:'btnCloseReport',
-  ovExportChoice:'btnCloseExportChoice',ovCopyChoice:'btnCloseCopyChoice',ovLook:'btnCloseLook',ovUpdates:'btnCloseUpdates'};
+  ovExportChoice:'btnCloseExportChoice',ovCopyChoice:'btnCloseCopyChoice',ovLook:'btnCloseLook',ovUpdates:'btnCloseUpdates',ovInstall:'btnCloseInstall'};
 document.querySelectorAll('.overlay').forEach(ov=>ov.addEventListener('click',ev=>{
   if(ev.target!==ov||ov.id==='ovCell')return; // 排班格子另有處理：改動即時套用，點外面直接關
   const btn=BACKDROP_CLOSE[ov.id]&&document.getElementById(BACKDROP_CLOSE[ov.id]);
