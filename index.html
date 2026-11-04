@@ -708,6 +708,9 @@ html.dark .lv-off-tag{color:#f0b978;border-color:#a8743a}
 .lv-d .lv-tag{font-size:9px;font-weight:700;color:var(--lvink,#555);margin-top:auto}
 .lv-d.late::after{content:'臨';position:absolute;top:1px;right:2px;font-size:8px;color:var(--lvink,#555);font-weight:700}
 .lv-d.locked{opacity:.55;cursor:not-allowed}
+.lv-d.lv-red{background:var(--paper2);color:#999}
+.lv-d.lv-red::before{content:'';position:absolute;left:3px;right:3px;top:50%;height:2px;background:var(--red);opacity:.8}
+.lv-d .lv-red-tag{color:var(--red)}
 .lv-sum{border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin-top:8px;background:var(--paper3)}
 .lv-sum .who{font-weight:700;color:var(--blue);font-size:14px}
 .lv-line{font-size:13px;margin-top:3px;display:flex;gap:6px;align-items:center}
@@ -741,6 +744,14 @@ html.dark .split-seg .split-range{color:var(--fade2)}
 .cfg-grid label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:#666}
 .cfg-grid label:first-child{grid-column:1/-1}
 .late-lim{margin:2px 0 0 28px}
+.lc-solo-add{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;align-items:center}
+.lc-solo-add .late-to{margin-top:0}
+.lc-solo-row{display:flex;align-items:center;gap:8px;padding:6px 8px;margin-top:6px;border:1px solid var(--line);border-radius:6px;background:var(--paper3);font-size:13px}
+.lc-solo-row b{color:var(--blue)}
+.lc-solo-row span{flex:1;color:#666}
+.lc-solo-row.ended{opacity:.55}
+.lc-solo-row .btn{padding:3px 10px;font-size:12px}
+html.dark .lc-solo-row span{color:var(--fade2)}
 .late-lim .cfg-row{margin-top:6px}
 .late-to{display:flex;align-items:center;gap:8px;font-size:13px;color:#666;margin-top:6px;white-space:nowrap}
 .late-to input{flex:1;min-width:0}
@@ -1522,6 +1533,19 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
     </div>
 
     <div class="hr"></div>
+    <div id="lcSoloSec">
+      <div class="sec-label">個別開放</div>
+      <div class="small-note">單獨為某位夥伴開放某個月的劃假（例如新進夥伴）。期間內劃的假視為準時，不列為臨時；全體未開放或已截止時也可使用。</div>
+      <div id="lcSoloList"></div>
+      <div class="lc-solo-add">
+        <select class="txt" id="lcSoloWho"></select>
+        <select class="txt" id="lcSoloYm"></select>
+        <label class="late-to">截止日<input class="txt" type="date" id="lcSoloTo"></label>
+        <button class="btn" id="btnLcSoloAdd">＋ 個別開放</button>
+      </div>
+    </div>
+
+    <div class="hr"></div>
     <div class="sec-label">劃假紀錄</div>
     <div class="small-note" id="lcPurgeInfo"></div>
     <div style="display:flex;gap:8px;align-items:center;margin-top:6px">
@@ -2059,7 +2083,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
       <li>本頁最上方可重看完整新手教學，或直接查看其中一部分：「📋 功能介紹」僅介紹畫面與各項功能，不含實際操作。</li>
       <li>本頁最上方的「🏖 劃假教學」開啟<b>練習畫面</b>，依序操作一次劃假（選擇姓名、劃假方式、日期、送出）：名單為示範用的 Rich、Amanda，劃假未開放時亦可練習，內容不會送出或儲存。</li>
       <li class="edit-only">「📝 排班教學」實際點選一格，依序操作班別、自訂時間、排休、特休等假別與特定時段；教學中排入的內容不會儲存，結束後自動還原。班表尚無人員時以示範班表練習。未看過時，第一次按「🔒 排班」解鎖會自動開始。</li>
-      <li class="edit-only">「⚙ 開放劃假教學」逐項介紹開放劃假的設定（月份、期間、候補、紀錄保留），最後可實際按一次「儲存」查看結果，設定不會變更。未看過時，第一次開啟劃假的「⚙ 開放設定」會自動開始。</li>
+      <li class="edit-only">「⚙ 開放劃假教學」逐項介紹開放劃假的設定（月份、期間、候補、個別開放、紀錄保留），最後可實際按一次「儲存」查看結果，設定不會變更。未看過時，第一次開啟劃假的「⚙ 開放設定」會自動開始。</li>
       <li>App 啟動或下拉重整時會播開啟動畫，點一下畫面可跳過。從其他 App 切回來不會重播，畫面維持在原本的位置。</li>
       <li>啟動或下拉重整時，表格從最上面開始。看的是本月時，左右自動捲動，讓今天出現在畫面中；其他月份從 1 號開始。整個月份一次放得下時（例如電腦的大螢幕）不捲動。</li>
     </ul>
@@ -2130,6 +2154,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
     <div class="hsub">日曆上的標示</div>
     <ul class="hul">
       <li>日曆上方顯示該月的月休額度（正職）與國定假日。</li>
+      <li>紅線的日子（到職前／離職後）標示「未在職」，無法劃假。</li>
       <li><b style="color:var(--red)">國</b>＝國定假日（以原日期計算）。政府公告的補假日視為一般日。</li>
     </ul>
     <div class="hsub">開放期間</div>
@@ -2158,6 +2183,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
         <li>位置：劃假視窗下方的「⚙ 開放設定」。</li>
         <li>可設定開放劃假的月份、開放起日與截止日。</li>
         <li>可決定截止後是否允許臨時劃假。</li>
+        <li>個別開放：可單獨為某位夥伴開放某個月的劃假並設定截止日（例如新進夥伴）；期間內劃的假視為準時，全體未開放或已截止時也可使用。</li>
         <li>下方「劃假紀錄」可清除舊月份，保留月數可選 1／2／3／6 個月；開放中的月份一律保留。</li>
       </ul>
 
@@ -2297,8 +2323,9 @@ const DEFAULT_WARN_RULES = [
   {id:'wkEnd',   on:true, name:'五六下班時間', days:[5,6],         field:'end',   times:[1230,1320]}
 ];
 /* 劃假開放設定：ym=開放劃哪個月，from/to=開放期間，lateOn=期間過後是否仍可臨時劃假，
-   lateLimit=候補是否限時、lateTo=候補截止日（含當天；不限時就一直開到關閉劃假為止） */
-const DEFAULT_LEAVE = {on:false, ym:'', from:'', to:'', lateOn:true, lateLimit:false, lateTo:''};
+   lateLimit=候補是否限時、lateTo=候補截止日（含當天；不限時就一直開到關閉劃假為止）
+   solo=個別開放 [{sid,ym,to}]：單獨為某人開放某個月，到 to（含當天）；期間內劃的假視為準時，不受全體開放與否影響 */
+const DEFAULT_LEAVE = {on:false, ym:'', from:'', to:'', lateOn:true, lateLimit:false, lateTo:'', solo:[]};
 /* 分段工時列：on=是否顯示，names=各段名稱（2～4 段），cuts=分界時間（分鐘，遞增，比段數少一個） */
 const DEFAULT_SPLIT = {on:true, names:['早班','晚班'], cuts:[960]};
 function normSplit(s){ // 補齊並檢查分段設定，不合理就回到預設
@@ -3532,7 +3559,7 @@ async function syncServerClock(){ // 每次連線只校一次
   }catch(e){srvState='fail';refreshLeaveIfOpen()}
 }
 function needServerClock(){ // 劃假的開放判定，以及戰績那五天，都不能被裝置時間左右
-  if(cfg().leave.on)return true;
+  if(cfg().leave.on||(cfg().leave.solo||[]).length)return true;
   // 先用裝置時間粗篩，前後各放寬一天，避免手機時間偏差剛好讓這一天漏掉
   const t=new Date(), y=t.getFullYear(), m=t.getMonth()+1, d=t.getDate();
   const last=new Date(y,m,0).getDate();
@@ -3556,6 +3583,22 @@ function lvStaffOf(id){return (lvIsDemo()?LV_DEMO_STAFF:state.staff).find(x=>x.i
 function leaveWindow(){
   if(lvIsDemo())return {state:'open',L:{on:true,ym:leaveSuggestYm(),from:'',to:''},demo:true};
   return leaveStateOf(cfg().leave);
+}
+function leaveSoloOf(sid){ // 這個人目前的個別開放（沒有或已過截止日就 null）
+  if(!sid||lvIsDemo())return null;
+  const t=todayStr();
+  return (cfg().leave.solo||[]).find(s=>s.sid===sid&&s.ym&&s.to&&t<=s.to)||null;
+}
+function leaveWindowFor(sid){ // 選到某人時的開放狀態：有個別開放就以個別開放為準
+  const s=leaveSoloOf(sid);
+  if(s)return {state:'open',L:Object.assign({},cfg().leave,{on:true,ym:s.ym,from:'',to:s.to,lateOn:false}),solo:s};
+  return leaveWindow();
+}
+function lvRedDays(ym,sid){ // 這個人該月的紅線日（到職前／離職後），劃假時不能點
+  if(!sid||lvIsDemo())return {};
+  const p=parseYm(ym),md=state.months[p.y+'-'+p.m],row=md&&md.sched&&md.sched[sid],o={};
+  if(row)Object.keys(row).forEach(d=>{if(row[d]&&row[d].t==='redline')o[d]=1});
+  return o;
 }
 function leaveStateOf(L){ // 現在能不能劃假：off未開啟／before還沒開放／open開放中／late只剩臨時劃假／closed已截止
   if(!L.on||!L.ym)return {state:'off',L};
@@ -4009,11 +4052,12 @@ let lvWho=null;              // 目前選到的人員 id
 let lvDraft=null;            // 編輯中的劃假內容（按送出才寫雲端）
 let lvOriginal=null;         // 選到這個人時的原始內容，送出時用來比對差異
 let lvBrush={m:'all',t:540,t2:1320};// 目前的筆刷：點日期要套用什麼（only 模式用 t～t2）
-function lvCanEdit(){ // 現在能不能改；回傳 {ok, late, msg}
+function lvCanEdit(sid){ // 現在能不能改（sid＝選到的人，有個別開放就以個別開放為準）；回傳 {ok, late, msg}
   if(lvIsDemo())return {ok:true,late:false,msg:'練習畫面：劃假內容不會送出或儲存。'};
   if(!FB||!leaveDocCode())return {ok:false,msg:'劃假需要連上雲端（本機模式或尚未設定夥伴代碼時無法使用）。'};
   if(srvState==='wait')return {ok:false,wait:true,msg:'正在跟雲端對時間…'};
-  const w=leaveWindow();
+  const w=leaveWindowFor(sid);
+  if(w.solo)return {ok:true,late:false,solo:true,msg:'個別開放中，'+fmtMd(w.solo.to)+' 截止（含當天）。'+(srvState==='ok'?'':'（目前用本機時間判斷）')};
   if(w.state==='off')return {ok:false,msg:'目前沒有開放劃假。'};
   if(w.state==='before')return {ok:false,msg:'劃假將於 '+fmtMd(w.L.from)+' 開放。'};
   if(w.state==='closed')return {ok:false,msg:w.lateEnded?'候補劃假已於 '+fmtMd(w.L.lateTo)+' 截止。':'劃假已於 '+fmtMd(w.L.to)+' 截止。'};
@@ -4033,7 +4077,8 @@ function openLeave(demo){
   updateLeaveBadge();
 }
 function renderLeaveBody(){
-  const w=leaveWindow(),ce=lvCanEdit();
+  const who=(viewerMode||lvIsDemo()||lvTab==='mine')?lvWho:null; // 全員總覽一律看全體開放的那個月
+  const w=leaveWindowFor(who),ce=lvCanEdit(who);
   const ym=w.L&&w.L.ym?w.L.ym:ymOf(state.y,state.m);
   const p=parseYm(ym);
   const lateMode=!!ce.late;
@@ -4042,9 +4087,10 @@ function renderLeaveBody(){
   if(demo)lvTab='mine';
   document.getElementById('lvModal').classList.toggle('demo-mode',demo);
   document.getElementById('lvTitle').textContent=demo?'劃假（練習畫面）':lateMode?'臨時劃假':'劃假';
+  const soloHint=(!who&&!demo&&(!ce.ok||ce.late)&&(cfg().leave.solo||[]).some(s=>s.to>=todayStr()))?'　·　個別開放的夥伴選擇姓名後即可劃假':'';
   document.getElementById('lvSub').innerHTML=
     (w.state==='off'?(viewerMode?'目前沒有開放劃假。':'尚未開放劃假　·　請由下方「⚙ 開放設定」開啟')
-     :'劃 '+p.m+' 月的假　·　'+esc(ce.msg));
+     :'劃 '+p.m+' 月的假　·　'+esc(ce.msg))+soloHint;
   if(viewerMode)lvTab='mine';
   document.querySelector('.lv-tabs').style.display=(viewerMode||demo)?'none':'';
   document.querySelectorAll('.lv-tab').forEach(t=>t.classList.toggle('on',t.dataset.lvtab===lvTab));
@@ -4079,7 +4125,8 @@ function lvMineHtml(ym,ce){
      [0,1,2,3,4,5,6].map(i=>'<button class="lv-bt" data-lvwd="'+i+'">'+WD[i]+'</button>').join('')+
      '<button class="lv-bt" id="btnLvApplyWd" style="border-color:var(--blue);color:var(--blue)">套用</button></div>';
   h+=lvMonthNote(ym);
-  h+=lvCalHtml(ym,lvDraft,false);
+  if(Object.keys(lvRedDays(ym,lvWho)).length)h+='<div class="small-note" style="margin:2px 0 4px">紅線的日子（到職前／離職後）無法劃假。</div>';
+  h+=lvCalHtml(ym,lvDraft,false,lvWho);
   h+='<div class="sec-label">補充說明（選填）</div>'+
      '<div class="small-note" style="margin-bottom:4px">日曆寫不下的事，例如「真的缺人可以支援」「可以上但要提早走」。</div>'+
      '<input class="txt lv-note-in" id="lvNote" placeholder="例如：缺人的話這天可以支援" value="'+esc((lvDraft&&lvDraft.note)||'')+'">';
@@ -4104,16 +4151,18 @@ function timeOptions(sel){ // 自己做選單，不用 type="time"：平板上�
 function lvBtn(m,label){
   return '<button class="lv-bt'+(lvBrush.m===m?' on':'')+'" data-lvbrush="'+m+'">'+label+'</button>';
 }
-function lvCalHtml(ym,obj,locked){ // 目標月份的日曆
+function lvCalHtml(ym,obj,locked,sid){ // 目標月份的日曆（sid：標出這個人的紅線日）
   const {y,m}=parseYm(ym);
   const N=new Date(y,m,0).getDate();
   const first=new Date(y,m-1,1).getDay();
   const natMap=withMonth(ym,()=>{const o={};for(let d=1;d<=N;d++)if(isNational(d))o[d]={n:holidayName(d),mk:isMakeup(d)};return o});
   let h='<div class="lv-cal">'+WD.map((w,i)=>'<div class="lv-wd'+(i===0||i===6?' red':'')+'">'+w+'</div>').join('');
   for(let i=0;i<first;i++)h+='<div class="lv-d pad"></div>';
+  const reds=lvRedDays(ym,sid);
   for(let d=1;d<=N;d++){
     const x=obj&&obj.days?obj.days[d]:null;
     let cls='lv-d';
+    if(reds[d])cls+=' lv-red'+(locked?'':' locked');
     const wd=new Date(y,m-1,d).getDay();
     if(wd===0||wd===6)cls+=' red-day';
     const nat=natMap[d];
@@ -4126,14 +4175,15 @@ function lvCalHtml(ym,obj,locked){ // 目標月份的日曆
     if(locked)cls+=' locked';
     h+='<div class="'+cls+'" data-lvday="'+d+'" title="'+esc(nat?nat.n:'')+'">'+d+
        (nat?'<span class="lv-nat'+(nat.mk?' mk':'')+'">'+(nat.mk?'補':'國')+'</span>':'')+
-       (x?'<span class="lv-tag">'+(x.m==='all'?'整天':x.m==='only'?(fmtDec(x.t)+'~'+fmtDec(x.t2)):(x.m==='after'?('~'+fmtHM(x.t)):(fmtHM(x.t)+'~')))+'</span>':'')+
+       (x?'<span class="lv-tag">'+(x.m==='all'?'整天':x.m==='only'?(fmtDec(x.t)+'~'+fmtDec(x.t2)):(x.m==='after'?('~'+fmtHM(x.t)):(fmtHM(x.t)+'~')))+'</span>'
+         :reds[d]?'<span class="lv-tag lv-red-tag">未在職</span>':'')+
        '</div>';
   }
   return h+'</div>';
 }
 function lvOneHtml(ym,sid,readonly){ // 單一個人的目前劃假（唯讀顯示）
   const o=leaveOf(ym,sid);
-  return lvCalHtml(ym,o,true);
+  return lvCalHtml(ym,o,true,sid);
 }
 function lvLateHtml(ym,o){ // 截止後的修改：每天「截止前 → 現在」
   const list=lvLateList(o);if(!list.length)return '';
@@ -4168,8 +4218,40 @@ function lvAllHtml(ym){ // 全員總覽，臨時劃的另外標；不在該月�
   return h;
 }
 /* 開放設定：主管代碼就能改，跟後台的那份是同一筆設定 */
+let lcSolo=[]; // 開放設定編輯中的個別開放
+function renderLcSolo(){
+  const t=todayStr(),box=document.getElementById('lcSoloList');
+  const nm=sid=>{const st=state.staff.find(x=>x.id===sid);return st?st.name:'（已刪除的人員）'};
+  box.innerHTML=lcSolo.map((s,i)=>'<div class="lc-solo-row'+(s.to<t?' ended':'')+'"><b>'+esc(nm(s.sid))+'</b>'+
+    '<span>'+parseYm(s.ym).m+' 月　'+fmtMd(s.to)+' 截止'+(s.to<t?'（已結束）':'（含當天）')+'</span>'+
+    '<button class="btn" data-solodel="'+i+'">移除</button></div>').join('');
+  const used=new Set(lcSolo.map(s=>s.sid));
+  document.getElementById('lcSoloWho').innerHTML='<option value="">— 選擇人員 —</option>'+
+    state.staff.filter(st=>!st.hidden).map(st=>'<option value="'+st.id+'">'+esc(st.name)+(used.has(st.id)?'（重新設定）':'')+'</option>').join('');
+}
+document.getElementById('lcSoloList').addEventListener('click',ev=>{
+  const b=ev.target.closest('[data-solodel]');if(!b)return;
+  lcSolo.splice(+b.dataset.solodel,1);renderLcSolo();
+});
+document.getElementById('btnLcSoloAdd').addEventListener('click',()=>{
+  const sid=document.getElementById('lcSoloWho').value,ym=document.getElementById('lcSoloYm').value,to=document.getElementById('lcSoloTo').value;
+  if(!sid){alert('請選擇要個別開放的人員。');return}
+  if(!ym){alert('請選擇月份。');return}
+  if(!to){alert('請填截止日。');return}
+  if(to<todayStr()){alert('截止日不能早於今天。');return}
+  lcSolo=lcSolo.filter(s=>s.sid!==sid).concat([{sid,ym,to}]);
+  renderLcSolo();
+  showToast('按「儲存」後生效');
+});
 function openLeaveCfg(){
   const L=cfg().leave;
+  lcSolo=(L.solo||[]).map(s=>Object.assign({},s));
+  renderLcSolo();
+  document.getElementById('lcSoloYm').innerHTML=(()=>{ // 從這個月起 6 個月，預設這個月（新進夥伴多半要補這個月）
+    const t=new Date(nowMs());let y=t.getFullYear(),m=t.getMonth()+1,h='';
+    for(let i=0;i<6;i++){h+='<option value="'+ymOf(y,m)+'">'+(y-1911)+'年'+m+'月</option>';m++;if(m>12){m=1;y++}}
+    return h})();
+  document.getElementById('lcSoloTo').value=isoDay(new Date(nowMs()+7*864e5));
   document.getElementById('lcOn').checked=!!L.on;
   document.getElementById('lcYm').innerHTML=leaveYmOptions(L.ym||leaveSuggestYm());
   document.getElementById('lcFrom').value=L.from||'';
@@ -4191,6 +4273,7 @@ function leaveKeepSet(keep){ // 要保留的月份：最近 keep 個月 ＋ 正�
   all.slice(-keep).forEach(k=>set[k]=1);
   const open=cfg().leave.ym;
   if(open)set[open]=1;
+  (cfg().leave.solo||[]).forEach(s=>{if(s.ym)set[s.ym]=1}); // 個別開放中的月份也保留
   return set;
 }
 function renderPurgeInfo(){
@@ -4300,6 +4383,7 @@ document.getElementById('btnLeaveCfgSave').addEventListener('click',()=>{
     lateOn:document.getElementById('lcLate').checked
   };
   Object.assign(nl,lateFields('lc'));
+  nl.solo=lcSolo.filter(s=>s.to>=todayStr()); // 已結束的個別開放存檔時順手清掉
   if(nl.on){
     if(!nl.ym){alert('請選擇要開放劃哪一個月。');return}
     if(!nl.from||!nl.to){alert('請填開放起日與截止日。');return}
@@ -4312,7 +4396,7 @@ document.getElementById('btnLeaveCfgSave').addEventListener('click',()=>{
   document.getElementById('ovLeaveCfg').classList.remove('show');
   if(nl.on&&srvState!=='ok')syncServerClock(); // 剛開啟時補一次校時
   renderLeaveBody();
-  showToast(nl.on?'已開放劃假 ✓':'已關閉劃假');
+  showToast(nl.on?'已開放劃假 ✓':nl.solo.length?'已儲存　全體未開放，個別開放 '+nl.solo.length+' 位':'已關閉劃假');
 });
 
 /* 事件 */
@@ -4334,7 +4418,7 @@ document.getElementById('lvBody').addEventListener('change',ev=>{
   if(ev.target.id==='lvWhoSel'){
     if(lvUnsent()&&!confirm('目前的劃假還沒送出，切換姓名會放棄這次的修改。確定要切換嗎？')){ev.target.value=lvWho||'';return}
     lvWho=ev.target.value||null;
-    const ym=(leaveWindow().L||{}).ym||ymOf(state.y,state.m);
+    const ym=(leaveWindowFor(lvWho).L||{}).ym||ymOf(state.y,state.m);
     const o=lvWho?leaveOf(ym,lvWho):null;
     lvOriginal=o?JSON.parse(JSON.stringify(o)):{days:{},note:'',log:[]};
     lvDraft=JSON.parse(JSON.stringify(lvOriginal));
@@ -4362,7 +4446,7 @@ document.getElementById('lvBody').addEventListener('click',ev=>{
   if(ed){
     if(ed.dataset.lvedit!==lvWho&&lvUnsent()&&!confirm('目前的劃假還沒送出，切換姓名會放棄這次的修改。確定要切換嗎？'))return;
     lvTab='mine';lvWho=ed.dataset.lvedit;
-    const ym=(leaveWindow().L||{}).ym||ymOf(state.y,state.m);
+    const ym=(leaveWindowFor(lvWho).L||{}).ym||ymOf(state.y,state.m);
     const o=leaveOf(ym,lvWho);
     lvOriginal=o?JSON.parse(JSON.stringify(o)):{days:{},note:'',log:[]};
     lvDraft=JSON.parse(JSON.stringify(lvOriginal));
@@ -4375,8 +4459,10 @@ document.getElementById('lvBody').addEventListener('click',ev=>{
   }
 });
 function paintDay(d){
+  const ym=(leaveWindowFor(lvWho).L||{}).ym||ymOf(state.y,state.m);
+  if(lvRedDays(ym,lvWho)[d])return false; // 紅線日（到職前／離職後）不能劃
   if(lvBrush.m==='clear'){delete lvDraft.days[d];return}
-  const late=!!lvCanEdit().late;
+  const late=!!lvCanEdit(lvWho).late;
   const x={m:lvBrush.m};
   if(lvBrush.m!=='all')x.t=lvBrush.t;
   if(lvBrush.m==='only')x.t2=lvBrush.t2;
@@ -4393,13 +4479,13 @@ function applyBrushToWeekdays(){
   if(!picked.length){showToast('請先選擇星期，再按「套用」');return}
   if(!lvDraft){showToast('請先選擇姓名');return}
   if(!lvBrushValid())return;
-  const ym=(leaveWindow().L||{}).ym||ymOf(state.y,state.m);
+  const ym=(leaveWindowFor(lvWho).L||{}).ym||ymOf(state.y,state.m);
   const {y,m}=parseYm(ym);
   const N=new Date(y,m,0).getDate();
   let n=0;
   for(let d=1;d<=N;d++){
     if(!picked.includes(new Date(y,m-1,d).getDay()))continue;
-    paintDay(d);n++;
+    if(paintDay(d)!==false)n++; // 紅線日跳過
   }
   renderLeaveBody();
   showToast((lvBrush.m==='clear'?'已清除 ':'已套用 ')+n+' 天');
@@ -4413,9 +4499,9 @@ document.getElementById('btnLeaveSave').addEventListener('click',async()=>{
     showToast('已送出劃假 ✓（練習，未實際送出）',3500);
     return;
   }
-  const ce=lvCanEdit();
+  const ce=lvCanEdit(lvWho);
   if(!ce.ok){showToast(ce.msg);return}
-  const ym=(leaveWindow().L||{}).ym||ymOf(state.y,state.m);
+  const ym=(leaveWindowFor(lvWho).L||{}).ym||ymOf(state.y,state.m);
   lvSettle(lvOriginal,lvDraft,ce.late); // 截止後的修改：記下截止前的劃法
   lvDraft.log=buildLeaveLog(lvOriginal,lvDraft,ce.late); // 留下這次改了什麼，取消劃假也記得住
   const ok=await saveLeave(ym,lvWho,lvDraft);
@@ -5394,8 +5480,12 @@ document.getElementById('btnCloseNote').addEventListener('click',()=>document.ge
    更新次數自目前大版本上線起，每上傳一次 index.html 加 1（劃假上線那次為 000）。
    每次更新：APP_VERSION 改成「3.115MMDD.次數」，CHANGELOG 最上面同一天的那筆 ver 跟著改；新的一天加一筆。
    add＝新增功能，fix＝問題改善；項目寫成 [文字, 1] 表示只有主管會用到（夥伴代碼不顯示） */
-const APP_VERSION='3.1151102.072';
+const APP_VERSION='3.1151104.073';
 const CHANGELOG=[
+  {v:'2026.11.04',ver:'3.1151104.073',add:[
+    ['劃假「⚙ 開放設定」新增「個別開放」：可單獨為某位夥伴開放某個月的劃假並設定截止日，期間內劃的假視為準時，不列為臨時。',1],
+    ['劃假日曆上，紅線的日子（到職前／離職後）標示「未在職」，無法選取。']
+  ]},
   {v:'2026.11.02',ver:'3.1151102.072',add:[
     ['截止後修改劃假時，保留截止前的劃法：排班視窗列出「截止前：…」，劃假「全員總覽」列出每一天「截止前 → 現在」。',1],
     ['截止後取消的劃假保留紀錄，班表空格標「取消」。',1],
@@ -5902,9 +5992,11 @@ function tourSteps(role,full){ // full：完整新手教學，走到排班、開
       {el:()=>shown([lab('lcLate'),$('#lcLateLimBox'),$('#lcHint')]),act:1,h:'④ 截止後的候補',
         b:'勾選<b>「截止後仍可臨時劃假」</b>：截止後仍可劃假，標示為「臨時」並列為候補，可於 🔔 依送出先後處理。<br>'+
           '再勾選<b>「候補也要限時」</b>並填寫候補截止日，逾期即鎖定；未勾選則持續開放至關閉劃假或更換月份。'},
-      {el:()=>shown([$('#lcPurgeInfo'),($('#lcKeep')||{}).parentElement]),h:'⑤ 劃假紀錄',
+      {el:()=>tourShown($('#lcSoloSec')),h:'⑤ 個別開放',
+        b:'單獨為某位夥伴開放劃假，例如新進夥伴：選擇人員、月份與截止日，按「＋ 個別開放」，再按「儲存」。<br>期間內劃的假視為準時，不列為臨時；全體未開放或已截止時也可使用。'},
+      {el:()=>shown([$('#lcPurgeInfo'),($('#lcKeep')||{}).parentElement]),h:'⑥ 劃假紀錄',
         b:'雲端保留每月的劃假紀錄。可設定僅保留最近幾個月，按「清除其餘」刪除較早的紀錄；<b>開放中的月份不會刪除</b>，班表不受影響。'},
-      {el:()=>tourShown($('#ovLeaveCfg .m-actions')),act:1,need:()=>!document.getElementById('ovLeaveCfg').classList.contains('show'),h:'⑥ 儲存',
+      {el:()=>tourShown($('#ovLeaveCfg .m-actions')),act:1,need:()=>!document.getElementById('ovLeaveCfg').classList.contains('show'),h:'⑦ 儲存',
         b:'設定完成後按<b>「儲存」</b>才會生效；不變更則按「取消」。<br>請按「儲存」查看儲存後的畫面，教學中不會實際變更設定。'}
     ];
   }
@@ -6990,7 +7082,8 @@ function leaveFromFields(){
     from:document.getElementById('cfgLeaveFrom').value||'',
     to:document.getElementById('cfgLeaveTo').value||'',
     lateOn:document.getElementById('cfgLeaveLate').checked,
-    ...lateFields('cfgLeave')
+    ...lateFields('cfgLeave'),
+    solo:((cfgLeaveLoaded&&cfgLeaveLoaded.solo)||[]).map(s=>Object.assign({},s)) // 個別開放在劃假的「⚙ 開放設定」編輯，這裡原樣保留
   };
 }
 async function saveCfgToTarget(newCfg){ // 寫入目前選定的代碼：自己的就走一般儲存，別的代碼直接寫回雲端
