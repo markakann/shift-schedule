@@ -616,6 +616,14 @@ html.dark .lv-off-tag{color:#f0b978;border-color:#a8743a}
 .pub-bar span{flex:1;min-width:12em}
 .pub-bar.draft,.pub-bar.dirty{background:#fff4e6;border:1.5px solid #e0a05a;color:#8a4a06}
 .pub-bar.ok{color:#2a8a4a;padding:0 4px;font-size:12px;margin-bottom:4px}
+.pub-bar.plan{background:#eef4ff;border:1.5px solid #8fb0e8;color:#1e4bb8}
+html.dark .pub-bar.plan{background:#1d2a44;border-color:#3d5a94;color:#9fbfff}
+.pub-when{margin-top:10px;padding-top:4px}
+.pub-when .cfg-row input.txt{width:auto;flex:1;min-width:0}
+.pub-when .cfg-row input.txt:disabled{opacity:.45}
+.pub-nt.off{opacity:.55}
+.pub-nt .pub-tag{display:inline-block;margin-left:6px;padding:0 5px;border-radius:5px;border:1px solid #999;color:#888;font-size:11px;font-weight:700;vertical-align:1px}
+.pub-nt .pub-tag.ok{border-color:#2a8a4a;color:#2a8a4a}
 .pub-bar .btn{padding:4px 12px;font-size:13px}
 html.dark .pub-bar.draft,html.dark .pub-bar.dirty{background:#3d2f1c;border-color:#8a6633;color:#f0b978}
 html.dark .pub-bar.ok{color:#6fcf8f}
@@ -1843,6 +1851,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
       <button class="btn cfg-item" data-cfgpanel="ovCfgWarn"><span>時段提醒</span><small id="sumWarn"></small></button>
       <button class="btn cfg-item" data-cfgpanel="ovCfgLeave"><span>劃假</span><small id="sumLeave"></small></button>
       <button class="btn cfg-item" data-cfgpanel="ovCfgSplit"><span>分段工時</span><small id="sumSplit"></small></button>
+      <button class="btn cfg-item" data-cfgpanel="ovCfgPub"><span>發布</span><small id="sumPub"></small></button>
       <button class="btn cfg-item" id="btnOpenCalCfg"><span>行事曆</span><small id="sumCal"></small></button>
     </div>
     <div class="cfg-menu" style="margin-top:8px">
@@ -1891,6 +1900,21 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
     <div class="small-note">排入這些時間時以粉色標示，提示可能的輸入錯誤。時間可輸入多組，逗號或頓號皆可。</div>
     <div id="cfgWarnList"></div>
     <button class="btn" id="btnAddWarnRule" style="width:100%;margin-top:8px">＋ 新增提醒</button>
+    <div class="m-actions"><button class="btn primary cfg-back">完成</button></div>
+  </div>
+</div>
+
+<!-- 後台：發布 -->
+<div class="overlay" id="ovCfgPub">
+  <div class="modal">
+    <div class="m-title">發布</div>
+    <div class="m-sub">排好的班按「發布」後夥伴才看得到。以下為鎖定排班與打開 App 時的處理方式。</div>
+    <div class="sec-label" style="margin-top:10px">鎖定排班時</div>
+    <label class="cfg-row"><input type="radio" name="cfgPubLock" value="none"><span>不詢問，於班表上方自行發布（預設）</span></label>
+    <label class="cfg-row"><input type="radio" name="cfgPubLock" value="ask"><span>詢問是否發布</span></label>
+    <label class="cfg-row"><input type="radio" name="cfgPubLock" value="auto"><span>直接發布這次改到的月份</span></label>
+    <div class="hr"></div>
+    <label class="cfg-row"><input type="checkbox" id="cfgPubRemind"><span>打開 App 時提醒未發布的班表</span></label>
     <div class="m-actions"><button class="btn primary cfg-back">完成</button></div>
   </div>
 </div>
@@ -2007,6 +2031,11 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
     <div class="m-title">發布班表</div>
     <div class="m-sub">發布後夥伴才看得到。已發布的月份之後再修改，也要再發布一次才會更新給夥伴。</div>
     <div id="pubList"></div>
+    <div class="pub-when">
+      <label class="cfg-row"><input type="radio" name="pubWhen" value="now" checked><span>立即發布</span></label>
+      <label class="cfg-row"><input type="radio" name="pubWhen" value="at"><span>指定時間</span><input class="txt" type="datetime-local" id="pubAt"></label>
+      <div class="small-note" id="pubAtNote">時間一到夥伴就看得到，內容以當時的最新版本為準；預約後，夥伴的 🔔 會先通知預定時間。</div>
+    </div>
     <div class="small-note" style="margin-top:8px">發布後，夥伴開啟 App 時會收到通知，🔔 也會列出更新的日期。</div>
     <div class="m-actions">
       <button class="btn primary" id="btnPubGo">發布</button>
@@ -2188,7 +2217,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
       <li>本頁最上方的「🏖 劃假教學」開啟<b>練習畫面</b>，依序操作一次劃假（選擇姓名、劃假方式、日期、送出）：名單為示範用的 Rich、Amanda，劃假未開放時亦可練習，內容不會送出或儲存。</li>
       <li class="edit-only">「📝 排班教學」實際點選一格，依序操作班別、自訂時間、排休、特休等假別與特定時段；教學中排入的內容不會儲存，結束後自動還原。班表尚無人員時以示範班表練習。未看過時，第一次按「🔒 排班」解鎖會自動開始。</li>
       <li class="edit-only">「⚙ 開放劃假教學」逐項介紹開放劃假的設定（月份、期間、候補、個別開放、紀錄保留），最後可實際按一次「儲存」查看結果，設定不會變更。未看過時，第一次開啟劃假的「⚙ 開放設定」會自動開始。</li>
-      <li class="view-only">主管發布或更新班表時，工具列的 🔔 出現紅點，開啟 App 時也會跳出通知；點 🔔 可查看更新的月份與日期，點選即切換到該月份。尚未發布的月份顯示「尚未發布」。</li>
+      <li class="view-only">主管發布或更新班表時，工具列的 🔔 出現紅點，開啟 App 時也會跳出通知；點 🔔 可查看更新的月份與日期，點選即切換到該月份。尚未發布的月份顯示「尚未發布」；預約發布的月份另外通知預定時間，時間一到自動顯示。</li>
       <li>本頁最上方的「📲 安裝到手機」：Android 與 iPhone／iPad 的安裝步驟示意圖；Android 的 Chrome 可直接按「直接安裝」。安裝後由主畫面的「我的班表」圖示開啟。</li>
       <li>LINE 內建的瀏覽器無法安裝，代碼也不會保留到手機的瀏覽器。從 LINE 點網址時會自動改用預設瀏覽器開啟；仍在 LINE 內時，畫面上方會提示改用「以預設瀏覽器開啟」。<span class="edit-only">傳網址給夥伴時，可用「⋯ → 複製代碼 → 複製邀請訊息（LINE 用）」，網址與夥伴代碼一起複製。</span></li>
       <li>App 啟動或下拉重整時會播開啟動畫，點一下畫面可跳過。從其他 App 切回來不會重播，畫面維持在原本的位置。</li>
@@ -2201,7 +2230,9 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
       <ul class="hul">
         <li>按「🔒 排班」解鎖後方可編輯，再按一次即鎖定。</li>
         <li><b>發布</b>　排好的班按「發布」後夥伴才看得到。新的月份預設為草稿，班表上方顯示目前狀態（尚未發布／有修改尚未發布／已發布）。</li>
-        <li>已發布的月份再修改時，夥伴看到的仍是上次發布的版本；修改過的格子右上角標示<b style="color:#e08a2a">橘色三角</b>，按「發布更新」後才更新給夥伴。鎖定排班時，這次改到的月份有未發布的內容會詢問是否發布；打開 App 時也會提醒。</li>
+        <li>已發布的月份再修改時，夥伴看到的仍是上次發布的版本；修改過的格子右上角標示<b style="color:#e08a2a">橘色三角</b>，按「發布更新」後才更新給夥伴。</li>
+        <li><b>預約發布</b>　發布視窗選「指定時間」：時間一到夥伴就看得到，內容以當時的最新版本為準；預約後夥伴的 🔔 先通知預定時間。班表上方可「立即發布」或「取消預約」。</li>
+        <li>鎖定排班時要不要詢問發布（不詢問／詢問／直接發布），以及打開 App 時是否提醒未發布的班表，於後台設定「發布」調整；預設鎖定時不詢問、打開 App 時提醒。</li>
         <li>發布後，夥伴開啟 App 時跳出通知，夥伴的 🔔 列出更新的月份與日期。人員名單、劃假開放設定等不受發布控制，儲存後即同步。</li>
         <li>自訂時間以 15 分鐘為單位，分鐘可為 00、15、30、45（例如 900、1315、1345）；±按鈕每次調整 15 分鐘。</li>
         <li>班表上以小時的小數顯示：13:15 寫成 13.25、13:30 寫成 13.5、13:45 寫成 13.75。</li>
@@ -2394,7 +2425,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
       <div class="sec-label">後台設定</div>
       <ul class="hul">
         <li>需管理者帳號登入。</li>
-        <li>採選單形式，各項分別設定，右側顯示目前內容：班段、覆蓋檢查規則、時段提醒、劃假、分段工時、行事曆。</li>
+        <li>採選單形式，各項分別設定，右側顯示目前內容：班段、覆蓋檢查規則、時段提醒、劃假、分段工時、發布、行事曆。</li>
         <li>「更新日誌」逐日列出各版本的新增功能與問題改善；目前版本號另顯示於「⋯ 更多」最下方。</li>
         <li>修改後需按「儲存設定」。有未儲存的變更時按鈕顯示 ●；未儲存即關閉將出現確認提示。</li>
         <li>每組主管代碼各有獨立設定，亦可於此設定其他主管代碼。行事曆例外：所有主管代碼共用，儲存後套用到全部主管代碼。</li>
@@ -2439,6 +2470,9 @@ const DEFAULT_WARN_RULES = [
 const DEFAULT_LEAVE = {on:false, ym:'', from:'', to:'', lateOn:true, lateLimit:false, lateTo:'', solo:[]};
 /* 分段工時列：on=是否顯示，names=各段名稱（2～4 段），cuts=分界時間（分鐘，遞增，比段數少一個） */
 const DEFAULT_SPLIT = {on:true, names:['早班','晚班'], cuts:[960]};
+/* 發布的提醒方式：lock＝鎖定排班時 none 不詢問／ask 詢問／auto 直接發布；remind＝打開 App 時提醒未發布的班表 */
+const DEFAULT_PUBCFG = {lock:'none', remind:true};
+function normPubCfg(s){s=s||{};return {lock:['none','ask','auto'].includes(s.lock)?s.lock:'none',remind:s.remind!==false}}
 function normSplit(s){ // 補齊並檢查分段設定，不合理就回到預設
   const d=DEFAULT_SPLIT;
   if(!s||typeof s!=='object')return {on:d.on,names:d.names.slice(),cuts:d.cuts.slice()};
@@ -2456,7 +2490,8 @@ const DEFAULT_CONFIG = {
   rules: DEFAULT_RULES.map(r=>Object.assign({},r,{times:r.times.slice()})),
   warnRules: DEFAULT_WARN_RULES.map(r=>Object.assign({},r,{days:r.days.slice(),times:r.times.slice()})),
   leave: Object.assign({},DEFAULT_LEAVE),
-  split: normSplit(DEFAULT_SPLIT)
+  split: normSplit(DEFAULT_SPLIT),
+  pub: normPubCfg(DEFAULT_PUBCFG)
 };
 function migrateWarnRules(c){ // 舊版設定(warn物件)自動轉成新的提醒規則清單，行為完全不變
   if(Array.isArray(c.warnRules))return c.warnRules;
@@ -2489,7 +2524,8 @@ function cfg(){ // 取得目前設定，缺漏的欄位自動以預設值補齊�
     rules:         migrateRules(c),
     warnRules:     migrateWarnRules(c),
     leave:         Object.assign({},DEFAULT_LEAVE,c.leave||{}),
-    split:         normSplit(c.split)
+    split:         normSplit(c.split),
+    pub:           normPubCfg(c.pub)
   };
 }
 function ruleLabel(r){ // 規則沒被滿足時顯示的說明文字
@@ -2599,7 +2635,10 @@ function payloadStr(){
    主管這份（stores）照常即時存檔；夥伴讀的唯讀複本（views）只放已發布的內容。
    月份：沒有 pub＝草稿（夥伴看不到）；pub={at}＝已發布；
          pubSnap＝已發布後又有修改時，發布當下的版本（夥伴看這份）。再發布就拿掉。
-   pubV：已啟用發布機制；pubLog：發布紀錄 [{at,ym,first,days}]，夥伴的通知與 🔔 用，最多留 30 筆。 */
+         pubPlan={at}＝預約發布時間：到時間夥伴就看得到（以當時的最新內容為準）。
+   pubV：已啟用發布機制；pubLog：發布紀錄，夥伴的通知與 🔔 用，最多留 30 筆：
+         {at,ym,first,days}＝發布（planned:1＝預約的那次，at 為預約時間，到時間才顯示）；{kind:'plan',at,ym,planAt}＝預約通知。
+   夥伴那份的月份：planAt＋pending（最新內容）＝預約中，夥伴的 App 依雲端時間到點才換上 pending。 */
 let payloadMonthKeys=new Set(); // 夥伴端：雲端資料裡實際有的月份
 function pubContent(m){m=m||{};return {sched:m.sched||{},notes:m.notes||[],dayOv:m.dayOv||{},dayNames:m.dayNames||{},roster:m.roster}}
 function stableStr(v){ // 鍵排序後的 JSON，比對內容用（新增刪除的順序不同不算改過）
@@ -2614,8 +2653,9 @@ function viewPayloadOf(o){ // 夥伴讀的版本：草稿月份不給內容；�
   Object.keys(o.months||{}).forEach(k=>{
     const m=o.months[k];if(!m)return;
     if(legacy){ms[k]=m;return}
-    if(!m.pub){ms[k]={unpub:1,sched:{},notes:[],dayOv:{},dayNames:{},roster:[]};return}
-    ms[k]=Object.assign(pubContent(m.pubSnap||m),{pubAt:m.pub.at});
+    const plan=m.pubPlan&&m.pubPlan.at?{planAt:m.pubPlan.at,pending:pubContent(m)}:{}; // 預約中：先放最新內容，到點才顯示
+    if(!m.pub){ms[k]=Object.assign({unpub:1,sched:{},notes:[],dayOv:{},dayNames:{},roster:[]},plan);return}
+    ms[k]=Object.assign(pubContent(m.pubSnap||m),{pubAt:m.pub.at},plan);
   });
   v.months=ms;v.pubLog=(o.pubLog||[]).slice(-30);
   return v;
@@ -2647,6 +2687,45 @@ function pubTrack(){ // 存檔前：已發布的月份有修改就留下發布�
     const b=pubBase(k);
     if(pubSame(pubContent(m),b))delete m.pubSnap;else m.pubSnap=b;
   });
+  Object.keys(state.months).forEach(k=>{ // 預約中的那筆發布紀錄：更新的日期跟著最新內容
+    const m=state.months[k];if(!m||!m.pubPlan)return;
+    const e=(state.pubLog||[]).find(x=>x.planned&&x.ym===k&&x.at===m.pubPlan.at);
+    if(e)e.days=m.pub?((pubChanges(k)||{days:[]}).days):[];
+  });
+}
+function pubFinalizePlans(){ // 預約時間到了：主管這邊也改成已發布（內容＝夥伴那份到點換上的最新內容）
+  if(viewerMode)return false;
+  const now=nowMs();let ch=false;
+  Object.keys(state.months).forEach(k=>{
+    const m=state.months[k];
+    if(m&&m.pubPlan&&m.pubPlan.at<=now){m.pub={at:m.pubPlan.at};delete m.pubPlan;delete m.pubSnap;ch=true}
+  });
+  return ch;
+}
+function pubArmTimer(){ // 主管：App 開著時，預約時間一到就切成已發布
+  clearTimeout(pubArmTimer._t);
+  if(viewerMode)return;
+  const now=nowMs(),next=Math.min(...Object.values(state.months).map(m=>m&&m.pubPlan?m.pubPlan.at:Infinity));
+  if(next<Infinity)pubArmTimer._t=setTimeout(()=>{if(pubFinalizePlans()){scheduleSave();renderAll()}pubArmTimer()},Math.min(Math.max(next-now+800,1000),2147483000));
+}
+function pubCancelPlan(k){
+  const m=state.months[k];if(!m||!m.pubPlan)return;
+  const now=nowMs();
+  delete m.pubPlan;
+  state.pubLog=(state.pubLog||[]).filter(x=>!(x.planned&&x.ym===k&&x.at>now));
+  scheduleSave();renderAll();pubArmTimer();
+  showToast('已取消 '+(+k.split('-')[1])+' 月的預約發布');
+}
+function resolveViewerPlans(){ // 夥伴端：預約時間到了就換上預約的內容；App 開著時到點自動換
+  const now=nowMs();let next=Infinity;
+  Object.keys(state.months).forEach(k=>{
+    const m=state.months[k];if(!m||!m.planAt||!m.pending)return;
+    if(now>=m.planAt)state.months[k]=Object.assign({},m.pending,{pubAt:m.planAt,planDone:m.planAt});
+    else next=Math.min(next,m.planAt);
+  });
+  (state.pubLog||[]).forEach(x=>{if((x.at||0)>now)next=Math.min(next,x.at)});
+  clearTimeout(resolveViewerPlans._t);
+  if(next<Infinity)resolveViewerPlans._t=setTimeout(()=>{resolveViewerPlans();renderAll();pubNotifyViewer()},Math.min(Math.max(next-now+500,1000),2147483000));
 }
 function pubChanges(k){ // 已發布後的修改：{days,other,cells}；沒有修改回傳 null
   const m=state.months[k],b=pubBase(k);if(!m||!b)return null;
@@ -2666,10 +2745,10 @@ function pubChanges(k){ // 已發布後的修改：{days,other,cells}；沒有�
   return {days:[...days].sort((p,q)=>p-q),other,cells};
 }
 function monthHasContent(m){return !!m&&(Object.values(m.sched||{}).some(r=>r&&Object.keys(r).length)||(m.notes||[]).length>0)}
-function pubPending(){ // 有待發布內容的月份
+function pubPending(){ // 有待發布內容的月份（已預約的不算，時間到會自動發布最新內容）
   return Object.keys(state.months).map(k=>{
     const m=state.months[k],[y,mo]=k.split('-').map(Number);
-    if(!m)return null;
+    if(!m||m.pubPlan)return null;
     if(!m.pub)return monthHasContent(m)?{k,y,m:mo,first:1}:null;
     const ch=pubChanges(k);return ch?{k,y,m:mo,ch}:null;
   }).filter(Boolean).sort((p,q)=>(p.y*12+p.m)-(q.y*12+q.m));
@@ -2688,7 +2767,11 @@ function renderPubBar(){ // 班表上方：這個月的發布狀態
   const bar=document.getElementById('pubBar');if(!bar)return;
   if(!pubEnabled()){bar.style.display='none';return}
   const k=ym(),m=state.months[k];let cls,h;
-  if(!m||!m.pub){
+  if(m&&m.pubPlan){
+    cls='plan';
+    h='<span>⏰ <b>'+state.m+' 月預定 '+fmtMdHm(m.pubPlan.at)+' 發布</b>，到時間夥伴就看得到（以當時的最新內容為準）。</span>'+
+      '<button class="btn primary" data-pubgo="'+k+'">立即發布</button><button class="btn" data-pubcancel="'+k+'">取消預約</button>';
+  }else if(!m||!m.pub){
     cls='draft';
     h='<span>📝 <b>'+state.m+' 月尚未發布</b>，夥伴看不到這個月的班表。</span>'+(monthHasContent(m)?'<button class="btn primary" data-pubgo="'+k+'">發布 '+state.m+' 月</button>':'');
   }else{
@@ -2699,25 +2782,39 @@ function renderPubBar(){ // 班表上方：這個月的發布狀態
   bar.className='pub-bar '+cls;bar.innerHTML=h;bar.style.display='';
 }
 function openPublish(pre){
-  const list=pubPending();
+  const plans=Object.keys(state.months).filter(k=>state.months[k]&&state.months[k].pubPlan).map(k=>{const [y,mo]=k.split('-').map(Number);return {k,y,m:mo,plan:state.months[k].pubPlan.at}});
+  const list=pubPending().concat(plans).sort((p,q)=>(p.y*12+p.m)-(q.y*12+q.m));
   if(!list.length){showToast('沒有需要發布的內容');return}
   const preset=new Set(pre&&pre.length?pre:[ym()]);
   document.getElementById('pubList').innerHTML=list.map(x=>
     '<label class="pub-row"><input type="checkbox" data-pubk="'+x.k+'"'+(preset.has(x.k)?' checked':'')+'>'+
-    '<span><b>'+pubYmLabel(x.y,x.m)+'</b>　'+(x.first?'草稿，第一次發布':esc(pubChText(x.m,x.ch)))+'</span></label>').join('');
+    '<span><b>'+pubYmLabel(x.y,x.m)+'</b>　'+(x.plan?'已預約 '+fmtMdHm(x.plan)+' 發布':x.first?'草稿，第一次發布':esc(pubChText(x.m,x.ch)))+'</span></label>').join('');
+  document.querySelector('input[name="pubWhen"][value="now"]').checked=true;
+  const t=new Date(nowMs());t.setDate(t.getDate()+1);t.setHours(9,0,0,0); // 預設明天 09:00
+  document.getElementById('pubAt').value=isoDay(t)+'T09:00';
+  syncPubWhen();
   document.getElementById('toast').classList.remove('show');
   document.getElementById('ovPublish').classList.add('show');
 }
-async function publishMonths(keys){
-  const at=nowMs(),log=(state.pubLog||[]).slice(),names=[];
+async function publishMonths(keys,planAt){ // planAt：預約時間（不給＝立即發布）
+  const at=nowMs(),names=[];
+  let log=(state.pubLog||[]).slice();
   keys.forEach(k=>{
     const m=state.months[k];if(!m)return;
     const first=!m.pub,ch=first?null:pubChanges(k);
-    m.pub={at};delete m.pubSnap;
-    log.push({at,ym:k,first:first?1:0,days:ch?ch.days:[]});
+    log=log.filter(x=>!(x.planned&&x.ym===k&&x.at>at)); // 原本的預約作廢
+    if(planAt){
+      m.pubPlan={at:planAt};
+      log.push({kind:'plan',at,ym:k,planAt,first:first?1:0});
+      log.push({at:planAt,ym:k,first:first?1:0,days:ch?ch.days:[],planned:1});
+    }else{
+      delete m.pubPlan;m.pub={at};delete m.pubSnap;
+      log.push({at,ym:k,first:first?1:0,days:ch?ch.days:[]});
+    }
     names.push(+k.split('-')[1]+' 月');
   });
   state.pubLog=log.slice(-30);
+  pubArmTimer();
   document.getElementById('ovPublish').classList.remove('show');
   clearTimeout(saveTimer);
   state.store=document.getElementById('storeName').value;
@@ -2726,12 +2823,13 @@ async function publishMonths(keys){
   const ok=await pushCloud();
   renderAll();
   if(ok)setHint('雲端已同步 ✓');
-  showToast(ok?'<div class="ts-h">已發布 '+names.join('、')+' ✓</div><div class="ts-n">夥伴開啟 App 時會收到通知，🔔 也會列出。</div>'
-              :'<div class="ts-h">已發布，但雲端寫入失敗</div><div class="ts-n">連線恢復後存檔時會一併更新給夥伴。</div>',4000,true);
+  const what=planAt?'已預約 '+names.join('、')+'　'+fmtMdHm(planAt)+' 發布':'已發布 '+names.join('、');
+  showToast(ok?'<div class="ts-h">'+what+' ✓</div><div class="ts-n">'+(planAt?'到時間夥伴就看得到（以當時的最新內容為準），夥伴的 🔔 會先通知預定時間。':'夥伴開啟 App 時會收到通知，🔔 也會列出。')+'</div>'
+              :'<div class="ts-h">'+what+'，但雲端寫入失敗</div><div class="ts-n">連線恢復後存檔時會一併更新給夥伴。</div>',4500,true);
 }
 let pubToldThisSession=false;
 function pubNotifyManager(){ // 打開班表時：有沒發布的內容就提醒一次
-  if(pubToldThisSession||!pubEnabled()||document.getElementById('tour'))return;
+  if(pubToldThisSession||!pubEnabled()||document.getElementById('tour')||!cfg().pub.remind)return;
   const list=pubPending();if(!list.length)return;
   pubToldThisSession=true;
   const msg='<div class="ts-h">有未發布的班表</div>'+
@@ -2744,10 +2842,18 @@ function pubNotifyManager(){ // 打開班表時：有沒發布的內容就提醒
 function pubSeenKey(){return 'paiban-pub-seen-'+(storeCode||'')}
 function pubToastKey(){return 'paiban-pub-toast-'+(storeCode||'')}
 function pubSeenAt(){try{return +localStorage.getItem(pubSeenKey())||0}catch(e){return 0}}
-function pubUnseen(){const s=pubSeenAt();return (state.pubLog||[]).filter(x=>(x.at||0)>s)}
+function pubVisibleLog(){const now=nowMs();return (state.pubLog||[]).filter(x=>!x.planned||(x.at||0)<=now)} // 預約的發布到時間才算數
+function pubUnseen(){const s=pubSeenAt();return pubVisibleLog().filter(x=>(x.at||0)>s&&(x.kind!=='plan'||pubPlanState(x)==='wait'))}
+function pubPlanState(x){ // 預約通知目前的狀態：wait 等待中／done 已發布／moved 已改期／early 已提前發布／cancel 已取消
+  const log=state.pubLog||[];
+  if(log.some(e=>e.planned&&e.ym===x.ym&&e.at===x.planAt))return x.planAt<=nowMs()?'done':'wait';
+  const later=log.filter(e=>e.ym===x.ym&&(e.at||0)>(x.at||0)&&!e.planned&&(e.at||0)<=nowMs()).sort((p,q)=>p.at-q.at)[0];
+  return !later?'cancel':later.kind==='plan'?'moved':'early';
+}
+const PUB_PLAN_TAG={done:'<span class="pub-tag ok">已發布</span>',moved:'<span class="pub-tag">已改期</span>',early:'<span class="pub-tag ok">已提前發布</span>',cancel:'<span class="pub-tag">已取消</span>'};
 function pubMerge(list){ // 同一個月的多次發布併成一行
   const by={};
-  list.forEach(x=>{const o=by[x.ym]||(by[x.ym]={ym:x.ym,first:0,days:new Set(),at:0});if(x.first)o.first=1;(x.days||[]).forEach(d=>o.days.add(d));o.at=Math.max(o.at,x.at||0)});
+  list.filter(x=>x.kind!=='plan').forEach(x=>{const o=by[x.ym]||(by[x.ym]={ym:x.ym,first:0,days:new Set(),at:0});if(x.first)o.first=1;(x.days||[]).forEach(d=>o.days.add(d));o.at=Math.max(o.at,x.at||0)});
   return Object.values(by).map(o=>{const [y,mo]=o.ym.split('-').map(Number);return {ym:o.ym,y,m:mo,first:o.first,at:o.at,days:[...o.days].sort((p,q)=>p-q)}})
     .sort((p,q)=>(p.y*12+p.m)-(q.y*12+q.m));
 }
@@ -2759,7 +2865,7 @@ function updatePubBadge(){
 }
 function pubNotifyViewer(){ // 有新的發布：跳小通知（每筆一次），🔔 顯示紅點直到點開
   if(!viewerMode||!storeCode)return;
-  const log=state.pubLog||[],maxAt=log.reduce((x,e)=>Math.max(x,e.at||0),0);
+  const log=pubVisibleLog(),maxAt=log.reduce((x,e)=>Math.max(x,e.at||0),0);
   let seen=null,toasted=0;
   try{seen=localStorage.getItem(pubSeenKey());toasted=+localStorage.getItem(pubToastKey())||0}catch(e){}
   if(seen===null){ // 第一次用這個代碼：以前的發布不另外通知
@@ -2770,20 +2876,30 @@ function pubNotifyViewer(){ // 有新的發布：跳小通知（每筆一次）�
   updatePubBadge();
   if(!fresh.length||document.getElementById('ovNotice').classList.contains('show'))return;
   try{localStorage.setItem(pubToastKey(),String(maxAt))}catch(e){}
-  const msg='<div class="ts-h">🔔 班表更新</div>'+pubMerge(fresh).map(o=>
+  const plans=fresh.filter(x=>x.kind==='plan'&&pubPlanState(x)==='wait');
+  const pubs=pubMerge(fresh);
+  if(!plans.length&&!pubs.length){return}
+  const msg='<div class="ts-h">🔔 班表'+(pubs.length?'更新':'通知')+'</div>'+pubs.map(o=>
     '<div class="ts-k">'+pubYmLabel(o.y,o.m)+'班表'+(o.first?'已發布':'有更新')+'</div>'+
     (!o.first&&o.days.length?'<div class="ts-n">'+pubDaysText(o.m,o.days)+'</div>':'')).join('')+
+    plans.map(x=>{const [y,mo]=x.ym.split('-').map(Number);return '<div class="ts-k">'+pubYmLabel(y,mo)+'班表預定 '+fmtMdHm(x.planAt)+' 發布</div>'}).join('')+
     '<div class="ts-n">詳細內容列於 🔔 通知。</div>';
   let n=0;const go=()=>{if(document.getElementById('splash')&&++n<40){setTimeout(go,500);return}showToast(msg,6000,true)};
   go();
 }
 function renderNoticeViewer(){
-  const seen=pubSeenAt(),log=(state.pubLog||[]).slice().sort((p,q)=>(q.at||0)-(p.at||0)).slice(0,20);
+  const seen=pubSeenAt(),log=pubVisibleLog().sort((p,q)=>(q.at||0)-(p.at||0)).slice(0,20);
   document.querySelector('#ovNotice .m-title').textContent='🔔 通知';
   document.getElementById('btnNoticeLeave').style.display='none';
   document.getElementById('ntSub').textContent=log.length?'班表發布與更新的紀錄，點選可切換到該月份。':'';
   document.getElementById('ntBody').innerHTML=log.length?log.map(x=>{
     const [y,mo]=String(x.ym).split('-').map(Number),days=x.days||[],nw=(x.at||0)>seen;
+    if(x.kind==='plan'){ // 預約通知
+      const st=pubPlanState(x);
+      return '<button type="button" class="pub-nt plan'+(nw&&st==='wait'?' new':'')+(st==='wait'||st==='done'||st==='early'?'':' off')+'" data-pubym="'+esc(x.ym)+'" data-pubdays="">'+
+        '<span class="pub-at">'+fmtMdHm(x.at)+'</span><b>⏰ '+pubYmLabel(y,mo)+'班表預定 '+fmtMdHm(x.planAt)+' 發布</b>'+
+        (PUB_PLAN_TAG[st]||(nw?'<span class="pub-new">新</span>':''))+'</button>';
+    }
     return '<button type="button" class="pub-nt'+(nw?' new':'')+'" data-pubym="'+esc(x.ym)+'" data-pubdays="'+days.join(',')+'">'+
       '<span class="pub-at">'+fmtMdHm(x.at)+'</span><b>'+pubYmLabel(y,mo)+'班表'+(x.first?'已發布':'有更新')+'</b>'+(nw?'<span class="pub-new">新</span>':'')+
       (!x.first&&days.length?'<span class="pub-days">'+pubDaysText(mo,days)+'</span>':'')+'</button>';
@@ -2816,6 +2932,7 @@ function applyPayload(json){
     state.config=d.config||{};
     state.staff=d.staff;state.months=d.months;state.calCache=d.calCache||{};
     state.pubV=d.pubV||0;state.pubLog=Array.isArray(d.pubLog)?d.pubLog:[];payloadMonthKeys=new Set(Object.keys(d.months));
+    if(Object.values(d.months).some(m=>m&&m.pending))resolveViewerPlans(); // 夥伴那份：預約發布到點的月份換上內容
     legacyCalManual=(d.calManual&&Object.keys(d.calManual).length)?d.calManual:null; // 舊版存在店家資料裡的手動匯入，留著搬到共用行事曆
     sortStaff();
     document.getElementById('storeName').value=state.store;
@@ -2934,6 +3051,7 @@ async function connectStore(code,isNew,silent){
       lastWritten=d;
       let viewChanged=false;
       tourRealDo(()=>{const pv=state.viewCode;applyPayload(d);viewChanged=!!pv&&state.viewCode!==pv});
+      tourRealDo(()=>{if(pubFinalizePlans())scheduleSave();pubArmTimer()});
       if(viewChanged){ // 夥伴代碼在其他裝置換發了：劃假改看新代碼
         tourRealDo(()=>watchLeave());
         cloudStatus='雲端已連線｜主管代碼：'+code+'｜夥伴代碼：'+state.viewCode;
@@ -2947,6 +3065,8 @@ async function connectStore(code,isNew,silent){
     pushCloud();
   }
   if(pubLegacy(state)){pubMigrate();pushCloud()} // 第一次啟用發布機制
+  if(pubFinalizePlans())pushCloud(); // 預約時間已過：改成已發布
+  pubArmTimer();
   cloudStatus='雲端已連線｜主管代碼：'+code+'｜夥伴代碼：'+state.viewCode;
   setHint('雲端已連線 ✓');
   applyViewerUI();
@@ -3720,7 +3840,9 @@ function renderSheet(){
   if(otDemo&&state!==otDemo.st){otDemoWith(renderSheet);return} // 加班時數的示範中：別的地方觸發重畫，也畫示範班表
   if(viewerMode&&viewerMonthHidden()){ // 夥伴端：還沒發布的月份
     const sh=document.getElementById('sheet');sh.classList.add('unpub-sheet');
-    sh.innerHTML='<tbody><tr><td class="unpub-msg"><b>'+state.m+' 月班表尚未發布</b><br>發布後，工具列的 🔔 會出現通知。</td></tr></tbody>';
+    const raw=state.months[ym()];
+    sh.innerHTML='<tbody><tr><td class="unpub-msg"><b>'+state.m+' 月班表尚未發布</b><br>'+
+      (raw&&raw.planAt?'預定 '+fmtMdHm(raw.planAt)+' 發布。':'發布後，工具列的 🔔 會出現通知。')+'</td></tr></tbody>';
     renderPubBar();return;
   }
   document.getElementById('sheet').classList.remove('unpub-sheet');
@@ -4366,7 +4488,7 @@ function openNotice(){
     document.getElementById('toast').classList.remove('show');
     renderNoticeViewer();
     document.getElementById('ovNotice').classList.add('show');
-    const maxAt=(state.pubLog||[]).reduce((x,e)=>Math.max(x,e.at||0),0);
+    const maxAt=pubVisibleLog().reduce((x,e)=>Math.max(x,e.at||0),0);
     try{localStorage.setItem(pubSeenKey(),String(maxAt));localStorage.setItem(pubToastKey(),String(Math.max(maxAt,+localStorage.getItem(pubToastKey())||0)))}catch(e){}
     updatePubBadge();
     return;
@@ -5152,15 +5274,35 @@ document.getElementById('btnEdit').addEventListener('click',()=>{
     const fp=pubAtUnlock||{};
     const touched=new Set(Object.keys(state.months).filter(k=>stableStr(pubContent(state.months[k]))!==fp[k]));
     const pend=pubPending().filter(x=>touched.has(x.k)).map(x=>x.k);
-    if(pend.length)setTimeout(()=>openPublish(pend),350);
+    const mode=cfg().pub.lock; // 後台設定：不詢問（預設）／詢問／直接發布
+    if(pend.length&&mode==='ask')setTimeout(()=>openPublish(pend),350);
+    if(pend.length&&mode==='auto')setTimeout(()=>publishMonths(pend),350);
   }
   if(!editMode)pubAtUnlock=null;
   renderSheet(); // 紅色驚嘆號只在鎖定後才檢查，切換狀態要立即反映
 });
-document.getElementById('pubBar').addEventListener('click',ev=>{const b=ev.target.closest('[data-pubgo]');if(b)openPublish([b.dataset.pubgo])});
+document.getElementById('pubBar').addEventListener('click',ev=>{
+  const c=ev.target.closest('[data-pubcancel]');
+  if(c){if(confirm('取消 '+(+c.dataset.pubcancel.split('-')[1])+' 月的預約發布？'))pubCancelPlan(c.dataset.pubcancel);return}
+  const b=ev.target.closest('[data-pubgo]');if(b)openPublish([b.dataset.pubgo]);
+});
+function syncPubWhen(){
+  const at=document.querySelector('input[name="pubWhen"]:checked').value==='at';
+  document.getElementById('pubAt').disabled=!at;
+  document.getElementById('pubAtNote').style.display=at?'':'none';
+  document.getElementById('btnPubGo').textContent=at?'預約發布':'發布';
+}
+document.querySelectorAll('input[name="pubWhen"]').forEach(r=>r.addEventListener('change',syncPubWhen));
+document.getElementById('pubAt').addEventListener('focus',()=>{document.querySelector('input[name="pubWhen"][value="at"]').checked=true;syncPubWhen()});
 document.getElementById('btnPubGo').addEventListener('click',()=>{
   const keys=[...document.querySelectorAll('#pubList input[data-pubk]:checked')].map(x=>x.dataset.pubk);
   if(!keys.length){alert('請勾選要發布的月份。');return}
+  if(document.querySelector('input[name="pubWhen"]:checked').value==='at'){
+    const v=document.getElementById('pubAt').value,t=v?new Date(v).getTime():NaN;
+    if(!v||isNaN(t)){alert('請選擇發布的日期與時間。');return}
+    if(t<nowMs()+60000){alert('預約時間需晚於現在至少 1 分鐘。');return}
+    publishMonths(keys,t);return;
+  }
   publishMonths(keys);
 });
 document.getElementById('btnPubLater').addEventListener('click',()=>document.getElementById('ovPublish').classList.remove('show'));
@@ -5944,12 +6086,14 @@ document.getElementById('btnInstallGuide').addEventListener('click',()=>{
    更新次數自目前大版本上線起，每上傳一次 index.html 加 1（劃假上線那次為 000）。
    每次更新：APP_VERSION 改成「3.115MMDD.次數」，CHANGELOG 最上面同一天的那筆 ver 跟著改；新的一天加一筆。
    add＝新增功能，fix＝問題改善；項目寫成 [文字, 1] 表示只有主管會用到（夥伴代碼不顯示） */
-const APP_VERSION='3.1151106.077';
+const APP_VERSION='3.1151106.078';
 const CHANGELOG=[
-  {v:'2026.11.06',ver:'3.1151106.077',add:[
+  {v:'2026.11.06',ver:'3.1151106.078',add:[
     ['發布班表：排好的班按「發布」後夥伴才看得到，新的月份預設為草稿；班表上方顯示發布狀態。',1],
-    ['已發布的月份再修改時，夥伴看到的仍是上次發布的版本，修改過的格子右上角標示橘色三角，按「發布更新」才更新；鎖定排班與打開 App 時，有未發布的內容會提醒。',1],
-    ['夥伴端：班表發布或更新時跳出通知，工具列新增 🔔，列出更新的月份與日期，點選即切換到該月份；尚未發布的月份顯示「尚未發布」。'],
+    ['已發布的月份再修改時，夥伴看到的仍是上次發布的版本，修改過的格子右上角標示橘色三角，按「發布更新」才更新。',1],
+    ['預約發布：發布時可指定日期時間，時間一到夥伴就看得到（以當時的最新內容為準），夥伴的 🔔 先通知預定時間；可立即發布或取消預約。',1],
+    ['後台設定新增「發布」：鎖定排班時不詢問（預設）／詢問／直接發布，以及打開 App 時是否提醒未發布的班表。',1],
+    ['夥伴端：班表發布或更新時跳出通知，工具列新增 🔔，列出更新的月份與日期，點選即切換到該月份；尚未發布的月份顯示「尚未發布」，預約發布的月份先通知預定時間，時間一到自動顯示。'],
     ['啟用時，這個月與以前的月份視為已發布，之後已排的月份成為草稿。',1]
   ]},
   {v:'2026.11.04',ver:'3.1151104.076',add:[
@@ -6650,7 +6794,7 @@ function tourSteps(role,full){ // full：完整新手教學，走到排班、開
     {seg:'sched',when:()=>full},
     {el:()=>tourShown($('#pubBar'))||tourShown($('#btnEdit')),h:'發布',b:'排好的班按<b>「發布」</b>後夥伴才看得到；新的月份預設為草稿，班表上方顯示目前狀態。<br>'+
       '已發布的月份再修改時，夥伴看到的仍是上次發布的版本；修改過的格子右上角標示<b style="color:#e08a2a">橘色三角</b>，按「發布更新」才會更新。<br>'+
-      '鎖定排班時，有未發布的修改會詢問是否發布；發布後夥伴會收到通知。'},
+      '發布時可選「指定時間」預約發布；鎖定排班時是否詢問發布，於後台設定「發布」調整。發布後夥伴會收到通知。'},
     {el:()=>tourShown($('#btnStaff')),h:'＋ 人員',b:'人員的新增、編輯與離職皆於此處理。以下依序預覽各畫面，僅供查看，不會變更資料。'},
     {enter:()=>{tourStaffWith(renderStaffList);document.getElementById('ovStaffList').classList.add('show')},
      leave:()=>{document.getElementById('ovStaffList').classList.remove('show');if(tourStaffDemo())renderStaffList()},
@@ -6677,7 +6821,7 @@ function tourSteps(role,full){ // full：完整新手教學，走到排班、開
     {el:()=>tourShown($('#btnFilter')),h:'篩選日期',b:'僅顯示指定的日期範圍，例如 1～15 號；也可將該範圍存成<b>圖片</b>。'},
     {el:()=>tourShown($('#btnMore')),h:'更多 ⋯',b:'<b>複製代碼</b>：提供<b>夥伴代碼</b>給夥伴查看班表與劃假；主管代碼僅提供給共同排班的人。<br>'+
       '<b>匯出或備份</b>：匯出 PDF／列印，或存成備份檔。<br><b>載入備份</b>：由備份檔還原。<br>'+
-      '<b>後台設定</b>：班段、人力規則、劃假、分段工時、行事曆、更新日誌，以及換發夥伴代碼（需登入）。<br><b>已隱藏人員</b>：查看或復原已離職的人員。<br>'+
+      '<b>後台設定</b>：班段、人力規則、劃假、分段工時、發布、行事曆、更新日誌，以及換發夥伴代碼（需登入）。<br><b>已隱藏人員</b>：查看或復原已離職的人員。<br>'+
       '<b>加入現有代碼</b>、<b>建立新店家</b>：切換門市或建立新的班表。<br>最下方顯示目前版本號。'},
     ...OT,
     {opt:1,el:()=>tourShown($('#btnReportTop')),h:'🏆 每月戰績',b:t=>(t?'<b>目前正在顯示。</b>':'')+
@@ -6703,7 +6847,7 @@ function tourSteps(role,full){ // full：完整新手教學，走到排班、開
     SUMROW(false),
     ...OT,
     {el:()=>[tourShown($('#selYear')),tourShown($('#selMonth'))].filter(Boolean),h:'切換月份',b:'於此切換查看其他月份的班表；尚未發布的月份顯示「尚未發布」。'},
-    {el:()=>tourShown($('#btnNotice')),h:'🔔 通知',b:'主管發布或更新班表時，這裡出現紅點，開啟 App 時也會跳出通知。<br>點開可查看更新的月份與日期，點選即切換到該月份。'},
+    {el:()=>tourShown($('#btnNotice')),h:'🔔 通知',b:'主管發布或更新班表時，這裡出現紅點，開啟 App 時也會跳出通知；預約發布的月份會先通知預定時間。<br>點開可查看更新的月份與日期，點選即切換到該月份。'},
     {el:()=>tourShown($('#btnLeave')),h:'劃假',b:()=>'開放期間於此標出無法上班的日子，完成後按「送出」。'+
       (full?'<br>下一步起以練習畫面實際操作一次，練習內容不會送出。':'<br>操作方式可於「？」的<b>「🏖 劃假教學」</b>以練習畫面試做，練習內容不會送出。')},
     {seg:'leave',when:()=>full},
@@ -7369,6 +7513,9 @@ function fillCfgFields(c){
   fillLeaveCfg(c.leave||DEFAULT_LEAVE);
   cfgSplit=normSplit(c.split);cfgSplit.names=cfgSplit.names.slice();cfgSplit.cuts=cfgSplit.cuts.slice();
   renderSplitEditor();
+  const pc=normPubCfg(c.pub);
+  document.querySelectorAll('input[name="cfgPubLock"]').forEach(r=>{r.checked=r.value===pc.lock});
+  document.getElementById('cfgPubRemind').checked=pc.remind;
   renderCfgSummary();
   markCfgSaved();
 }
@@ -7451,6 +7598,12 @@ document.getElementById('btnSplitDel').addEventListener('click',()=>{
   cfgSplit.names.pop();cfgSplit.cuts.pop();
   renderSplitEditor();renderCfgSummary();
 });
+function pubCfgFromFields(){
+  const r=document.querySelector('input[name="cfgPubLock"]:checked');
+  return normPubCfg({lock:r?r.value:'none',remind:document.getElementById('cfgPubRemind').checked});
+}
+document.querySelectorAll('input[name="cfgPubLock"]').forEach(r=>r.addEventListener('change',()=>renderCfgSummary()));
+document.getElementById('cfgPubRemind').addEventListener('change',()=>renderCfgSummary());
 function splitFromFields(){return {on:!!cfgSplit.on,names:cfgSplit.names.map((n,i)=>String(n||'').trim()||('第'+(i+1)+'段')),cuts:cfgSplit.cuts.slice()}}
 function mergeCfg(raw){ // 把任意設定物件補齊成完整設定（同 cfg() 的補齊邏輯，但對象可以是別的店家）
   const c=raw||{},d=DEFAULT_CONFIG;
@@ -7461,7 +7614,8 @@ function mergeCfg(raw){ // 把任意設定物件補齊成完整設定（同 cfg(
     rules:migrateRules(c),
     warnRules:migrateWarnRules(c),
     leave:Object.assign({},DEFAULT_LEAVE,c.leave||{}),
-    split:normSplit(c.split)
+    split:normSplit(c.split),
+    pub:normPubCfg(c.pub)
   };
 }
 function renderCfgTargetOptions(){
@@ -7518,7 +7672,7 @@ document.querySelectorAll('.cfg-back').forEach(b=>b.addEventListener('click',()=
   b.closest('.overlay').classList.remove('show');
   renderCfgSummary();
 }));
-document.querySelectorAll('#ovCfgShifts,#ovCfgRules,#ovCfgWarn,#ovCfgLeave,#ovCfgSplit').forEach(ov=>{
+document.querySelectorAll('#ovCfgShifts,#ovCfgRules,#ovCfgWarn,#ovCfgLeave,#ovCfgSplit,#ovCfgPub').forEach(ov=>{
   new MutationObserver(()=>{if(!ov.classList.contains('show'))renderCfgSummary()})
     .observe(ov,{attributes:true,attributeFilter:['class']}); // 返回鍵關掉時摘要也要更新
 });
@@ -7536,6 +7690,8 @@ function renderCfgSummary(){ // 選單上每一項右邊顯示目前設定，不
     (L.lateOn&&L.lateLimit&&L.lateTo?'　候補至 '+fmtMd(L.lateTo):'')):'開放中'),L.on);
   const SP=splitFromFields();
   put('sumSplit',SP.on?(SP.names.join('／')+'　'+SP.cuts.map(fmtHM).join('／')):'不顯示',SP.on);
+  const PC=pubCfgFromFields();
+  put('sumPub','鎖定時'+({none:'不詢問',ask:'詢問',auto:'直接發布'})[PC.lock]+'　·　打開 App '+(PC.remind?'提醒':'不提醒'),PC.lock!=='none'||!PC.remind);
   if(typeof calSummaryText==='function')put('sumCal',calSummaryText(),Object.keys(calView().manual||{}).length);
 }
 document.getElementById('btnCloseAdmin').addEventListener('click',()=>{
@@ -7548,7 +7704,7 @@ function cfgSnapshot(){
   try{return JSON.stringify({
     c:parsePairList(document.getElementById('cfgPresetsCommon').value),
     p:parsePairList(document.getElementById('cfgPresetsPart').value),
-    r:cfgRules,w:cfgWarnRules,l:leaveFromFields(),s:splitFromFields()})}catch(e){return ''}
+    r:cfgRules,w:cfgWarnRules,l:leaveFromFields(),s:splitFromFields(),pb:pubCfgFromFields()})}catch(e){return ''}
 }
 function cfgDirty(){return !!(cfgSavedSnapshot&&cfgSnapshot()!==cfgSavedSnapshot)||calDraftChanged()} // 行事曆是全部代碼共用，另外比對，切換編輯對象也不會遺失
 function markCfgSaved(){cfgSavedSnapshot=cfgSnapshot();syncCfgSaveBtn()}
@@ -7587,7 +7743,8 @@ function collectCfgFromFields(){ // 從表單欄位讀出設定物件；格式�
     rules:cfgRules.map(r=>({id:r.id,on:!!r.on,name:r.name||'',kind:r.kind,times:(r.times||[]).slice(),min:Math.max(1,r.min||1)})),
     warnRules:cfgWarnRules.map(r=>({id:r.id,on:!!r.on,name:r.name||'',days:(r.days||[]).slice(),field:r.field,times:(r.times||[]).slice()})),
     leave:lv,
-    split:splitFromFields()
+    split:splitFromFields(),
+    pub:pubCfgFromFields()
   };
 }
 function leaveFromFields(){
