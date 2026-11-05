@@ -612,6 +612,30 @@ html.ov-open,html.ov-open body{overflow:hidden;overscroll-behavior:none}
 .rp-t{font-size:14.5px;color:#7a5c14;font-weight:700;letter-spacing:.5px;line-height:1.35}
 .lv-off-tag{display:inline-block;margin-left:8px;padding:0 6px;border-radius:6px;font-size:11px;font-weight:700;color:#a85c07;border:1px solid #e0a05a;vertical-align:2px}
 html.dark .lv-off-tag{color:#f0b978;border-color:#a8743a}
+.pub-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 6px;padding:6px 10px;border-radius:8px;font-size:13px;line-height:1.5}
+.pub-bar span{flex:1;min-width:12em}
+.pub-bar.draft,.pub-bar.dirty{background:#fff4e6;border:1.5px solid #e0a05a;color:#8a4a06}
+.pub-bar.ok{color:#2a8a4a;padding:0 4px;font-size:12px;margin-bottom:4px}
+.pub-bar .btn{padding:4px 12px;font-size:13px}
+html.dark .pub-bar.draft,html.dark .pub-bar.dirty{background:#3d2f1c;border-color:#8a6633;color:#f0b978}
+html.dark .pub-bar.ok{color:#6fcf8f}
+.unpub-tri{position:absolute;top:0;right:0;width:0;height:0;border-top:10px solid #e08a2a;border-left:10px solid transparent;pointer-events:none;z-index:1}
+body.print-sizing .unpub-tri{display:none}
+#sheet.unpub-sheet{width:100%!important;min-width:0!important;table-layout:auto!important}
+.unpub-msg{padding:32px 16px!important;text-align:center;font-size:15px;line-height:1.8;color:#888}
+.unpub-msg b{color:var(--ink);font-size:17px}
+.pub-row{display:flex;gap:10px;align-items:flex-start;padding:9px 2px;border-bottom:1px dotted var(--line);font-size:14px;line-height:1.5;cursor:pointer}
+.pub-row input{width:18px;height:18px;margin-top:2px;flex-shrink:0}
+.pub-nt{display:block;width:100%;text-align:left;padding:8px 10px;margin-top:6px;border:1px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink);font:inherit;font-size:14px;cursor:pointer}
+.pub-nt.new{border-color:#e0a05a;background:#fff8ef}
+.pub-nt .pub-at{float:right;font-size:12px;color:#888;margin-left:8px}
+.pub-nt .pub-days{display:block;font-size:12.5px;color:#666;margin-top:2px}
+.pub-nt .pub-new{display:inline-block;margin-left:6px;padding:0 5px;border-radius:5px;background:var(--red);color:#fff;font-size:11px;font-weight:700;vertical-align:1px}
+html.dark .pub-nt.new{background:#3d2f1c;border-color:#8a6633}
+html.dark .pub-nt .pub-days{color:var(--fade2)}
+.day-th.flash{animation:cellFlash .55s ease-in-out 3}
+.lgc.sw-unpub{position:relative;overflow:hidden}
+.lgc.sw-unpub::after{content:'';position:absolute;top:0;right:0;border-top:8px solid #e08a2a;border-left:8px solid transparent}
 .line-banner{display:flex;gap:8px;align-items:flex-start;background:#fff4e6;border-bottom:1.5px solid #e0a05a;color:#a85c07;font-size:13px;line-height:1.5;padding:8px 12px}
 .line-banner span{flex:1}
 .line-banner button{border:none;background:transparent;color:inherit;font-size:16px;line-height:1;padding:2px 4px;cursor:pointer}
@@ -1332,6 +1356,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
 
 <div id="toast"></div>
 
+<div id="pubBar" class="pub-bar" style="display:none"></div>
 <div class="sheet-wrap">
   <table id="sheet"></table>
 </div>
@@ -1976,6 +2001,20 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
   </div>
 </div>
 
+<!-- 發布班表 -->
+<div class="overlay" id="ovPublish">
+  <div class="modal">
+    <div class="m-title">發布班表</div>
+    <div class="m-sub">發布後夥伴才看得到。已發布的月份之後再修改，也要再發布一次才會更新給夥伴。</div>
+    <div id="pubList"></div>
+    <div class="small-note" style="margin-top:8px">發布後，夥伴開啟 App 時會收到通知，🔔 也會列出更新的日期。</div>
+    <div class="m-actions">
+      <button class="btn primary" id="btnPubGo">發布</button>
+      <button class="btn" id="btnPubLater">先不要</button>
+    </div>
+  </div>
+</div>
+
 <!-- 安裝到手機：Android／iPhone 的安裝步驟示意 -->
 <div class="overlay" id="ovInstall">
   <div class="modal">
@@ -2131,6 +2170,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
       <span><i class="lgc sw-mark"></i>標示中</span>
       <span><i class="lgc sw-flash"></i>跳轉時閃爍</span>
       <span class="edit-only"><i class="lgc sw-clash"></i>班次與劃假衝突</span>
+      <span class="edit-only"><i class="lgc sw-unpub"></i>修改尚未發布</span>
     </div>
     <div class="hr"></div>
     <div class="sec-label">驚嘆號提示</div>
@@ -2148,6 +2188,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
       <li>本頁最上方的「🏖 劃假教學」開啟<b>練習畫面</b>，依序操作一次劃假（選擇姓名、劃假方式、日期、送出）：名單為示範用的 Rich、Amanda，劃假未開放時亦可練習，內容不會送出或儲存。</li>
       <li class="edit-only">「📝 排班教學」實際點選一格，依序操作班別、自訂時間、排休、特休等假別與特定時段；教學中排入的內容不會儲存，結束後自動還原。班表尚無人員時以示範班表練習。未看過時，第一次按「🔒 排班」解鎖會自動開始。</li>
       <li class="edit-only">「⚙ 開放劃假教學」逐項介紹開放劃假的設定（月份、期間、候補、個別開放、紀錄保留），最後可實際按一次「儲存」查看結果，設定不會變更。未看過時，第一次開啟劃假的「⚙ 開放設定」會自動開始。</li>
+      <li class="view-only">主管發布或更新班表時，工具列的 🔔 出現紅點，開啟 App 時也會跳出通知；點 🔔 可查看更新的月份與日期，點選即切換到該月份。尚未發布的月份顯示「尚未發布」。</li>
       <li>本頁最上方的「📲 安裝到手機」：Android 與 iPhone／iPad 的安裝步驟示意圖；Android 的 Chrome 可直接按「直接安裝」。安裝後由主畫面的「我的班表」圖示開啟。</li>
       <li>LINE 內建的瀏覽器無法安裝，代碼也不會保留到手機的瀏覽器。從 LINE 點網址時會自動改用預設瀏覽器開啟；仍在 LINE 內時，畫面上方會提示改用「以預設瀏覽器開啟」。<span class="edit-only">傳網址給夥伴時，可用「⋯ → 複製代碼 → 複製邀請訊息（LINE 用）」，網址與夥伴代碼一起複製。</span></li>
       <li>App 啟動或下拉重整時會播開啟動畫，點一下畫面可跳過。從其他 App 切回來不會重播，畫面維持在原本的位置。</li>
@@ -2159,6 +2200,9 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
       <div class="sec-label">排班</div>
       <ul class="hul">
         <li>按「🔒 排班」解鎖後方可編輯，再按一次即鎖定。</li>
+        <li><b>發布</b>　排好的班按「發布」後夥伴才看得到。新的月份預設為草稿，班表上方顯示目前狀態（尚未發布／有修改尚未發布／已發布）。</li>
+        <li>已發布的月份再修改時，夥伴看到的仍是上次發布的版本；修改過的格子右上角標示<b style="color:#e08a2a">橘色三角</b>，按「發布更新」後才更新給夥伴。鎖定排班時，這次改到的月份有未發布的內容會詢問是否發布；打開 App 時也會提醒。</li>
+        <li>發布後，夥伴開啟 App 時跳出通知，夥伴的 🔔 列出更新的月份與日期。人員名單、劃假開放設定等不受發布控制，儲存後即同步。</li>
         <li>自訂時間以 15 分鐘為單位，分鐘可為 00、15、30、45（例如 900、1315、1345）；±按鈕每次調整 15 分鐘。</li>
         <li>班表上以小時的小數顯示：13:15 寫成 13.25、13:30 寫成 13.5、13:45 寫成 13.75。</li>
         <li>休息時間依班段長度自動選：4 小時以內未休；超過 4 小時休 0.5 小時；扣掉 0.5 休息後仍超過 8 小時（班段超過 8.5 小時）休 1 小時。</li>
@@ -2548,7 +2592,220 @@ const firebaseConfig={
 let FB=null, storeCode=null, unsubCloud=null, lastWritten='', cloudStatus='雲端載入中…', viewerMode=false;
 let adminUser=null; // 目前登入後台的帳號（Firebase Auth）
 function payloadStr(){
-  return JSON.stringify({store:state.store,title:state.title,corner:state.corner,viewCode:state.viewCode||'',config:state.config||{},staff:state.staff,months:state.months,calCache:state.calCache});
+  return JSON.stringify({store:state.store,title:state.title,corner:state.corner,viewCode:state.viewCode||'',config:state.config||{},staff:state.staff,months:state.months,calCache:state.calCache,
+    pubV:state.pubV||0,pubLog:state.pubLog||[]});
+}
+/* ────────── 發布：排好的班按「發布」夥伴才看得到 ──────────
+   主管這份（stores）照常即時存檔；夥伴讀的唯讀複本（views）只放已發布的內容。
+   月份：沒有 pub＝草稿（夥伴看不到）；pub={at}＝已發布；
+         pubSnap＝已發布後又有修改時，發布當下的版本（夥伴看這份）。再發布就拿掉。
+   pubV：已啟用發布機制；pubLog：發布紀錄 [{at,ym,first,days}]，夥伴的通知與 🔔 用，最多留 30 筆。 */
+let payloadMonthKeys=new Set(); // 夥伴端：雲端資料裡實際有的月份
+function pubContent(m){m=m||{};return {sched:m.sched||{},notes:m.notes||[],dayOv:m.dayOv||{},dayNames:m.dayNames||{},roster:m.roster}}
+function stableStr(v){ // 鍵排序後的 JSON，比對內容用（新增刪除的順序不同不算改過）
+  if(v===null||typeof v!=='object')return JSON.stringify(v===undefined?null:v);
+  if(Array.isArray(v))return '['+v.map(stableStr).join(',')+']';
+  return '{'+Object.keys(v).filter(k=>v[k]!==undefined).sort().map(k=>JSON.stringify(k)+':'+stableStr(v[k])).join(',')+'}';
+}
+function pubSame(x,y){return stableStr(x)===stableStr(y)}
+function pubLegacy(o){return !o.pubV&&!Object.values(o.months||{}).some(m=>m&&m.pub)} // 還沒啟用發布的舊資料：照舊全部可見
+function viewPayloadOf(o){ // 夥伴讀的版本：草稿月份不給內容；已發布但有修改的月份，給發布當時的版本
+  const v=Object.assign({},o),ms={},legacy=pubLegacy(o);
+  Object.keys(o.months||{}).forEach(k=>{
+    const m=o.months[k];if(!m)return;
+    if(legacy){ms[k]=m;return}
+    if(!m.pub){ms[k]={unpub:1,sched:{},notes:[],dayOv:{},dayNames:{},roster:[]};return}
+    ms[k]=Object.assign(pubContent(m.pubSnap||m),{pubAt:m.pub.at});
+  });
+  v.months=ms;v.pubLog=(o.pubLog||[]).slice(-30);
+  return v;
+}
+function pubMigrate(){ // 第一次啟用：這個月與以前的月份算已發布（夥伴照常看得到），之後已排的月份成為草稿
+  const t=new Date(nowMs()),cur=t.getFullYear()*12+t.getMonth()+1,at=nowMs();
+  Object.keys(state.months).forEach(k=>{
+    const [y,mo]=k.split('-').map(Number),md=state.months[k];
+    if(md&&y*12+mo<=cur)md.pub={at,legacy:1};
+  });
+  state.pubV=1;
+}
+const pubLW={s:null,m:{}};
+function pubPrevMonths(){ // 上次寫入雲端的月份（＝目前夥伴那份的來源）
+  if(pubLW.s!==lastWritten){pubLW.s=lastWritten;try{pubLW.m=(JSON.parse(lastWritten||'{}').months)||{}}catch(e){pubLW.m={}}}
+  return pubLW.m;
+}
+function pubBase(k){ // 夥伴目前看到的（發布當下的）內容；草稿回傳 null
+  const m=state.months[k];if(!m||!m.pub)return null;
+  if(m.pubSnap)return m.pubSnap;
+  const pm=pubPrevMonths()[k];
+  if(pm&&pm.pub&&pm.pub.at===m.pub.at)return pm.pubSnap||pubContent(pm);
+  return pubContent(m);
+}
+function pubTrack(){ // 存檔前：已發布的月份有修改就留下發布當下的版本；改回原樣就拿掉
+  if(pubLegacy(state))return;
+  Object.keys(state.months).forEach(k=>{
+    const m=state.months[k];if(!m||!m.pub)return;
+    const b=pubBase(k);
+    if(pubSame(pubContent(m),b))delete m.pubSnap;else m.pubSnap=b;
+  });
+}
+function pubChanges(k){ // 已發布後的修改：{days,other,cells}；沒有修改回傳 null
+  const m=state.months[k],b=pubBase(k);if(!m||!b)return null;
+  const c=pubContent(m),days=new Set(),cells=new Set(),other=[];
+  const sids=new Set([...Object.keys(b.sched||{}),...Object.keys(c.sched||{})]);
+  sids.forEach(sid=>{
+    const x=(b.sched||{})[sid]||{},y=(c.sched||{})[sid]||{};
+    new Set([...Object.keys(x),...Object.keys(y)]).forEach(d=>{if(stableStr(x[d])!==stableStr(y[d])){days.add(+d);cells.add(sid+':'+d)}});
+  });
+  ['dayOv','dayNames'].forEach(f=>{
+    const x=b[f]||{},y=c[f]||{};
+    new Set([...Object.keys(x),...Object.keys(y)]).forEach(d=>{if(stableStr(x[d])!==stableStr(y[d]))days.add(+d)});
+  });
+  if(!pubSame(b.notes||[],c.notes||[]))other.push('備註');
+  if(!pubSame(b.roster===undefined?null:b.roster,c.roster===undefined?null:c.roster))other.push('人員名單');
+  if(!days.size&&!other.length)return null;
+  return {days:[...days].sort((p,q)=>p-q),other,cells};
+}
+function monthHasContent(m){return !!m&&(Object.values(m.sched||{}).some(r=>r&&Object.keys(r).length)||(m.notes||[]).length>0)}
+function pubPending(){ // 有待發布內容的月份
+  return Object.keys(state.months).map(k=>{
+    const m=state.months[k],[y,mo]=k.split('-').map(Number);
+    if(!m)return null;
+    if(!m.pub)return monthHasContent(m)?{k,y,m:mo,first:1}:null;
+    const ch=pubChanges(k);return ch?{k,y,m:mo,ch}:null;
+  }).filter(Boolean).sort((p,q)=>(p.y*12+p.m)-(q.y*12+q.m));
+}
+function pubEnabled(){return !!(FB&&storeCode&&!viewerMode&&state.viewCode&&!otDemo&&!tourSchedDemo&&!pubLegacy(state))}
+function pubDaysText(mo,days){return days.slice(0,8).map(d=>mo+'/'+d).join('、')+(days.length>8?' 等 '+days.length+' 天':'')}
+function pubChText(mo,ch){
+  const parts=[];
+  if(ch.days.length)parts.push(ch.days.length+' 天：'+pubDaysText(mo,ch.days));
+  if(ch.other.length)parts.push(ch.other.join('、')+'有修改');
+  return parts.join('；');
+}
+function fmtMdHm(t){const d=new Date(t);return (d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')}
+function pubYmLabel(y,mo){const t=new Date(nowMs());return (y!==t.getFullYear()?(y-1911)+'年':'')+mo+' 月'}
+function renderPubBar(){ // 班表上方：這個月的發布狀態
+  const bar=document.getElementById('pubBar');if(!bar)return;
+  if(!pubEnabled()){bar.style.display='none';return}
+  const k=ym(),m=state.months[k];let cls,h;
+  if(!m||!m.pub){
+    cls='draft';
+    h='<span>📝 <b>'+state.m+' 月尚未發布</b>，夥伴看不到這個月的班表。</span>'+(monthHasContent(m)?'<button class="btn primary" data-pubgo="'+k+'">發布 '+state.m+' 月</button>':'');
+  }else{
+    const ch=pubChanges(k);
+    if(ch){cls='dirty';h='<span>✎ <b>'+state.m+' 月有修改尚未發布</b>（'+esc(pubChText(state.m,ch))+'），夥伴看到的仍是上次發布的版本。</span><button class="btn primary" data-pubgo="'+k+'">發布更新</button>'}
+    else{cls='ok';h='<span>✓ '+state.m+' 月已發布'+(m.pub.legacy?'':'　'+fmtMdHm(m.pub.at))+'</span>'}
+  }
+  bar.className='pub-bar '+cls;bar.innerHTML=h;bar.style.display='';
+}
+function openPublish(pre){
+  const list=pubPending();
+  if(!list.length){showToast('沒有需要發布的內容');return}
+  const preset=new Set(pre&&pre.length?pre:[ym()]);
+  document.getElementById('pubList').innerHTML=list.map(x=>
+    '<label class="pub-row"><input type="checkbox" data-pubk="'+x.k+'"'+(preset.has(x.k)?' checked':'')+'>'+
+    '<span><b>'+pubYmLabel(x.y,x.m)+'</b>　'+(x.first?'草稿，第一次發布':esc(pubChText(x.m,x.ch)))+'</span></label>').join('');
+  document.getElementById('toast').classList.remove('show');
+  document.getElementById('ovPublish').classList.add('show');
+}
+async function publishMonths(keys){
+  const at=nowMs(),log=(state.pubLog||[]).slice(),names=[];
+  keys.forEach(k=>{
+    const m=state.months[k];if(!m)return;
+    const first=!m.pub,ch=first?null:pubChanges(k);
+    m.pub={at};delete m.pubSnap;
+    log.push({at,ym:k,first:first?1:0,days:ch?ch.days:[]});
+    names.push(+k.split('-')[1]+' 月');
+  });
+  state.pubLog=log.slice(-30);
+  document.getElementById('ovPublish').classList.remove('show');
+  clearTimeout(saveTimer);
+  state.store=document.getElementById('storeName').value;
+  state.title=document.getElementById('sheetTitle').value||'排班表';
+  await saveRaw(JSON.stringify(state));
+  const ok=await pushCloud();
+  renderAll();
+  if(ok)setHint('雲端已同步 ✓');
+  showToast(ok?'<div class="ts-h">已發布 '+names.join('、')+' ✓</div><div class="ts-n">夥伴開啟 App 時會收到通知，🔔 也會列出。</div>'
+              :'<div class="ts-h">已發布，但雲端寫入失敗</div><div class="ts-n">連線恢復後存檔時會一併更新給夥伴。</div>',4000,true);
+}
+let pubToldThisSession=false;
+function pubNotifyManager(){ // 打開班表時：有沒發布的內容就提醒一次
+  if(pubToldThisSession||!pubEnabled()||document.getElementById('tour'))return;
+  const list=pubPending();if(!list.length)return;
+  pubToldThisSession=true;
+  const msg='<div class="ts-h">有未發布的班表</div>'+
+    list.slice(0,4).map(x=>'<div class="ts-k">'+pubYmLabel(x.y,x.m)+'：'+(x.first?'草稿':x.ch.days.length?x.ch.days.length+' 天有修改':esc(x.ch.other.join('、'))+'有修改')+'</div>').join('')+
+    '<div class="ts-n">夥伴看不到未發布的內容，可於班表上方按「發布」。</div>';
+  let n=0;const go=()=>{if(document.getElementById('splash')&&++n<40){setTimeout(go,500);return}showToast(msg,6000,true)};
+  go();
+}
+/* 夥伴端：發布通知 */
+function pubSeenKey(){return 'paiban-pub-seen-'+(storeCode||'')}
+function pubToastKey(){return 'paiban-pub-toast-'+(storeCode||'')}
+function pubSeenAt(){try{return +localStorage.getItem(pubSeenKey())||0}catch(e){return 0}}
+function pubUnseen(){const s=pubSeenAt();return (state.pubLog||[]).filter(x=>(x.at||0)>s)}
+function pubMerge(list){ // 同一個月的多次發布併成一行
+  const by={};
+  list.forEach(x=>{const o=by[x.ym]||(by[x.ym]={ym:x.ym,first:0,days:new Set(),at:0});if(x.first)o.first=1;(x.days||[]).forEach(d=>o.days.add(d));o.at=Math.max(o.at,x.at||0)});
+  return Object.values(by).map(o=>{const [y,mo]=o.ym.split('-').map(Number);return {ym:o.ym,y,m:mo,first:o.first,at:o.at,days:[...o.days].sort((p,q)=>p-q)}})
+    .sort((p,q)=>(p.y*12+p.m)-(q.y*12+q.m));
+}
+function updatePubBadge(){
+  const btn=document.getElementById('btnNotice');if(!btn||!viewerMode)return;
+  const n=pubUnseen().length;let b=btn.querySelector('.lv-badge');
+  if(n>0){if(!b){b=document.createElement('span');b.className='lv-badge';btn.appendChild(b)}b.textContent=n>99?'99+':n}
+  else if(b)b.remove();
+}
+function pubNotifyViewer(){ // 有新的發布：跳小通知（每筆一次），🔔 顯示紅點直到點開
+  if(!viewerMode||!storeCode)return;
+  const log=state.pubLog||[],maxAt=log.reduce((x,e)=>Math.max(x,e.at||0),0);
+  let seen=null,toasted=0;
+  try{seen=localStorage.getItem(pubSeenKey());toasted=+localStorage.getItem(pubToastKey())||0}catch(e){}
+  if(seen===null){ // 第一次用這個代碼：以前的發布不另外通知
+    try{localStorage.setItem(pubSeenKey(),String(maxAt));localStorage.setItem(pubToastKey(),String(maxAt))}catch(e){}
+    updatePubBadge();return;
+  }
+  const fresh=log.filter(x=>(x.at||0)>Math.max(+seen||0,toasted));
+  updatePubBadge();
+  if(!fresh.length||document.getElementById('ovNotice').classList.contains('show'))return;
+  try{localStorage.setItem(pubToastKey(),String(maxAt))}catch(e){}
+  const msg='<div class="ts-h">🔔 班表更新</div>'+pubMerge(fresh).map(o=>
+    '<div class="ts-k">'+pubYmLabel(o.y,o.m)+'班表'+(o.first?'已發布':'有更新')+'</div>'+
+    (!o.first&&o.days.length?'<div class="ts-n">'+pubDaysText(o.m,o.days)+'</div>':'')).join('')+
+    '<div class="ts-n">詳細內容列於 🔔 通知。</div>';
+  let n=0;const go=()=>{if(document.getElementById('splash')&&++n<40){setTimeout(go,500);return}showToast(msg,6000,true)};
+  go();
+}
+function renderNoticeViewer(){
+  const seen=pubSeenAt(),log=(state.pubLog||[]).slice().sort((p,q)=>(q.at||0)-(p.at||0)).slice(0,20);
+  document.querySelector('#ovNotice .m-title').textContent='🔔 通知';
+  document.getElementById('btnNoticeLeave').style.display='none';
+  document.getElementById('ntSub').textContent=log.length?'班表發布與更新的紀錄，點選可切換到該月份。':'';
+  document.getElementById('ntBody').innerHTML=log.length?log.map(x=>{
+    const [y,mo]=String(x.ym).split('-').map(Number),days=x.days||[],nw=(x.at||0)>seen;
+    return '<button type="button" class="pub-nt'+(nw?' new':'')+'" data-pubym="'+esc(x.ym)+'" data-pubdays="'+days.join(',')+'">'+
+      '<span class="pub-at">'+fmtMdHm(x.at)+'</span><b>'+pubYmLabel(y,mo)+'班表'+(x.first?'已發布':'有更新')+'</b>'+(nw?'<span class="pub-new">新</span>':'')+
+      (!x.first&&days.length?'<span class="pub-days">'+pubDaysText(mo,days)+'</span>':'')+'</button>';
+  }).join(''):'<div class="small-note" style="margin-top:8px">目前沒有通知。主管發布或更新班表時會列在這裡。</div>';
+}
+function pubJump(k,days){ // 通知 → 切到該月份，閃一下更新的日期
+  const [y,mo]=String(k).split('-').map(Number);
+  document.getElementById('ovNotice').classList.remove('show');
+  state.y=y;state.m=mo;renderAll();
+  const ds=String(days||'').split(',').filter(Boolean).map(Number);
+  if(!ds.length)return;
+  ensureDayVisible(ds[0]);
+  ds.forEach(d=>{const th=document.querySelector('#sheet thead th.day-th[data-day="'+d+'"]');
+    if(th){th.classList.remove('flash');void th.offsetWidth;th.classList.add('flash');setTimeout(()=>th.classList.remove('flash'),1900)}});
+  const th=document.querySelector('#sheet thead th.day-th[data-day="'+ds[0]+'"]');
+  if(th)th.scrollIntoView({block:'nearest',inline:'center',behavior:'smooth'});
+}
+function viewerMonthHidden(){ // 夥伴端：這個月還沒發布
+  const k=ym(),raw=state.months[k];
+  if(raw&&raw.unpub)return true;
+  if(payloadMonthKeys.has(k))return false;
+  const t=new Date(nowMs());return state.y*12+state.m>t.getFullYear()*12+t.getMonth()+1; // 還沒建立的未來月份
 }
 function applyPayload(json){
   try{
@@ -2558,6 +2815,7 @@ function applyPayload(json){
     state.viewCode=d.viewCode||state.viewCode||'';
     state.config=d.config||{};
     state.staff=d.staff;state.months=d.months;state.calCache=d.calCache||{};
+    state.pubV=d.pubV||0;state.pubLog=Array.isArray(d.pubLog)?d.pubLog:[];payloadMonthKeys=new Set(Object.keys(d.months));
     legacyCalManual=(d.calManual&&Object.keys(d.calManual).length)?d.calManual:null; // 舊版存在店家資料裡的手動匯入，留著搬到共用行事曆
     sortStaff();
     document.getElementById('storeName').value=state.store;
@@ -2628,11 +2886,12 @@ async function connectStore(code,isNew,silent){
       state.store='';state.title='排班表';state.corner='';state.viewCode='';
       state.staff=[];state.months={};state.calCache={};state.config={};
       state.viewCode='view-'+genCodeSuffix();
+      state.pubV=1;state.pubLog=[]; // 新店家一開始就用發布機制
       document.getElementById('storeName').value='';
       document.getElementById('sheetTitle').value='排班表';
       lastWritten=payloadStr();
       await FB.setDoc(ref,{data:lastWritten,updatedAt:FB.serverTimestamp()});
-      await FB.setDoc(FB.doc(FB.db,'views',state.viewCode),{data:lastWritten,updatedAt:FB.serverTimestamp()}); // 夥伴代碼跟主管代碼一起建立，不用等到下次存檔才補上
+      await FB.setDoc(FB.doc(FB.db,'views',state.viewCode),{data:JSON.stringify(viewPayloadOf(JSON.parse(lastWritten))),updatedAt:FB.serverTimestamp()}); // 夥伴代碼跟主管代碼一起建立，不用等到下次存檔才補上
       renderAll();
     }else{
       // 找不到主管代碼 → 試試是不是夥伴代碼（唯讀鏡像）
@@ -2687,6 +2946,7 @@ async function connectStore(code,isNew,silent){
     state.viewCode='view-'+genCodeSuffix();
     pushCloud();
   }
+  if(pubLegacy(state)){pubMigrate();pushCloud()} // 第一次啟用發布機制
   cloudStatus='雲端已連線｜主管代碼：'+code+'｜夥伴代碼：'+state.viewCode;
   setHint('雲端已連線 ✓');
   applyViewerUI();
@@ -2695,6 +2955,7 @@ async function connectStore(code,isNew,silent){
   refreshCalendarDaily(); // 每天自動確認一次行事曆有沒有更新
   migrateLegacyCal();
   setTimeout(maybeAskReport,1200);
+  setTimeout(pubNotifyManager,2600); // 有沒發布的班表就提醒一次
   maybeStartTour(); // 主管版新手教學：每支手機一次
   return true;
 }
@@ -2746,6 +3007,7 @@ async function connectViewer(code,silent){ // 以夥伴代碼連線：唯讀，�
       tourRealDo(()=>applyPayload(d));
       renderAll();
       setHint('夥伴代碼｜已更新');
+      pubNotifyViewer(); // 主管剛發布：跳通知、🔔 紅點
     }
   },()=>{setHint('雲端監聽中斷')});
   cloudStatus='夥伴代碼：'+code+'（只能查看與劃假）';
@@ -2754,26 +3016,30 @@ async function connectViewer(code,silent){ // 以夥伴代碼連線：唯讀，�
   watchLeave();
   renderAll();  // 同上：代碼設定完成後再畫一次
   setTimeout(maybeAskReport,1200);
+  setTimeout(pubNotifyViewer,1500); // 上次之後有新的發布：跳通知
   maybeStartTour(); // 夥伴的新手教學：每支手機一次
   return true;
 }
 function applyViewerUI(){ // 檢視模式下隱藏所有可編輯入口；回到編輯模式則還原
   const hide=viewerMode?'none':'';
   document.documentElement.classList.toggle('viewer-boot',viewerMode); // 與首次繪製前的身分判定保持一致
-  ['btnEdit','btnStaff','btnAddNote','btnFilter','btnNotice'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=hide});
+  ['btnEdit','btnStaff','btnAddNote','btnFilter'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=hide});
+  const nb=document.getElementById('btnNotice');if(nb)nb.title=viewerMode?'通知':'劃假通知'; // 夥伴的 🔔：班表發布通知
+  updatePubBadge();
   document.getElementById('storeName').readOnly=viewerMode;
   document.getElementById('sheetTitle').readOnly=viewerMode;
   if(viewerMode&&editMode){editMode=false;document.body.classList.remove('editing')}
 }
 async function pushCloud(){
   if(!FB||!storeCode||viewerMode)return false;
+  pubTrack(); // 已發布的月份有修改：先留下夥伴那份要看的版本
   const p=payloadStr();
   if(p===lastWritten)return true;
   try{
     lastWritten=p;
     await FB.setDoc(FB.doc(FB.db,'stores',storeCode),{data:p,updatedAt:FB.serverTimestamp()});
-    if(state.viewCode){ // 同步唯讀鏡像，供夥伴代碼讀取
-      await FB.setDoc(FB.doc(FB.db,'views',state.viewCode),{data:p,updatedAt:FB.serverTimestamp()});
+    if(state.viewCode){ // 同步唯讀鏡像，供夥伴代碼讀取：只放已發布的內容
+      await FB.setDoc(FB.doc(FB.db,'views',state.viewCode),{data:JSON.stringify(viewPayloadOf(JSON.parse(p))),updatedAt:FB.serverTimestamp()});
     }
     return true;
   }catch(e){return false}
@@ -2809,6 +3075,7 @@ function monthStaff(){ // 本月名單（人員本體永久保留在 state.staff
   return state.staff.filter(s=>r.includes(s.id)&&!staffGoneIn(s,state.y,state.m));
 }
 function ensureRoster(){ // 首次開啟某月時，詢問是否帶入最近月份的名單
+  if(viewerMode)return; // 夥伴端唯讀，不詢問
   const md=monthData();
   if(md.roster!==null)return;
   let y=state.y,m=state.m,src=null,label='';
@@ -3451,7 +3718,14 @@ function scrollSheetToToday(){
   ['pointerdown','touchstart','wheel'].forEach(ev=>w.addEventListener(ev,stop,{passive:true}));})();
 function renderSheet(){
   if(otDemo&&state!==otDemo.st){otDemoWith(renderSheet);return} // 加班時數的示範中：別的地方觸發重畫，也畫示範班表
+  if(viewerMode&&viewerMonthHidden()){ // 夥伴端：還沒發布的月份
+    const sh=document.getElementById('sheet');sh.classList.add('unpub-sheet');
+    sh.innerHTML='<tbody><tr><td class="unpub-msg"><b>'+state.m+' 月班表尚未發布</b><br>發布後，工具列的 🔔 會出現通知。</td></tr></tbody>';
+    renderPubBar();return;
+  }
+  document.getElementById('sheet').classList.remove('unpub-sheet');
   const md=monthData(),N=daysInMonth();
+  const pubCh=pubEnabled()?pubChanges(ym()):null; // 已發布後改過、還沒發布的格子
   const RD=[];for(let d=1;d<=N;d++)RD[d]=isRed(d)?' rd':''; // 紅字日：外觀設定可讓整欄淡淡上色
   let h='<thead><tr><th class="corner" rowspan="2"><input id="cornerLabel" class="corner-input" value="'+esc(state.corner||'')+'" placeholder="標籤" aria-label="表格左上角標籤"></th>';
   for(let d=1;d<=N;d++){
@@ -3529,6 +3803,7 @@ function renderSheet(){
       }
       else if(e.t==='redline'){cls+=' redline';}
       const chKey2=st.id+':'+d;
+      if(pubCh&&pubCh.cells.has(chKey2))inner+='<span class="unpub-tri" title="修改尚未發布"></span>';
       if(changedCells.has(chKey2)){
         cls+=' changed-mark';
         const prev=changedCells.get(chKey2);
@@ -3578,6 +3853,7 @@ function renderSheet(){
   h+='</tbody>';
   document.getElementById('sheet').innerHTML=h;
   if(markedKey){markedKey=null;updateMarkBtn()} // 重繪後標示已不存在，按鈕一併收起
+  renderPubBar();
 }
 function renderNotes(){
   const notes=monthData().notes,row=document.getElementById('notesRow');
@@ -3934,6 +4210,7 @@ let lastUnseenCount=null;
 function updateLeaveBadge(){ // 工具列 🔔 的紅點：有幾筆還沒看過的劃假異動
   const btn=document.getElementById('btnNotice');
   if(!btn)return;
+  if(viewerMode){updatePubBadge();return} // 夥伴的 🔔 是班表發布通知
   const oldB=document.querySelector('#btnLeave .lv-badge');if(oldB)oldB.remove();
   const n=unseenLeaveChanges().length;
   let b=btn.querySelector('.lv-badge');
@@ -4085,6 +4362,17 @@ function ntReveal(el){ // 展開後讓這則（含明細）留在清單可見範
   else if(er.bottom>lr.bottom)list.scrollTop+=Math.min(er.bottom-lr.bottom+4,er.top-lr.top-4);
 }
 function openNotice(){
+  if(viewerMode){ // 夥伴：班表發布通知；打開即算已讀
+    document.getElementById('toast').classList.remove('show');
+    renderNoticeViewer();
+    document.getElementById('ovNotice').classList.add('show');
+    const maxAt=(state.pubLog||[]).reduce((x,e)=>Math.max(x,e.at||0),0);
+    try{localStorage.setItem(pubSeenKey(),String(maxAt));localStorage.setItem(pubToastKey(),String(Math.max(maxAt,+localStorage.getItem(pubToastKey())||0)))}catch(e){}
+    updatePubBadge();
+    return;
+  }
+  document.querySelector('#ovNotice .m-title').textContent='🔔 劃假通知';
+  document.getElementById('btnNoticeLeave').style.display='';
   if(needServerClock())syncServerClock();
   renderNotice(true);
   document.getElementById('ovNotice').classList.add('show');
@@ -4093,6 +4381,7 @@ document.getElementById('btnNotice').addEventListener('click',openNotice);
 document.getElementById('btnCloseNotice').addEventListener('click',()=>document.getElementById('ovNotice').classList.remove('show'));
 document.getElementById('btnNoticeLeave').addEventListener('click',()=>{document.getElementById('ovNotice').classList.remove('show');openLeave()});
 document.getElementById('ntBody').addEventListener('click',ev=>{
+  const pj=ev.target.closest('[data-pubym]');if(pj){pubJump(pj.dataset.pubym,pj.dataset.pubdays);return} // 夥伴：發布通知
   if(ev.target.closest('#btnNoticeSeen')){markLeaveSeen();renderNotice();return}
   const sb=ev.target.closest('[data-ntsort]');
   if(sb){lvLogSort=sb.dataset.ntsort;renderNotice(true);return}
@@ -4837,6 +5126,8 @@ document.getElementById('sheet').addEventListener('click',ev=>{
 document.getElementById('sheet').addEventListener('input',ev=>{
   if(ev.target.id==='cornerLabel'&&!viewerMode){state.corner=ev.target.value;scheduleSave()}
 });
+let pubAtUnlock=null; // 解鎖當下各月份的內容，鎖定時比對這次改了哪幾個月
+function pubFingerprint(){const o={};Object.keys(state.months).forEach(k=>{o[k]=stableStr(pubContent(state.months[k]))});return o}
 document.getElementById('btnEdit').addEventListener('click',()=>{
   editMode=!editMode;
   document.body.classList.toggle('editing',editMode);
@@ -4844,6 +5135,7 @@ document.getElementById('btnEdit').addEventListener('click',()=>{
   b.textContent=editMode?'🔓 排班中（按此鎖定）':'🔒 排班';
   b.classList.toggle('editing',editMode);
   if(editMode){
+    pubAtUnlock=pubFingerprint();
     changedCells.clear(); // 解鎖開始新的排班時段，清空上次的異動痕跡重新追蹤
     if(!viewerMode&&!tourSeen('sched')&&!document.getElementById('tour'))setTimeout(()=>{if(editMode)startTour('sched')},350); // 第一次排班：帶著做一次
   }else if(changedCells.size){
@@ -4856,8 +5148,22 @@ document.getElementById('btnEdit').addEventListener('click',()=>{
       changedCells.clear();
     },2000);
   }
+  if(!editMode&&pubEnabled()&&!document.getElementById('tour')){ // 鎖定：這次改到的月份有未發布的內容，就問要不要發布
+    const fp=pubAtUnlock||{};
+    const touched=new Set(Object.keys(state.months).filter(k=>stableStr(pubContent(state.months[k]))!==fp[k]));
+    const pend=pubPending().filter(x=>touched.has(x.k)).map(x=>x.k);
+    if(pend.length)setTimeout(()=>openPublish(pend),350);
+  }
+  if(!editMode)pubAtUnlock=null;
   renderSheet(); // 紅色驚嘆號只在鎖定後才檢查，切換狀態要立即反映
 });
+document.getElementById('pubBar').addEventListener('click',ev=>{const b=ev.target.closest('[data-pubgo]');if(b)openPublish([b.dataset.pubgo])});
+document.getElementById('btnPubGo').addEventListener('click',()=>{
+  const keys=[...document.querySelectorAll('#pubList input[data-pubk]:checked')].map(x=>x.dataset.pubk);
+  if(!keys.length){alert('請勾選要發布的月份。');return}
+  publishMonths(keys);
+});
+document.getElementById('btnPubLater').addEventListener('click',()=>document.getElementById('ovPublish').classList.remove('show'));
 document.getElementById('ovCell').addEventListener('click',ev=>{
   const chip=ev.target.closest('.chip[data-s]');
   if(chip){
@@ -5356,7 +5662,7 @@ function buildCaptureNode(from,to){
   // 拿掉排班人員自己看的標記
   ['lv-all','lv-only','lv-part','lv-late','lv-clash','marked','flash','changed-mark'].forEach(c=>
     tb.querySelectorAll('.'+c).forEach(el=>el.classList.remove(c)));
-  tb.querySelectorAll('.lv-cell-tag,.prev-value,.warn-row,.cov-warn,.ot-btn').forEach(el=>el.remove());
+  tb.querySelectorAll('.lv-cell-tag,.prev-value,.warn-row,.cov-warn,.ot-btn,.unpub-tri').forEach(el=>el.remove());
   // 左上角的輸入框換成純文字
   tb.querySelectorAll('input.corner-input').forEach(el=>{
     const sp=document.createElement('span');
@@ -5638,8 +5944,14 @@ document.getElementById('btnInstallGuide').addEventListener('click',()=>{
    更新次數自目前大版本上線起，每上傳一次 index.html 加 1（劃假上線那次為 000）。
    每次更新：APP_VERSION 改成「3.115MMDD.次數」，CHANGELOG 最上面同一天的那筆 ver 跟著改；新的一天加一筆。
    add＝新增功能，fix＝問題改善；項目寫成 [文字, 1] 表示只有主管會用到（夥伴代碼不顯示） */
-const APP_VERSION='3.1151104.076';
+const APP_VERSION='3.1151106.077';
 const CHANGELOG=[
+  {v:'2026.11.06',ver:'3.1151106.077',add:[
+    ['發布班表：排好的班按「發布」後夥伴才看得到，新的月份預設為草稿；班表上方顯示發布狀態。',1],
+    ['已發布的月份再修改時，夥伴看到的仍是上次發布的版本，修改過的格子右上角標示橘色三角，按「發布更新」才更新；鎖定排班與打開 App 時，有未發布的內容會提醒。',1],
+    ['夥伴端：班表發布或更新時跳出通知，工具列新增 🔔，列出更新的月份與日期，點選即切換到該月份；尚未發布的月份顯示「尚未發布」。'],
+    ['啟用時，這個月與以前的月份視為已發布，之後已排的月份成為草稿。',1]
+  ]},
   {v:'2026.11.04',ver:'3.1151104.076',add:[
     ['新增「安裝到手機」：Android 與 iPhone／iPad 的安裝步驟示意圖，Android 的 Chrome 可直接按「直接安裝」；位於「？」與新手教學（手機上、尚未安裝時）。'],
     ['從 LINE 點網址開啟時，自動改用手機的預設瀏覽器開啟；仍在 LINE 內時，畫面上方提示改用「以預設瀏覽器開啟」。'],
@@ -6336,6 +6648,9 @@ function tourSteps(role,full){ // full：完整新手教學，走到排班、開
     {el:()=>tourShown($('#btnEdit')),h:'開始排班',b:()=>'按此<b>解鎖</b>後，點選格子即可排入班別、自訂時間或假別；完成後再按一次<b>鎖定</b>。<br>鎖定後才進行人力檢查，紅色「！」於此時顯示。'+
       (!full?'':monthStaff().length?'<br>下一步起實際操作一次排班。':'<br>本月尚無人員，下一步起以示範班表實際操作一次排班。')},
     {seg:'sched',when:()=>full},
+    {el:()=>tourShown($('#pubBar'))||tourShown($('#btnEdit')),h:'發布',b:'排好的班按<b>「發布」</b>後夥伴才看得到；新的月份預設為草稿，班表上方顯示目前狀態。<br>'+
+      '已發布的月份再修改時，夥伴看到的仍是上次發布的版本；修改過的格子右上角標示<b style="color:#e08a2a">橘色三角</b>，按「發布更新」才會更新。<br>'+
+      '鎖定排班時，有未發布的修改會詢問是否發布；發布後夥伴會收到通知。'},
     {el:()=>tourShown($('#btnStaff')),h:'＋ 人員',b:'人員的新增、編輯與離職皆於此處理。以下依序預覽各畫面，僅供查看，不會變更資料。'},
     {enter:()=>{tourStaffWith(renderStaffList);document.getElementById('ovStaffList').classList.add('show')},
      leave:()=>{document.getElementById('ovStaffList').classList.remove('show');if(tourStaffDemo())renderStaffList()},
@@ -6387,7 +6702,8 @@ function tourSteps(role,full){ // full：完整新手教學，走到排班、開
     blank(SYM),
     SUMROW(false),
     ...OT,
-    {el:()=>[tourShown($('#selYear')),tourShown($('#selMonth'))].filter(Boolean),h:'切換月份',b:'於此切換查看其他月份的班表。'},
+    {el:()=>[tourShown($('#selYear')),tourShown($('#selMonth'))].filter(Boolean),h:'切換月份',b:'於此切換查看其他月份的班表；尚未發布的月份顯示「尚未發布」。'},
+    {el:()=>tourShown($('#btnNotice')),h:'🔔 通知',b:'主管發布或更新班表時，這裡出現紅點，開啟 App 時也會跳出通知。<br>點開可查看更新的月份與日期，點選即切換到該月份。'},
     {el:()=>tourShown($('#btnLeave')),h:'劃假',b:()=>'開放期間於此標出無法上班的日子，完成後按「送出」。'+
       (full?'<br>下一步起以練習畫面實際操作一次，練習內容不會送出。':'<br>操作方式可於「？」的<b>「🏖 劃假教學」</b>以練習畫面試做，練習內容不會送出。')},
     {seg:'leave',when:()=>full},
@@ -7299,7 +7615,7 @@ async function saveCfgToTarget(newCfg){ // 寫入目前選定的代碼：自己�
     payload.config=newCfg;
     const str=JSON.stringify(payload);
     await FB.setDoc(FB.doc(FB.db,'stores',cfgTargetCode),{data:str,updatedAt:FB.serverTimestamp()});
-    if(payload.viewCode)await FB.setDoc(FB.doc(FB.db,'views',payload.viewCode),{data:str,updatedAt:FB.serverTimestamp()});
+    if(payload.viewCode)await FB.setDoc(FB.doc(FB.db,'views',payload.viewCode),{data:JSON.stringify(viewPayloadOf(payload)),updatedAt:FB.serverTimestamp()});
     cfgTargetPayload=payload;
     showToast('已儲存「'+cfgTargetCode+'」的設定 ✓');
     return true;
@@ -7362,7 +7678,7 @@ document.getElementById('btnMgrRenameView').addEventListener('click',async()=>{
     try{
       await FB.setDoc(FB.doc(FB.db,'stores',storeCode),{data:p,updatedAt:FB.serverTimestamp()});
     }catch(e){state.viewCode=oldCode;throw e}
-    await FB.setDoc(FB.doc(FB.db,'views',newCode),{data:p,updatedAt:FB.serverTimestamp()});
+    await FB.setDoc(FB.doc(FB.db,'views',newCode),{data:JSON.stringify(viewPayloadOf(JSON.parse(p))),updatedAt:FB.serverTimestamp()});
     await FB.deleteDoc(FB.doc(FB.db,'views',oldCode)); // 舊代碼立即失效：正在用舊代碼的夥伴會被登出
     try{await FB.deleteDoc(FB.doc(FB.db,'leaves',oldCode))}
     catch(e){try{await FB.setDoc(FB.doc(FB.db,'leaves',oldCode),{})}catch(e2){}} // 刪不掉就清空，舊代碼查不到任何劃假
@@ -8046,7 +8362,7 @@ document.getElementById('sheetTitle').addEventListener('input',scheduleSave);
 /* 點空白處：純選單／說明類視窗＝按它的「關閉」鈕（走同一套流程）；其他有輸入或設定的視窗一律不關，避免誤觸放棄修改 */
 const BACKDROP_CLOSE={ovNotice:'btnCloseNotice',ovMore:'btnCloseMore',ovHelp:'btnCloseHelp',ovHidden:'btnCloseHidden',ovStaffList:'btnCloseStaffList',
   ovOT:'btnCloseOT',ovTotal:'btnCloseTotal',ovCoverage:'btnCloseCoverage',ovReport:'btnCloseReport',
-  ovExportChoice:'btnCloseExportChoice',ovCopyChoice:'btnCloseCopyChoice',ovLook:'btnCloseLook',ovUpdates:'btnCloseUpdates',ovInstall:'btnCloseInstall'};
+  ovExportChoice:'btnCloseExportChoice',ovCopyChoice:'btnCloseCopyChoice',ovLook:'btnCloseLook',ovUpdates:'btnCloseUpdates',ovInstall:'btnCloseInstall',ovPublish:'btnPubLater'};
 document.querySelectorAll('.overlay').forEach(ov=>ov.addEventListener('click',ev=>{
   if(ev.target!==ov||ov.id==='ovCell')return; // 排班格子另有處理：改動即時套用，點外面直接關
   const btn=BACKDROP_CLOSE[ov.id]&&document.getElementById(BACKDROP_CLOSE[ov.id]);
