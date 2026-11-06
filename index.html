@@ -2653,6 +2653,14 @@ const firebaseConfig={
   appId:"1:566165247359:web:eb0986693f8c5f0b6b764a"
 };
 let FB=null, storeCode=null, unsubCloud=null, lastWritten='', cloudStatus='雲端載入中…', viewerMode=false;
+/* 開啟時：這台裝置用過主管代碼，但雲端還沒連上（loading）或連不上（fail）。
+   這段期間畫面是本機的舊資料，看不出發布狀態，排班也會在連上後被雲端覆蓋，所以先暫停排班。 */
+let cloudBoot=null;
+function cloudBootGuard(){ // 排班、加人員前檢查；回傳 true＝先不要動
+  if(viewerMode||storeCode||!cloudBoot)return false;
+  showToast(cloudBoot==='fail'?'<div class="ts-h">連線失敗，暫時無法排班</div><div class="ts-n">'+(FB?'請檢查網路連線，連上後會自動同步。':'請檢查網路連線後，重新開啟 App。')+'</div>':'正在同步雲端，請稍候再排班。',3500,true);
+  return true;
+}
 let adminUser=null; // 目前登入後台的帳號（Firebase Auth）
 function payloadStr(){
   return JSON.stringify({store:state.store,title:state.title,corner:state.corner,viewCode:state.viewCode||'',config:state.config||{},staff:state.staff,months:state.months,calCache:state.calCache,
@@ -2855,6 +2863,11 @@ function fmtMdHm(t){const d=new Date(t);return (d.getMonth()+1)+'/'+d.getDate()+
 function pubYmLabel(y,mo){const t=new Date(nowMs());return (y!==t.getFullYear()?(y-1911)+'年':'')+mo+' 月'}
 function renderPubBar(){ // 班表上方：這個月的發布狀態
   const bar=document.getElementById('pubBar');if(!bar)return;
+  if(cloudBoot&&!storeCode&&!viewerMode){ // 雲端還沒連上：先說明，不要讓人以為沒有未發布的修改
+    bar.className='pub-bar auto';bar.style.display='';
+    bar.innerHTML=cloudBoot==='fail'?'<span>⚠ 連線失敗，暫時無法確認發布狀態。</span>':'<span>⋯ 正在同步雲端，確認發布狀態…</span>';
+    return;
+  }
   if(!pubEnabled()){bar.style.display='none';return}
   const k=ym(),m=state.months[k];let cls,h;
   if(m&&m.pubPlan){
@@ -3113,6 +3126,7 @@ async function initFirebase(){
   }catch(e){
     FB=null;cloudStatus='雲端無法載入（本機模式）';
     setHint('本機模式');
+    if(cloudBoot){cloudBoot='fail';renderPubBar()}
     refreshCalendarDaily();
     let saved=null;try{saved=localStorage.getItem('paiban-store-code')}catch(e){}
     if(!saved)maybeStartTour(); // 本來就只用本機的：一樣有新手教學（有代碼只是暫時離線的，等連上再說）
@@ -3161,17 +3175,20 @@ async function connectStore(code,isNew,silent){
       renderAll();
     }else{
       // 找不到主管代碼 → 試試是不是夥伴代碼（唯讀鏡像）
+      cloudBoot=null; // 雲端有回應了，不再顯示「正在同步」
       const ok=await connectViewer(code,silent);
       return ok;
     }
   }catch(e){
     cloudStatus='連線失敗，請檢查網路連線';
     setHint('連線失敗');
+    if(cloudBoot&&!storeCode){cloudBoot='fail';renderPubBar()}
     if(!silent)alert('連線失敗，請檢查網路連線。');
     return false;
   }
   viewerMode=false;
   storeCode=code;
+  cloudBoot=null;
   try{localStorage.setItem('paiban-store-code',code);localStorage.setItem('paiban-mode','edit')}catch(e){}
   recordCodeHistory(code);
   if(unsubCloud)unsubCloud();
@@ -3770,6 +3787,7 @@ function scheduleSave(){
     if(tourHoldSave)return; // 教學開始前排定的存檔，剛好在教學中觸發也不存（免得把示範的格子存上去）
     state.store=document.getElementById('storeName').value;
     state.title=document.getElementById('sheetTitle').value||'排班表';
+    if(FB&&storeCode&&!viewerMode)pubTrack(); // 本機這份也要留著發布當下的版本，下次打開、雲端還沒連上前才不會漏掉未發布的修改
     const localOk=await saveRaw(JSON.stringify(state));
     const cloudOk=await pushCloud();
     if(cloudOk&&FB&&storeCode)setHint('雲端已同步 ✓');
@@ -5399,6 +5417,7 @@ document.getElementById('sheet').addEventListener('input',ev=>{
 let pubAtUnlock=null; // 解鎖當下各月份的內容，鎖定時比對這次改了哪幾個月
 function pubFingerprint(){const o={};Object.keys(state.months).forEach(k=>{o[k]=stableStr(pubContent(state.months[k]))});return o}
 document.getElementById('btnEdit').addEventListener('click',()=>{
+  if(!editMode&&cloudBootGuard())return; // 雲端還沒連上：先不要排班，免得連上後被雲端覆蓋
   editMode=!editMode;
   document.body.classList.toggle('editing',editMode);
   const b=document.getElementById('btnEdit');
@@ -5630,6 +5649,7 @@ document.getElementById('smArchived').addEventListener('click',ev=>{
   document.getElementById('ovStaff').classList.remove('show');
 });
 document.getElementById('btnStaff').addEventListener('click',()=>{
+  if(cloudBootGuard())return; // 雲端還沒連上：先不要改人員
   if(viewerMode)return;
   renderStaffList();
   document.getElementById('ovStaffList').classList.add('show');
@@ -6241,9 +6261,9 @@ document.getElementById('btnInstallGuide').addEventListener('click',()=>{
    更新次數自目前大版本上線起，每上傳一次 index.html 加 1（劃假上線那次為 000）。
    每次更新：APP_VERSION 改成「3.115MMDD.次數」，CHANGELOG 最上面同一天的那筆 ver 跟著改；新的一天加一筆。
    add＝新增功能，fix＝問題改善；項目寫成 [文字, 1] 表示只有主管會用到（夥伴代碼不顯示） */
-const APP_VERSION='3.1151106.085';
+const APP_VERSION='3.1151106.086';
 const CHANGELOG=[
-  {v:'2026.11.06',ver:'3.1151106.085',add:[
+  {v:'2026.11.06',ver:'3.1151106.086',add:[
     ['發布班表：排好的班按「發布」後夥伴才看得到，新的月份預設為草稿；班表上方顯示發布狀態。',1],
     ['已發布的月份再修改時，夥伴看到的仍是上次發布的版本，修改過的格子右上角標示小三角形，按「發布更新」才更新。',1],
     ['預約發布：發布時可指定日期時間，時間一到夥伴就看得到（以當時的最新內容為準），夥伴屆時才收到通知；可立即發布或取消預約。',1],
@@ -6253,6 +6273,7 @@ const CHANGELOG=[
     ['夥伴端：班表發布或更新時跳出通知，工具列新增 🔔，列出發布的日期，更新時分「新排」與「異動」，點選即切換到該月份；尚未發布的月份顯示「尚未發布」。'],
     ['啟用時，這個月與以前的月份視為已發布，之後已排的月份成為草稿。',1]
   ],fix:[
+    ['打開 App 時雲端還沒連上，班表上方不會顯示未發布的修改：改為顯示「正在同步雲端」，連上後才顯示發布狀態；這段期間暫停排班與加人員，避免連上後被雲端覆蓋。本機存檔也一併保留發布當下的版本。',1],
     ['發布狀態列只顯示修改的天數，日期以小三角形標示。',1],
     ['後台設定：右側摘要平常為灰色，改過還沒儲存的項目改為重點色。'],
     ['發布設定為「直接發布」時，排班中不再顯示「發布更新」按鈕，改為提示鎖定後自動發布；打開 App 時的提醒固定開啟。',1],
@@ -8013,6 +8034,7 @@ document.getElementById('btnMgrRenameView').addEventListener('click',async()=>{
     const lv=ls.exists()?Object.assign({},ls.data()):null;
     if(lv){delete lv.clock;delete lv.clockNonce;await FB.setDoc(FB.doc(FB.db,'leaves',newCode),lv)}
     state.viewCode=newCode;
+    pubTrack(); // 剛改的格子還沒存檔時，也要留著發布當下的版本，夥伴那份才不會看到未發布的內容
     const p=payloadStr();
     try{
       await FB.setDoc(FB.doc(FB.db,'stores',storeCode),{data:p,updatedAt:FB.serverTimestamp()});
@@ -8028,7 +8050,7 @@ document.getElementById('btnMgrRenameView').addEventListener('click',async()=>{
     document.getElementById('mgrViewCode').textContent=state.viewCode;
     alert('夥伴代碼已改為「'+newCode+'」。\n舊的夥伴代碼已失效，請把新的重新發給夥伴。\n已劃的假與異動紀錄都已搬到新代碼。');
   }catch(e){
-    alert('更改失敗，請確認網路連線與 Firestore 設定。');
+    alert('更改失敗，請檢查網路連線。');
   }
 });
 function moveCodeKeys(oldCode,newCode){ // 換夥伴代碼：這台裝置的劃假已讀、已提醒紀錄跟著搬，不會整批又變未讀
@@ -8732,6 +8754,7 @@ document.querySelectorAll('.overlay').forEach(ov=>ov.addEventListener('click',ev
   else if(HOLIDAYS_BUILTIN[state.y])calSource='內建 '+state.y+' 年資料';
   // 沿用上次的身分先套用畫面，避免唯讀使用者在雲端回應前看到一瞬間的編輯介面
   try{if(localStorage.getItem('paiban-mode')==='view')viewerMode=true}catch(e){}
+  try{if(!viewerMode&&localStorage.getItem('paiban-store-code')){cloudBoot='loading';setHint('雲端同步中…')}}catch(e){}
   applyViewerUI();
   renderAll();          // 先用本機資料顯示，雲端連上後自動覆蓋
   fetchCalendar(state.y);
@@ -8777,6 +8800,11 @@ function applyUpdate(){
   setTimeout(go,800);
 })();
 window.addEventListener('load',()=>setTimeout(()=>checkUpdate(true),3000));
+window.addEventListener('online',()=>{ // 開啟時連不上：網路恢復就自動重新連線
+  if(cloudBoot!=='fail'||storeCode||!FB)return;
+  let c=null;try{c=localStorage.getItem('paiban-store-code')}catch(e){}
+  if(c){cloudBoot='loading';renderPubBar();connectStore(c,false,true)}
+});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){upd.wakeAt=Date.now();checkUpdate()}});
 setInterval(()=>{if(document.visibilityState==='visible')checkUpdate(true)},30*60*1000);
 
