@@ -822,6 +822,7 @@ html.dark .lv-late-h,html.dark .lv-late-row .ar{color:#f0b978}
 .lv-note-line{font-size:12px;color:#6b5a2a;background:#fbf6e8;border-radius:4px;padding:3px 6px;margin-top:5px}
 /* 後台選單：一項一顆按鈕，右邊帶目前設定摘要 */
 .cfg-menu{display:flex;flex-direction:column;gap:8px}
+.cfg-group{margin:14px 0 6px}
 .cfg-item{display:flex;align-items:center;justify-content:space-between;gap:10px;text-align:left;width:100%}
 .cfg-item::after{content:'›';color:#aaa;font-size:20px;line-height:1;margin-left:2px}
 .cfg-item small{font-weight:600;font-size:11px;color:#999;margin-left:auto;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%}
@@ -1864,6 +1865,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
     <div class="small-note" id="cfgTargetMsg" style="margin-top:4px"></div>
 
     <div class="hr"></div>
+    <div class="sec-label cfg-group" id="cfgGroupCode">此主管代碼的設定</div>
     <div class="cfg-menu">
       <button class="btn cfg-item" data-cfgpanel="ovCfgShifts"><span>班段</span><small id="sumShifts"></small></button>
       <button class="btn cfg-item" data-cfgpanel="ovCfgRules"><span>覆蓋檢查規則</span><small id="sumRules"></small></button>
@@ -1871,9 +1873,10 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
       <button class="btn cfg-item" data-cfgpanel="ovCfgLeave"><span>劃假</span><small id="sumLeave"></small></button>
       <button class="btn cfg-item" data-cfgpanel="ovCfgSplit"><span>分段工時</span><small id="sumSplit"></small></button>
       <button class="btn cfg-item" data-cfgpanel="ovCfgPub"><span>發布</span><small id="sumPub"></small></button>
-      <button class="btn cfg-item" id="btnOpenCalCfg"><span>行事曆</span><small id="sumCal"></small></button>
     </div>
-    <div class="cfg-menu" style="margin-top:8px">
+    <div class="sec-label cfg-group">所有主管代碼共用</div>
+    <div class="cfg-menu">
+      <button class="btn cfg-item" id="btnOpenCalCfg"><span>行事曆</span><small id="sumCal"></small></button>
       <button class="btn cfg-item" id="btnUpdates"><span>更新日誌</span><small id="sumUpdates"></small></button>
     </div>
 
@@ -2446,7 +2449,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
       <div class="sec-label">後台設定</div>
       <ul class="hul">
         <li>需管理者帳號登入。</li>
-        <li>採選單形式，各項分別設定，右側顯示目前內容：班段、覆蓋檢查規則、時段提醒、劃假、分段工時、發布、行事曆。</li>
+        <li>採選單形式，各項分別設定，右側顯示目前內容。分兩組：上方是所選主管代碼的設定（班段、覆蓋檢查規則、時段提醒、劃假、分段工時、發布），只套用到該代碼；下方「所有主管代碼共用」為行事曆與更新日誌。</li>
         <li>「更新日誌」逐日列出各版本的新增功能與問題改善；目前版本號另顯示於「⋯ 更多」最下方。</li>
         <li>修改後需按「儲存設定」。右側摘要平常為灰色；改過還沒儲存的項目，摘要與外框改為重點色，按鈕顯示 ●。未儲存即關閉將出現確認提示。</li>
         <li>每組主管代碼各有獨立設定，亦可於此設定其他主管代碼。行事曆例外：所有主管代碼共用，儲存後套用到全部主管代碼。</li>
@@ -6232,9 +6235,9 @@ document.getElementById('btnInstallGuide').addEventListener('click',()=>{
    更新次數自目前大版本上線起，每上傳一次 index.html 加 1（劃假上線那次為 000）。
    每次更新：APP_VERSION 改成「3.115MMDD.次數」，CHANGELOG 最上面同一天的那筆 ver 跟著改；新的一天加一筆。
    add＝新增功能，fix＝問題改善；項目寫成 [文字, 1] 表示只有主管會用到（夥伴代碼不顯示） */
-const APP_VERSION='3.1151106.083';
+const APP_VERSION='3.1151106.084';
 const CHANGELOG=[
-  {v:'2026.11.06',ver:'3.1151106.083',add:[
+  {v:'2026.11.06',ver:'3.1151106.084',add:[
     ['發布班表：排好的班按「發布」後夥伴才看得到，新的月份預設為草稿；班表上方顯示發布狀態。',1],
     ['已發布的月份再修改時，夥伴看到的仍是上次發布的版本，修改過的格子右上角標示小三角形，按「發布更新」才更新。',1],
     ['預約發布：發布時可指定日期時間，時間一到夥伴就看得到（以當時的最新內容為準），夥伴屆時才收到通知；可立即發布或取消預約。',1],
@@ -6246,6 +6249,7 @@ const CHANGELOG=[
   ],fix:[
     ['發布狀態列只顯示修改的天數，日期以小三角形標示。',1],
     ['後台設定：右側摘要平常為灰色，改過還沒儲存的項目改為重點色。'],
+    ['後台設定選單分兩組：「所選主管代碼的設定」與「所有主管代碼共用」（行事曆、更新日誌），避免誤以為行事曆只套用到單一代碼。'],
     ['未發布修改的小三角形改用重點色並調淡；班表上方的發布狀態列改為素色、左側一條重點色線，不與「柿橙」等主題撞色。',1],
     ['預約時間只有主管看得到，夥伴端到時間才收到「已發布」的通知。',1],
     ['連線失敗的提示改為「連線失敗，請檢查網路連線」；夥伴端狀態只顯示「夥伴代碼」。'],
@@ -7848,6 +7852,7 @@ function renderCfgSummary(){ // 選單上每一項右邊顯示目前設定，不
   const PC=pubCfgFromFields();
   put('sumPub','鎖定時'+({none:'不詢問',ask:'詢問',auto:'直接發布'})[PC.lock]+'　·　打開 App '+(PC.remind?'提醒':'不提醒'),PC.lock!=='none'||!PC.remind);
   if(typeof calSummaryText==='function')put('sumCal',calSummaryText(),Object.keys(calView().manual||{}).length);
+  try{const g=document.getElementById('cfgGroupCode'),c=cfgTargetCode||storeCode;if(g&&c)g.textContent='「'+c+'」的設定'}catch(e){} // 分組標題：上面跟著選的主管代碼，下面全部共用
   if(typeof syncCfgSaveBtn==='function')syncCfgSaveBtn();
 }
 document.getElementById('btnCloseAdmin').addEventListener('click',()=>{
@@ -8588,9 +8593,9 @@ function openCalCfg(){
 document.getElementById('btnOpenCalCfg').addEventListener('click',openCalCfg);
 function calSummaryText(){ // 後台選單右側的摘要
   const man=Object.keys(calView().manual||{}).sort();
-  if(!man.length)return '全部共用．線上取得';
+  if(!man.length)return '線上取得'; // 已列在「所有主管代碼共用」底下，不再重複寫「全部共用」
   const roc=man.map(y=>y-1911);
-  return '全部共用．手動匯入 '+(roc.length>3?roc[0]+'～'+roc[roc.length-1]+' 年（'+roc.length+' 年）':roc.join('、')+' 年'); // 年份多時縮短，避免被切掉
+  return '手動匯入 '+(roc.length>3?roc[0]+'～'+roc[roc.length-1]+' 年（'+roc.length+' 年）':roc.join('、')+' 年'); // 年份多時縮短，避免被切掉
 }
 new MutationObserver(()=>{if(!document.getElementById('ovCal').classList.contains('show'))renderCfgSummary()})
   .observe(document.getElementById('ovCal'),{attributes:true,attributeFilter:['class']});
