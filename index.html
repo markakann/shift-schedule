@@ -629,7 +629,25 @@ body.print-sizing .unpub-tri{display:none}
 #sheet.unpub-sheet{width:100%!important;min-width:0!important;table-layout:auto!important}
 .unpub-msg{padding:32px 16px!important;text-align:center;font-size:15px;line-height:1.8;color:#888}
 .unpub-msg b{color:var(--ink);font-size:17px}
-.pub-row{display:flex;gap:10px;align-items:flex-start;padding:9px 2px;border-bottom:1px dotted var(--line);font-size:14px;line-height:1.5;cursor:pointer}
+.pub-row{display:flex;gap:10px;align-items:flex-start;padding:9px 2px;font-size:14px;line-height:1.5;cursor:pointer}
+.pub-item{border-bottom:1px dotted var(--line)}
+.pub-pickwrap{display:none;padding:0 2px 10px 30px}
+.pub-item.on .pub-pickwrap{display:block}
+.pub-mode{display:inline-flex;border:1.5px solid var(--blue);border-radius:8px;overflow:hidden;margin:0 0 8px}
+.pub-mode button{font:inherit;font-size:13px;padding:5px 12px;border:0;background:var(--paper);color:var(--blue);cursor:pointer}
+.pub-mode button.on{background:var(--blue);color:var(--onBlue)}
+.pp-cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;max-width:300px;touch-action:none;user-select:none;-webkit-user-select:none}
+.pp-wd{text-align:center;font-size:11.5px;color:#888}
+.pp-wd.we{color:var(--red)}
+.pp-d{font:inherit;font-size:13px;height:32px;border:1.5px solid var(--line);border-radius:7px;background:var(--paper);color:var(--ink);cursor:pointer;padding:0}
+.pp-d:disabled{border-color:transparent;color:#bbb;background:transparent;cursor:default}
+.pp-d.on{background:var(--blue);border-color:var(--blue);color:var(--onBlue);font-weight:700}
+.pp-act{display:flex;align-items:center;gap:6px;margin:8px 0 4px;flex-wrap:wrap}
+.pp-act .btn{padding:3px 10px;font-size:12.5px}
+.pp-n{font-size:12.5px;color:#666}
+.pp-notes{display:flex;align-items:center;gap:6px;font-size:13px;margin:4px 0}
+html.dark .pp-d:disabled{color:#555}
+html.dark .pp-n{color:var(--fade2)}
 .pub-row input{width:18px;height:18px;margin-top:2px;flex-shrink:0}
 .pub-nt{display:block;width:100%;text-align:left;padding:8px 10px;margin-top:6px;border:1px solid var(--line);border-radius:8px;background:var(--paper);color:var(--ink);font:inherit;font-size:14px;cursor:pointer}
 .pub-nt.new{border-color:#e0a05a;background:#fff8ef}
@@ -2217,6 +2235,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
       <li class="edit-only">「📝 排班教學」實際點選一格，依序操作班別、自訂時間、排休、特休等假別與特定時段；教學中排入的內容不會儲存，結束後自動還原。班表尚無人員時以示範班表練習。未看過時，第一次按「🔒 排班」解鎖會自動開始。</li>
       <li class="edit-only">「⚙ 開放劃假教學」逐項介紹開放劃假的設定（月份、期間、候補、個別開放、紀錄保留），最後可實際按一次「儲存」查看結果，設定不會變更。未看過時，第一次開啟劃假的「⚙ 開放設定」會自動開始。</li>
       <li class="view-only">主管發布或更新班表時，工具列的 🔔 出現紅點，開啟 App 時也會跳出通知；點 🔔 可查看發布的日期，更新時分兩種列出：<b>新排</b>＝原本未排的格子排上了；<b>異動</b>＝原本已有標示的格子有更改（包含改回未排）。點選即切換到該月份。尚未發布的月份顯示「尚未發布」。</li>
+      <li>有新版本時，打開 App 或切回 App 會自動更新；排班中或視窗開著時，等鎖定、關閉後才更新。</li>
       <li>本頁最上方的「📲 安裝到手機」：Android 與 iPhone／iPad 的安裝步驟示意圖；Android 的 Chrome 可直接按「直接安裝」。安裝後由主畫面的「我的班表」圖示開啟。</li>
       <li>LINE 內建的瀏覽器無法安裝，代碼也不會保留到手機的瀏覽器。從 LINE 點網址時會自動改用預設瀏覽器開啟；仍在 LINE 內時，畫面上方會提示改用「以預設瀏覽器開啟」。<span class="edit-only">傳網址給夥伴時，可用「⋯ → 複製代碼 → 複製邀請訊息（LINE 用）」，網址與夥伴代碼一起複製。</span></li>
       <li>App 啟動或下拉重整時會播開啟動畫，點一下畫面可跳過。從其他 App 切回來不會重播，畫面維持在原本的位置。</li>
@@ -2230,6 +2249,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
         <li>按「🔒 排班」解鎖後方可編輯，再按一次即鎖定。</li>
         <li><b>發布</b>　排好的班按「發布」後夥伴才看得到。新的月份預設為草稿，班表上方顯示目前狀態（尚未發布／有修改尚未發布／已發布）。</li>
         <li>已發布的月份再修改時，夥伴看到的仍是上次發布的版本；修改過的格子右上角標示<b style="color:#e08a2a">橘色三角</b>，按「發布更新」後才更新給夥伴。</li>
+        <li><b>選擇日期發布</b>　發布視窗勾選月份後，可選「全部發布」或「選擇日期」：在日曆上點一下選一天，按住滑到另一天可選取整段。沒選的日期，夥伴看到的維持上次發布的內容（草稿月份則為空白）；人員名單一併發布，備註可選擇是否一併發布。預約發布也可以只發布選擇的日期。</li>
         <li><b>預約發布</b>　發布視窗選「指定時間」：時間一到夥伴就看得到，內容以當時的最新版本為準。預約時間只有主管看得到，夥伴在發布時才收到通知。班表上方可「立即發布」或「取消預約」。</li>
         <li>鎖定排班時要不要詢問發布（不詢問／詢問／直接發布），以及打開 App 時是否提醒未發布的班表，於後台設定「發布」調整；預設鎖定時不詢問、打開 App 時提醒。</li>
         <li>發布後，夥伴開啟 App 時跳出通知，夥伴的 🔔 列出更新的月份與日期。人員名單、劃假開放設定等不受發布控制，儲存後即同步。</li>
@@ -2638,6 +2658,8 @@ function payloadStr(){
    pubV：已啟用發布機制；pubLog：發布紀錄，夥伴的通知與 🔔 用，最多留 30 筆：
          {at,ym,first,days,nd,other}＝發布：第一次 days＝有排東西的日期（紅線不算）；之後 days＝更新的日期，nd＝其中新排的日期（那天變動的格子原本都是未排），其餘為異動；other＝備註／人員名單。
          planned:1＝預約的那次，at 為預約時間，夥伴端到時間才顯示。預約時間只有主管看得到。
+   選擇日期發布：已發布的內容只換上選取那幾天的最新內容（人員名單一併、備註可選），其餘日期維持不變；
+         預約時 pubPlan={at,days,notes}，到點以當時的最新內容套用。
    夥伴那份的月份：planAt＋pending（最新內容）＝預約中，夥伴的 App 依雲端時間到點才換上 pending。 */
 let payloadMonthKeys=new Set(); // 夥伴端：雲端資料裡實際有的月份
 function pubContent(m){m=m||{};return {sched:m.sched||{},notes:m.notes||[],dayOv:m.dayOv||{},dayNames:m.dayNames||{},roster:m.roster}}
@@ -2653,7 +2675,7 @@ function viewPayloadOf(o){ // 夥伴讀的版本：草稿月份不給內容；�
   Object.keys(o.months||{}).forEach(k=>{
     const m=o.months[k];if(!m)return;
     if(legacy){ms[k]=m;return}
-    const plan=m.pubPlan&&m.pubPlan.at?{planAt:m.pubPlan.at,pending:pubContent(m)}:{}; // 預約中：先放最新內容，到點才顯示
+    const plan=m.pubPlan&&m.pubPlan.at?{planAt:m.pubPlan.at,pending:pubPlanContent(m)}:{}; // 預約中：先放到點要顯示的內容（最新），到點才顯示
     if(!m.pub){ms[k]=Object.assign({unpub:1,sched:{},notes:[],dayOv:{},dayNames:{},roster:[]},plan);return}
     ms[k]=Object.assign(pubContent(m.pubSnap||m),{pubAt:m.pub.at},plan);
   });
@@ -2690,7 +2712,7 @@ function pubTrack(){ // 存檔前：已發布的月份有修改就留下發布�
   Object.keys(state.months).forEach(k=>{ // 預約中的那筆發布紀錄：更新的日期跟著最新內容
     const m=state.months[k];if(!m||!m.pubPlan)return;
     const e=(state.pubLog||[]).find(x=>x.planned&&x.ym===k&&x.at===m.pubPlan.at);
-    if(e)Object.assign(e,pubEntryOf(k));
+    if(e)Object.assign(e,pubEntryOf(k,m.pubPlan.days,m.pubPlan.notes));
   });
 }
 function pubFinalizePlans(){ // 預約時間到了：主管這邊也改成已發布（內容＝夥伴那份到點換上的最新內容）
@@ -2698,7 +2720,12 @@ function pubFinalizePlans(){ // 預約時間到了：主管這邊也改成已發
   const now=nowMs();let ch=false;
   Object.keys(state.months).forEach(k=>{
     const m=state.months[k];
-    if(m&&m.pubPlan&&m.pubPlan.at<=now){m.pub={at:m.pubPlan.at};delete m.pubPlan;delete m.pubSnap;ch=true}
+    if(m&&m.pubPlan&&m.pubPlan.at<=now){
+      const np=pubPlanContent(m);
+      m.pub={at:m.pubPlan.at};delete m.pubPlan;
+      if(pubSame(np,pubContent(m)))delete m.pubSnap;else m.pubSnap=np;
+      ch=true;
+    }
   });
   return ch;
 }
@@ -2754,14 +2781,44 @@ function pubPending(){ // 有待發布內容的月份（已預約的不算，時
   }).filter(Boolean).sort((p,q)=>(p.y*12+p.m)-(q.y*12+q.m));
 }
 function pubEnabled(){return !!(FB&&storeCode&&!viewerMode&&state.viewCode&&!otDemo&&!tourSchedDemo&&!pubLegacy(state))}
+function pubCompose(base,cur,days,withNotes){ // 只發布選取的日期：其餘日期維持已發布的內容（草稿 base＝null）
+  base=base||{};cur=cur||{};
+  const ds=new Set(days.map(String)),out={sched:{},notes:(withNotes?cur.notes:base.notes)||[],dayOv:{},dayNames:{}};
+  if(cur.roster!==undefined)out.roster=cur.roster;
+  new Set([...Object.keys(base.sched||{}),...Object.keys(cur.sched||{})]).forEach(sid=>{
+    const r={},b=(base.sched||{})[sid]||{},c=(cur.sched||{})[sid]||{};
+    Object.keys(b).forEach(d=>{if(!ds.has(d))r[d]=b[d]});
+    Object.keys(c).forEach(d=>{if(ds.has(d))r[d]=c[d]});
+    if(Object.keys(r).length||(cur.sched&&sid in cur.sched))out.sched[sid]=r;
+  });
+  ['dayOv','dayNames'].forEach(f=>{
+    const b=base[f]||{},c=cur[f]||{};
+    Object.keys(b).forEach(d=>{if(!ds.has(d))out[f][d]=b[d]});
+    Object.keys(c).forEach(d=>{if(ds.has(d))out[f][d]=c[d]});
+  });
+  return JSON.parse(JSON.stringify(out));
+}
+function pubPlanContent(m){ // 預約到點要發布的內容：全部＝最新內容；選擇日期＝已發布的內容換上那幾天的最新內容
+  const p=m.pubPlan;if(!p||!p.days)return pubContent(m);
+  return pubCompose(m.pub?pubContent(m.pubSnap||m):null,pubContent(m),p.days,p.notes);
+}
+function pubPickDays(k){ // 可選擇發布的日期：草稿＝有內容的日期；已發布＝有修改的日期
+  const m=state.months[k];if(!m)return [];
+  if(m.pub){const ch=pubChanges(k);return ch?ch.days:[]}
+  const c=pubContent(m),s=new Set();
+  Object.values(c.sched||{}).forEach(r=>Object.keys(r||{}).forEach(d=>{if(r[d])s.add(+d)}));
+  ['dayOv','dayNames'].forEach(f=>Object.keys(c[f]||{}).forEach(d=>s.add(+d)));
+  return [...s].sort((p,q)=>p-q);
+}
+function pubNotesChanged(k){const m=state.months[k];if(!m)return false;return !pubSame((m.pub?(pubBase(k)||{}).notes:[])||[],m.notes||[])}
 function pubFilledDays(c){ // 有排東西的日期（紅線不算）
   const s=new Set();
   Object.values((c&&c.sched)||{}).forEach(r=>Object.keys(r||{}).forEach(d=>{if(r[d]&&r[d].t!=='redline')s.add(+d)}));
   return [...s].sort((p,q)=>p-q);
 }
-function pubEntryOf(k){ // 發布紀錄的內容
-  const m=state.months[k];
-  if(!m.pub)return {first:1,days:pubFilledDays(pubContent(m)),nd:[],other:[]};
+function pubEntryOf(k,days,notes){ // 發布紀錄的內容（days：選擇日期發布時只算那幾天）
+  const m=state.months[k],sel=days?new Set(days.map(Number)):null,f=x=>sel?x.filter(d=>sel.has(d)):x;
+  if(!m.pub)return {first:1,days:f(pubFilledDays(pubContent(m))),nd:[],other:[]};
   const ch=pubChanges(k);if(!ch)return {first:0,days:[],nd:[],other:[]};
   // 以格子判斷：原本未排 → 排了東西＝新排；原本有標示，改成什麼（含改回未排）都算異動。同一天兩種都有，算異動
   const b=pubBase(k)||{},cellDays=new Set(),chg=new Set();
@@ -2771,7 +2828,7 @@ function pubEntryOf(k){ // 發布紀錄的內容
     if(((b.sched||{})[sid]||{})[d])chg.add(d);
   });
   ch.days.forEach(d=>{if(!cellDays.has(d))chg.add(d)}); // 只改了整天的設定（國定假日等）
-  return {first:0,days:ch.days,nd:ch.days.filter(d=>!chg.has(d)),other:ch.other};
+  return {first:0,days:f(ch.days),nd:f(ch.days.filter(d=>!chg.has(d))),other:ch.other.filter(x=>x!=='備註'||!sel||notes)};
 }
 function pubRangeText(mo,days,max){ // 連續 3 天以上合併成範圍：12/1–12/14、12/20
   const seg=[],out=[];
@@ -2794,7 +2851,7 @@ function renderPubBar(){ // 班表上方：這個月的發布狀態
   const k=ym(),m=state.months[k];let cls,h;
   if(m&&m.pubPlan){
     cls='plan';
-    h='<span>⏰ <b>'+state.m+' 月預定 '+fmtMdHm(m.pubPlan.at)+' 發布</b>，到時間夥伴就看得到（以當時的最新內容為準）。</span>'+
+    h='<span>⏰ <b>'+state.m+' 月預定 '+fmtMdHm(m.pubPlan.at)+' 發布</b>'+(m.pubPlan.days?'（'+pubRangeText(state.m,m.pubPlan.days,4)+'）':'')+'，到時間夥伴就看得到（以當時的最新內容為準）。</span>'+
       '<button class="btn primary" data-pubgo="'+k+'">立即發布</button><button class="btn" data-pubcancel="'+k+'">取消預約</button>';
   }else if(!m||!m.pub){
     cls='draft';
@@ -2806,14 +2863,22 @@ function renderPubBar(){ // 班表上方：這個月的發布狀態
   }
   bar.className='pub-bar '+cls;bar.innerHTML=h;bar.style.display='';
 }
+let pubPick={}; // 發布視窗各月份的範圍：{mode:'all'|'pick',days:Set,notes}
 function openPublish(pre){
-  const plans=Object.keys(state.months).filter(k=>state.months[k]&&state.months[k].pubPlan).map(k=>{const [y,mo]=k.split('-').map(Number);return {k,y,m:mo,plan:state.months[k].pubPlan.at}});
+  const plans=Object.keys(state.months).filter(k=>state.months[k]&&state.months[k].pubPlan).map(k=>{const [y,mo]=k.split('-').map(Number),pp=state.months[k].pubPlan;return {k,y,m:mo,plan:pp.at,pdays:pp.days,pnotes:pp.notes}});
   const list=pubPending().concat(plans).sort((p,q)=>(p.y*12+p.m)-(q.y*12+q.m));
   if(!list.length){showToast('沒有需要發布的內容');return}
   const preset=new Set(pre&&pre.length?pre:[ym()]);
-  document.getElementById('pubList').innerHTML=list.map(x=>
-    '<label class="pub-row"><input type="checkbox" data-pubk="'+x.k+'"'+(preset.has(x.k)?' checked':'')+'>'+
-    '<span><b>'+pubYmLabel(x.y,x.m)+'</b>　'+(x.plan?'已預約 '+fmtMdHm(x.plan)+' 發布':x.first?'草稿，第一次發布':esc(pubChText(x.m,x.ch))+'有修改')+'</span></label>').join('');
+  pubPick={};
+  list.forEach(x=>{const cand=new Set(pubPickDays(x.k));pubPick[x.k]={mode:x.pdays?'pick':'all',days:new Set((x.pdays||[]).filter(d=>cand.has(d))),notes:x.pdays?!!x.pnotes:true}});
+  document.getElementById('pubList').innerHTML=list.map(x=>{
+    const on=preset.has(x.k);
+    return '<div class="pub-item'+(on?' on':'')+'" data-pubitem="'+x.k+'">'+
+      '<label class="pub-row"><input type="checkbox" data-pubk="'+x.k+'"'+(on?' checked':'')+'>'+
+      '<span><b>'+pubYmLabel(x.y,x.m)+'</b>　'+(x.plan?'已預約 '+fmtMdHm(x.plan)+' 發布'+(x.pdays?'（'+pubRangeText(x.m,x.pdays,4)+'）':''):x.first?'草稿，第一次發布':esc(pubChText(x.m,x.ch))+'有修改')+'</span></label>'+
+      '<div class="pub-pickwrap"></div></div>';
+  }).join('');
+  list.forEach(x=>renderPubPick(x.k));
   document.querySelector('input[name="pubWhen"][value="now"]').checked=true;
   const t=new Date(nowMs());t.setDate(t.getDate()+1);t.setHours(9,0,0,0); // 預設明天 09:00
   document.getElementById('pubAt').value=isoDay(t)+'T09:00';
@@ -2821,21 +2886,80 @@ function openPublish(pre){
   document.getElementById('toast').classList.remove('show');
   document.getElementById('ovPublish').classList.add('show');
 }
-async function publishMonths(keys,planAt){ // planAt：預約時間（不給＝立即發布）
+function renderPubPick(k){ // 發布視窗：這個月份要全部發布，還是只發布選擇的日期
+  const wrap=document.querySelector('#pubList [data-pubitem="'+k+'"] .pub-pickwrap'),st=pubPick[k];if(!wrap||!st)return;
+  const [y,mo]=k.split('-').map(Number),cand=new Set(pubPickDays(k)),N=new Date(y,mo,0).getDate(),off=new Date(y,mo-1,1).getDay(),draft=!state.months[k].pub;
+  let h='<div class="pub-mode"><button type="button" data-pubmode="all"'+(st.mode==='all'?' class="on"':'')+'>全部發布</button>'+
+        '<button type="button" data-pubmode="pick"'+(st.mode==='pick'?' class="on"':'')+'>選擇日期</button></div>';
+  if(st.mode==='pick'){
+    h+='<div class="pp-cal">'+['日','一','二','三','四','五','六'].map((w,i)=>'<span class="pp-wd'+(i%6?'':' we')+'">'+w+'</span>').join('')+'<span></span>'.repeat(off);
+    for(let d=1;d<=N;d++)h+='<button type="button" class="pp-d'+(st.days.has(d)?' on':'')+'" data-ppd="'+d+'"'+(cand.has(d)?'':' disabled')+'>'+d+'</button>';
+    h+='</div><div class="pp-act"><button type="button" class="btn" data-ppall>全選</button><button type="button" class="btn" data-ppnone>清除</button><span class="pp-n"></span></div>';
+    if(pubNotesChanged(k))h+='<label class="pp-notes"><input type="checkbox" data-ppnotes'+(st.notes?' checked':'')+'><span>備註也一併發布</span></label>';
+    h+='<div class="small-note">點一下選一天，按住滑到另一天可選取整段（只能選'+(draft?'有內容':'有修改')+'的日期）。沒選的日期'+(draft?'先不發布，夥伴看到的是空白。':'，夥伴看到的維持上次發布的內容。')+'</div>';
+  }
+  wrap.innerHTML=h;
+  pubPickCount(k);
+}
+function pubPickCount(k){
+  const el=document.querySelector('#pubList [data-pubitem="'+k+'"] .pp-n'),st=pubPick[k];if(!el||!st)return;
+  const mo=+k.split('-')[1],ds=[...st.days].sort((p,q)=>p-q);
+  el.textContent=ds.length?'已選 '+ds.length+' 天：'+pubRangeText(mo,ds,3):'尚未選擇日期';
+}
+(()=>{ // 發布視窗的事件：勾月份、切換範圍、選日期（點一下選一天；按住滑到另一天＝選取中間整段）
+  const list=document.getElementById('pubList');let drag=null;
+  const itemK=el=>{const it=el.closest('[data-pubitem]');return it?it.dataset.pubitem:null};
+  const toDay=d1=>{
+    const st=pubPick[drag.k],lo=Math.min(drag.d0,d1),hi=Math.max(drag.d0,d1);
+    st.days=new Set(drag.snap);
+    drag.cand.forEach(d=>{if(d>=lo&&d<=hi){if(drag.on)st.days.add(d);else st.days.delete(d)}});
+    document.querySelectorAll('#pubList [data-pubitem="'+drag.k+'"] .pp-d').forEach(b=>b.classList.toggle('on',st.days.has(+b.dataset.ppd)));
+    pubPickCount(drag.k);
+  };
+  list.addEventListener('change',ev=>{
+    const c=ev.target.closest('input[data-pubk]');
+    if(c){const it=c.closest('[data-pubitem]');it.classList.toggle('on',c.checked);return}
+    const n=ev.target.closest('input[data-ppnotes]');if(n)pubPick[itemK(n)].notes=n.checked;
+  });
+  list.addEventListener('click',ev=>{
+    const mb=ev.target.closest('[data-pubmode]');
+    if(mb){const k=itemK(mb);pubPick[k].mode=mb.dataset.pubmode;renderPubPick(k);return}
+    const all=ev.target.closest('[data-ppall]'),none=ev.target.closest('[data-ppnone]');
+    if(all||none){const k=itemK(all||none);pubPick[k].days=all?new Set(pubPickDays(k)):new Set();renderPubPick(k)}
+  });
+  list.addEventListener('pointerdown',ev=>{
+    const b=ev.target.closest('.pp-d');if(!b||b.disabled)return;
+    ev.preventDefault();
+    const k=itemK(b),d0=+b.dataset.ppd;
+    drag={k,d0,last:d0,on:!pubPick[k].days.has(d0),snap:new Set(pubPick[k].days),cand:pubPickDays(k)};toDay(d0);
+  });
+  document.addEventListener('pointermove',ev=>{
+    if(!drag)return;
+    const el=document.elementFromPoint(ev.clientX,ev.clientY),b=el&&el.closest&&el.closest('.pp-d');
+    if(b&&!b.disabled&&itemK(b)===drag.k&&+b.dataset.ppd!==drag.last){drag.last=+b.dataset.ppd;toDay(drag.last)}
+  });
+  ['pointerup','pointercancel'].forEach(t=>document.addEventListener(t,()=>{drag=null}));
+})();
+async function publishMonths(items,planAt){ // items：月份 'YYYY-M'，或 {k,days,notes} 只發布選擇的日期；planAt：預約時間（不給＝立即發布）
   const at=nowMs(),names=[];
+  window.__saveAt=Date.now();
   let log=(state.pubLog||[]).slice();
-  keys.forEach(k=>{
+  items.map(x=>typeof x==='string'?{k:x}:x).forEach(({k,days,notes})=>{
     const m=state.months[k];if(!m)return;
-    const en=pubEntryOf(k);
+    const mo=+k.split('-')[1];
+    days=days&&days.length?days.map(Number).sort((p,q)=>p-q):null;
+    const en=pubEntryOf(k,days,notes);
     log=log.filter(x=>!(x.planned&&x.ym===k&&x.at>at)); // 原本的預約作廢
     if(planAt){
-      m.pubPlan={at:planAt};
+      m.pubPlan=days?{at:planAt,days,notes:notes?1:0}:{at:planAt};
       log.push(Object.assign({at:planAt,ym:k,planned:1},en));
     }else{
-      delete m.pubPlan;m.pub={at};delete m.pubSnap;
+      const np=days?pubCompose(m.pub?pubBase(k):null,pubContent(m),days,notes):null;
+      delete m.pubPlan;m.pub={at};
+      if(np&&!pubSame(np,pubContent(m)))m.pubSnap=np;else delete m.pubSnap;
       log.push(Object.assign({at,ym:k},en));
     }
-    names.push(+k.split('-')[1]+' 月');
+    names.push(mo+' 月'+(days?'（'+pubRangeText(mo,days,3)+'）':''));
   });
   state.pubLog=log.slice(-30);
   pubArmTimer();
@@ -3630,6 +3754,7 @@ function scheduleSave(){
   if(viewerMode){setHint('夥伴代碼｜僅檢視');return}
   clearTimeout(saveTimer);
   setHint('儲存中…');
+  window.__saveAt=Date.now(); // 自動更新：存檔中不重新載入
   saveTimer=setTimeout(async()=>{
     if(tourHoldSave)return; // 教學開始前排定的存檔，剛好在教學中觸發也不存（免得把示範的格子存上去）
     state.store=document.getElementById('storeName').value;
@@ -5307,7 +5432,14 @@ function syncPubWhen(){
 document.querySelectorAll('input[name="pubWhen"]').forEach(r=>r.addEventListener('change',syncPubWhen));
 document.getElementById('pubAt').addEventListener('focus',()=>{document.querySelector('input[name="pubWhen"][value="at"]').checked=true;syncPubWhen()});
 document.getElementById('btnPubGo').addEventListener('click',()=>{
-  const keys=[...document.querySelectorAll('#pubList input[data-pubk]:checked')].map(x=>x.dataset.pubk);
+  const keys=[];
+  for(const inp of document.querySelectorAll('#pubList input[data-pubk]:checked')){
+    const k=inp.dataset.pubk,st=pubPick[k];
+    if(!st||st.mode!=='pick'){keys.push(k);continue}
+    if(!st.days.size){alert('請選擇 '+(+k.split('-')[1])+' 月要發布的日期，或改為「全部發布」。');return}
+    const cand=pubPickDays(k),allDays=cand.every(d=>st.days.has(d));
+    keys.push(allDays&&(st.notes||!pubNotesChanged(k))?k:{k,days:[...st.days],notes:st.notes}); // 全部選了＝全部發布
+  }
   if(!keys.length){alert('請勾選要發布的月份。');return}
   if(document.querySelector('input[name="pubWhen"]:checked').value==='at'){
     const v=document.getElementById('pubAt').value,t=v?new Date(v).getTime():NaN;
@@ -6104,6 +6236,8 @@ const CHANGELOG=[
     ['發布班表：排好的班按「發布」後夥伴才看得到，新的月份預設為草稿；班表上方顯示發布狀態。',1],
     ['已發布的月份再修改時，夥伴看到的仍是上次發布的版本，修改過的格子右上角標示橘色三角，按「發布更新」才更新。',1],
     ['預約發布：發布時可指定日期時間，時間一到夥伴就看得到（以當時的最新內容為準），夥伴屆時才收到通知；可立即發布或取消預約。',1],
+    ['選擇日期發布：發布視窗可選「全部發布」或「選擇日期」，在日曆上點選日期，按住滑過可選取整段；沒選的日期，夥伴看到的維持不變。預約發布也適用。',1],
+    ['自動更新：打開 App 或切回 App 時檢查新版本，自動更新；排班中或視窗開著時，等鎖定、關閉後才更新。'],
     ['後台設定新增「發布」：鎖定排班時不詢問（預設）／詢問／直接發布，以及打開 App 時是否提醒未發布的班表。',1],
     ['夥伴端：班表發布或更新時跳出通知，工具列新增 🔔，列出發布的日期，更新時分「新排」與「異動」，點選即切換到該月份；尚未發布的月份顯示「尚未發布」。'],
     ['啟用時，這個月與以前的月份視為已發布，之後已排的月份成為草稿。',1]
@@ -6810,7 +6944,7 @@ function tourSteps(role,full){ // full：完整新手教學，走到排班、開
     {seg:'sched',when:()=>full},
     {el:()=>tourShown($('#pubBar'))||tourShown($('#btnEdit')),h:'發布',b:'排好的班按<b>「發布」</b>後夥伴才看得到；新的月份預設為草稿，班表上方顯示目前狀態。<br>'+
       '已發布的月份再修改時，夥伴看到的仍是上次發布的版本；修改過的格子右上角標示<b style="color:#e08a2a">橘色三角</b>，按「發布更新」才會更新。<br>'+
-      '發布時可選「指定時間」預約發布；鎖定排班時是否詢問發布，於後台設定「發布」調整。發布後夥伴會收到通知。'},
+      '發布時可選「全部發布」或「選擇日期」，也可選「指定時間」預約發布；鎖定排班時是否詢問發布，於後台設定「發布」調整。發布後夥伴會收到通知。'},
     {el:()=>tourShown($('#btnStaff')),h:'＋ 人員',b:'人員的新增、編輯與離職皆於此處理。以下依序預覽各畫面，僅供查看，不會變更資料。'},
     {enter:()=>{tourStaffWith(renderStaffList);document.getElementById('ovStaffList').classList.add('show')},
      leave:()=>{document.getElementById('ovStaffList').classList.remove('show');if(tourStaffDemo())renderStaffList()},
@@ -8571,6 +8705,48 @@ document.querySelectorAll('.overlay').forEach(ov=>ov.addEventListener('click',ev
   fetchCalendar(state.y);
   initFirebase();
 })();
+
+/* ────────── 自動更新：打開 App、切回 App 時檢查有沒有新版本 ──────────
+   有新版本就在不打斷操作的時機重新載入：排班中、視窗開著、存檔中先等，鎖定或關閉後再更新。
+   開著不動的（如店裡的平板）每 30 分鐘檢查一次，閒置 20 秒以上才重新載入。 */
+function verParts(v){const p=String(v||'').split('.').map(Number);return p.length===3&&p.every(n=>!isNaN(n))?p:null}
+function verNewer(a,b){const x=verParts(a),y=verParts(b);if(!x||!y)return false;for(let i=0;i<3;i++)if(x[i]!==y[i])return x[i]>y[i];return false}
+const upd={target:null,checkedAt:0,wakeAt:Date.now(),touchAt:0,timer:null};
+['pointerdown','keydown'].forEach(t=>document.addEventListener(t,()=>{upd.touchAt=Date.now()},true));
+async function checkUpdate(force){
+  if(location.protocol==='file:'||(navigator.onLine===false))return;
+  if(!force&&Date.now()-upd.checkedAt<60000)return;
+  upd.checkedAt=Date.now();
+  try{
+    const r=await fetch('./index.html',{cache:'no-store'});if(!r.ok)return;
+    const m=(await r.text()).match(/const APP_VERSION='([^']+)'/);
+    if(m&&verNewer(m[1],APP_VERSION)){upd.target=m[1];applyUpdate()}
+  }catch(e){}
+}
+function updSafe(){
+  const fresh=Date.now()-upd.wakeAt<20000,idle=Date.now()-upd.touchAt>20000;
+  return !editMode&&!document.querySelector('.overlay.show')&&!document.getElementById('tour')&&
+    Date.now()-(window.__saveAt||0)>4000&&(fresh||idle);
+}
+function applyUpdate(){
+  clearTimeout(upd.timer);
+  if(!upd.target)return;
+  if(!updSafe()){upd.timer=setTimeout(applyUpdate,3000);return}
+  let n=0;try{const o=JSON.parse(sessionStorage.getItem('paiban-upd')||'{}');if(o.v===upd.target)n=o.n||0}catch(e){}
+  if(n>=2){upd.target=null;showToast('<div class="ts-h">有新版本</div><div class="ts-n">請關閉 App 後重新開啟，即可更新。</div>',6000,true);return} // 重新載入兩次仍是舊版（快取），不再自動重試
+  try{sessionStorage.setItem('paiban-upd',JSON.stringify({v:upd.target,n:n+1}))}catch(e){}
+  location.reload();
+}
+(()=>{ // 剛更新完：提示一次
+  let o=null;try{o=JSON.parse(sessionStorage.getItem('paiban-upd')||'null')}catch(e){}
+  if(!o||verNewer(o.v,APP_VERSION))return;
+  try{sessionStorage.removeItem('paiban-upd')}catch(e){}
+  let n=0;const go=()=>{if(document.getElementById('splash')&&++n<40){setTimeout(go,500);return}showToast('已更新到最新版本（'+APP_VERSION+'）',3500)};
+  setTimeout(go,800);
+})();
+window.addEventListener('load',()=>setTimeout(()=>checkUpdate(true),3000));
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){upd.wakeAt=Date.now();checkUpdate()}});
+setInterval(()=>{if(document.visibilityState==='visible')checkUpdate(true)},30*60*1000);
 
 /* ────────── 安裝成 App 後的離線支援 ────────── */
 if('serviceWorker' in navigator){
