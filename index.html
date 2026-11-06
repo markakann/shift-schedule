@@ -619,6 +619,7 @@ html.dark .lv-off-tag{color:#f0b978;border-color:#a8743a}
 .pub-bar.draft,.pub-bar.dirty,.pub-bar.plan{background:var(--paper);border:1.5px solid var(--line);border-left:4px solid var(--accLine);color:var(--ink)} /* 素色，左側一條淡重點色線 */
 .pub-bar.draft b,.pub-bar.dirty b,.pub-bar.plan b{color:var(--blue)}
 .pub-bar.ok{color:#2a8a4a;padding:0 4px;font-size:12px;margin-bottom:4px}
+.pub-bar.auto{color:var(--fade2,#666);padding:0 4px;font-size:12px;margin-bottom:4px}
 .pub-bar.plan{border-style:dashed;border-left-style:solid} /* 預約中：外框虛線 */
 .pub-when{margin-top:10px;padding-top:4px}
 .pub-when .cfg-row input.txt{width:auto;flex:1;min-width:0}
@@ -827,6 +828,7 @@ html.dark .lv-late-h,html.dark .lv-late-row .ar{color:#f0b978}
 .cfg-item::after{content:'›';color:#aaa;font-size:20px;line-height:1;margin-left:2px}
 .cfg-item small{font-weight:600;font-size:11px;color:#999;margin-left:auto;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%}
 .cfg-item.unsaved{border-color:var(--blue)}
+.cfg-row.off{opacity:.55}
 .cfg-item.unsaved small{color:var(--blue)} /* 摘要平常灰色；改過還沒儲存的項目變重點色 */
 .cfg-row{display:flex;align-items:center;gap:8px;font-size:14px;margin-top:8px}
 .split-seg{display:flex;align-items:center;gap:8px;margin-top:10px}
@@ -1937,6 +1939,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
     <label class="cfg-row"><input type="radio" name="cfgPubLock" value="auto"><span>直接發布這次改到的月份</span></label>
     <div class="hr"></div>
     <label class="cfg-row"><input type="checkbox" id="cfgPubRemind"><span>打開 App 時提醒未發布的班表</span></label>
+    <div class="small-note" id="cfgPubRemindNote" style="display:none;margin:-2px 0 0 28px">直接發布時，仍會提醒沒發布出去的修改（例如鎖定時沒有網路）。</div>
     <div class="m-actions"><button class="btn primary cfg-back">完成</button></div>
   </div>
 </div>
@@ -2256,7 +2259,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
         <li>已發布的月份再修改時，夥伴看到的仍是上次發布的版本；修改過的格子右上角標示<b>小三角形</b>（重點色），按「發布更新」後才更新給夥伴。</li>
         <li><b>選擇日期發布</b>　發布視窗勾選月份後，可選「全部發布」或「選擇日期」：在日曆上點一下選一天，按住滑到另一天可選取整段。沒選的日期，夥伴看到的維持上次發布的內容（草稿月份則為空白）；人員名單一併發布，備註可選擇是否一併發布。預約發布也可以只發布選擇的日期。</li>
         <li><b>預約發布</b>　發布視窗選「指定時間」：時間一到夥伴就看得到，內容以當時的最新版本為準。預約時間只有主管看得到，夥伴在發布時才收到通知。班表上方可「立即發布」或「取消預約」。</li>
-        <li>鎖定排班時要不要詢問發布（不詢問／詢問／直接發布），以及打開 App 時是否提醒未發布的班表，於後台設定「發布」調整；預設鎖定時不詢問、打開 App 時提醒。</li>
+        <li>鎖定排班時要不要詢問發布（不詢問／詢問／直接發布），以及打開 App 時是否提醒未發布的班表，於後台設定「發布」調整；預設鎖定時不詢問、打開 App 時提醒。選「直接發布」時，排班中班表上方只顯示「鎖定排班後，自動發布這次改到的月份」，不需另外按發布；打開 App 時的提醒固定開啟，提醒沒發布出去的修改（例如鎖定時沒有網路）。</li>
         <li>發布後，夥伴開啟 App 時跳出通知，夥伴的 🔔 列出更新的月份與日期。人員名單、劃假開放設定等不受發布控制，儲存後即同步。</li>
         <li>自訂時間以 15 分鐘為單位，分鐘可為 00、15、30、45（例如 900、1315、1345）；±按鈕每次調整 15 分鐘。</li>
         <li>班表上以小時的小數顯示：13:15 寫成 13.25、13:30 寫成 13.5、13:45 寫成 13.75。</li>
@@ -2496,7 +2499,7 @@ const DEFAULT_LEAVE = {on:false, ym:'', from:'', to:'', lateOn:true, lateLimit:f
 const DEFAULT_SPLIT = {on:true, names:['早班','晚班'], cuts:[960]};
 /* 發布的提醒方式：lock＝鎖定排班時 none 不詢問／ask 詢問／auto 直接發布；remind＝打開 App 時提醒未發布的班表 */
 const DEFAULT_PUBCFG = {lock:'none', remind:true};
-function normPubCfg(s){s=s||{};return {lock:['none','ask','auto'].includes(s.lock)?s.lock:'none',remind:s.remind!==false}}
+function normPubCfg(s){s=s||{};const lock=['none','ask','auto'].includes(s.lock)?s.lock:'none';return {lock,remind:lock==='auto'||s.remind!==false}} // 直接發布：提醒固定開啟（鎖定時沒網路等沒發出去的修改）
 function normSplit(s){ // 補齊並檢查分段設定，不合理就回到預設
   const d=DEFAULT_SPLIT;
   if(!s||typeof s!=='object')return {on:d.on,names:d.names.slice(),cuts:d.cuts.slice()};
@@ -2865,6 +2868,9 @@ function renderPubBar(){ // 班表上方：這個月的發布狀態
     const ch=pubChanges(k);
     if(ch){cls='dirty';h='<span>✎ <b>'+state.m+' 月有修改尚未發布</b>（'+esc(pubChText(state.m,ch))+'），夥伴看到的仍是上次發布的版本。</span><button class="btn primary" data-pubgo="'+k+'">發布更新</button>'}
     else{cls='ok';h='<span>✓ '+state.m+' 月已發布'+(m.pub.legacy?'':'　'+fmtMdHm(m.pub.at))+'</span>'}
+  }
+  if(editMode&&cfg().pub.lock==='auto'&&(cls==='dirty'||cls==='draft')){ // 鎖定時直接發布：排班中不用再顯示發布按鈕
+    cls='auto';h='<span>✎ 鎖定排班後，自動發布這次改到的月份。</span>';
   }
   bar.className='pub-bar '+cls;bar.innerHTML=h;bar.style.display='';
 }
@@ -5418,7 +5424,7 @@ document.getElementById('btnEdit').addEventListener('click',()=>{
     const pend=pubPending().filter(x=>touched.has(x.k)).map(x=>x.k);
     const mode=cfg().pub.lock; // 後台設定：不詢問（預設）／詢問／直接發布
     if(pend.length&&mode==='ask')setTimeout(()=>openPublish(pend),350);
-    if(pend.length&&mode==='auto')setTimeout(()=>publishMonths(pend),350);
+    if(pend.length&&mode==='auto')publishMonths(pend); // 直接發布：馬上套用，狀態列不會先閃一下「尚未發布」
   }
   if(!editMode)pubAtUnlock=null;
   renderSheet(); // 紅色驚嘆號只在鎖定後才檢查，切換狀態要立即反映
@@ -6235,9 +6241,9 @@ document.getElementById('btnInstallGuide').addEventListener('click',()=>{
    更新次數自目前大版本上線起，每上傳一次 index.html 加 1（劃假上線那次為 000）。
    每次更新：APP_VERSION 改成「3.115MMDD.次數」，CHANGELOG 最上面同一天的那筆 ver 跟著改；新的一天加一筆。
    add＝新增功能，fix＝問題改善；項目寫成 [文字, 1] 表示只有主管會用到（夥伴代碼不顯示） */
-const APP_VERSION='3.1151106.084';
+const APP_VERSION='3.1151106.085';
 const CHANGELOG=[
-  {v:'2026.11.06',ver:'3.1151106.084',add:[
+  {v:'2026.11.06',ver:'3.1151106.085',add:[
     ['發布班表：排好的班按「發布」後夥伴才看得到，新的月份預設為草稿；班表上方顯示發布狀態。',1],
     ['已發布的月份再修改時，夥伴看到的仍是上次發布的版本，修改過的格子右上角標示小三角形，按「發布更新」才更新。',1],
     ['預約發布：發布時可指定日期時間，時間一到夥伴就看得到（以當時的最新內容為準），夥伴屆時才收到通知；可立即發布或取消預約。',1],
@@ -6249,6 +6255,7 @@ const CHANGELOG=[
   ],fix:[
     ['發布狀態列只顯示修改的天數，日期以小三角形標示。',1],
     ['後台設定：右側摘要平常為灰色，改過還沒儲存的項目改為重點色。'],
+    ['發布設定為「直接發布」時，排班中不再顯示「發布更新」按鈕，改為提示鎖定後自動發布；打開 App 時的提醒固定開啟。',1],
     ['後台設定選單分兩組：「所選主管代碼的設定」與「所有主管代碼共用」（行事曆、更新日誌），避免誤以為行事曆只套用到單一代碼。'],
     ['未發布修改的小三角形改用重點色並調淡；班表上方的發布狀態列改為素色、左側一條重點色線，不與「柿橙」等主題撞色。',1],
     ['預約時間只有主管看得到，夥伴端到時間才收到「已發布」的通知。',1],
@@ -7674,7 +7681,7 @@ function fillCfgFields(c){
   renderSplitEditor();
   const pc=normPubCfg(c.pub);
   document.querySelectorAll('input[name="cfgPubLock"]').forEach(r=>{r.checked=r.value===pc.lock});
-  document.getElementById('cfgPubRemind').checked=pc.remind;
+  {const cb=document.getElementById('cfgPubRemind');cb.disabled=false;delete cb.dataset.prev;cb.checked=pc.remind;syncPubCfgUI()}
   renderCfgSummary();
   markCfgSaved();
 }
@@ -7761,7 +7768,14 @@ function pubCfgFromFields(){
   const r=document.querySelector('input[name="cfgPubLock"]:checked');
   return normPubCfg({lock:r?r.value:'none',remind:document.getElementById('cfgPubRemind').checked});
 }
-document.querySelectorAll('input[name="cfgPubLock"]').forEach(r=>r.addEventListener('change',()=>renderCfgSummary()));
+function syncPubCfgUI(){ // 選「直接發布」：提醒固定開啟、不能改；換回其他選項時恢復原本的勾選
+  const r=document.querySelector('input[name="cfgPubLock"]:checked'),auto=!!r&&r.value==='auto',cb=document.getElementById('cfgPubRemind');
+  if(auto&&!cb.disabled){cb.dataset.prev=cb.checked?'1':'0';cb.checked=true}
+  if(!auto&&cb.disabled&&cb.dataset.prev!=null){cb.checked=cb.dataset.prev==='1';delete cb.dataset.prev}
+  cb.disabled=auto;cb.closest('.cfg-row').classList.toggle('off',auto);
+  document.getElementById('cfgPubRemindNote').style.display=auto?'':'none';
+}
+document.querySelectorAll('input[name="cfgPubLock"]').forEach(r=>r.addEventListener('change',()=>{syncPubCfgUI();renderCfgSummary()}));
 document.getElementById('cfgPubRemind').addEventListener('change',()=>renderCfgSummary());
 function splitFromFields(){return {on:!!cfgSplit.on,names:cfgSplit.names.map((n,i)=>String(n||'').trim()||('第'+(i+1)+'段')),cuts:cfgSplit.cuts.slice()}}
 function mergeCfg(raw){ // 把任意設定物件補齊成完整設定（同 cfg() 的補齊邏輯，但對象可以是別的店家）
