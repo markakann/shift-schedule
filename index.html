@@ -3154,9 +3154,9 @@ async function connectStore(code,isNew,silent){
       return ok;
     }
   }catch(e){
-    cloudStatus='雲端連線失敗（請確認 Firestore 已建立、安全規則有效）';
-    setHint('雲端連線失敗');
-    if(!silent)alert('雲端連線失敗：請確認 Firebase 控制台已建立 Firestore 資料庫，且安全規則允許讀寫。');
+    cloudStatus='連線失敗，請檢查網路連線';
+    setHint('連線失敗');
+    if(!silent)alert('連線失敗，請檢查網路連線。');
     return false;
   }
   viewerMode=false;
@@ -3229,7 +3229,7 @@ async function connectViewer(code,silent){ // 以夥伴代碼連線：唯讀，�
     applyPayload(lastWritten);
     renderAll();
   }catch(e){
-    if(!silent)alert('雲端連線失敗，請稍後再試。');
+    if(!silent)alert('連線失敗，請檢查網路連線。');
     return false;
   }
   viewerMode=true;
@@ -3269,7 +3269,7 @@ async function connectViewer(code,silent){ // 以夥伴代碼連線：唯讀，�
     }
   },()=>{setHint('雲端監聽中斷')});
   cloudStatus='夥伴代碼：'+code+'（只能查看與劃假）';
-  setHint('夥伴代碼｜僅檢視');
+  setHint('夥伴代碼');
   applyViewerUI();
   watchLeave();
   renderAll();  // 同上：代碼設定完成後再畫一次
@@ -3751,7 +3751,7 @@ function tourRestoreCells(){ // 只還原教學中動過的格子，其他裝置
 }
 function scheduleSave(){
   if(tourHoldSave){setHint('教學示範中（不會存檔）');return}
-  if(viewerMode){setHint('夥伴代碼｜僅檢視');return}
+  if(viewerMode){setHint('夥伴代碼');return}
   clearTimeout(saveTimer);
   setHint('儲存中…');
   window.__saveAt=Date.now(); // 自動更新：存檔中不重新載入
@@ -6230,9 +6230,9 @@ document.getElementById('btnInstallGuide').addEventListener('click',()=>{
    更新次數自目前大版本上線起，每上傳一次 index.html 加 1（劃假上線那次為 000）。
    每次更新：APP_VERSION 改成「3.115MMDD.次數」，CHANGELOG 最上面同一天的那筆 ver 跟著改；新的一天加一筆。
    add＝新增功能，fix＝問題改善；項目寫成 [文字, 1] 表示只有主管會用到（夥伴代碼不顯示） */
-const APP_VERSION='3.1151106.080';
+const APP_VERSION='3.1151106.081';
 const CHANGELOG=[
-  {v:'2026.11.06',ver:'3.1151106.080',add:[
+  {v:'2026.11.06',ver:'3.1151106.081',add:[
     ['發布班表：排好的班按「發布」後夥伴才看得到，新的月份預設為草稿；班表上方顯示發布狀態。',1],
     ['已發布的月份再修改時，夥伴看到的仍是上次發布的版本，修改過的格子右上角標示橘色三角，按「發布更新」才更新。',1],
     ['預約發布：發布時可指定日期時間，時間一到夥伴就看得到（以當時的最新內容為準），夥伴屆時才收到通知；可立即發布或取消預約。',1],
@@ -6244,6 +6244,7 @@ const CHANGELOG=[
   ],fix:[
     ['發布狀態列只顯示修改的天數，日期以橘色三角標示。',1],
     ['預約時間只有主管看得到，夥伴端到時間才收到「已發布」的通知。',1],
+    ['連線失敗的提示改為「連線失敗，請檢查網路連線」；夥伴端狀態只顯示「夥伴代碼」。'],
     ['夥伴端的小通知只寫月份；🔔 列出發布的日期範圍，更新時分「新排」（原本未排的格子排上了）與「異動」（已有標示的格子有更改，包含改回未排）。']
   ]},
   {v:'2026.11.04',ver:'3.1151104.076',add:[
@@ -8112,7 +8113,7 @@ document.getElementById('btnMgrCreate').addEventListener('click',async()=>{
     try{
       const snap=await FB.getDoc(FB.doc(FB.db,'stores',code));
       if(snap.exists()){alert('代碼「'+code+'」已存在，請換一個。');return}
-    }catch(e){alert('雲端連線失敗，請稍後再試。');return}
+    }catch(e){alert('連線失敗，請檢查網路連線。');return}
   }else{
     code=genCode();
   }
@@ -8170,7 +8171,7 @@ document.getElementById('btnNewStore').addEventListener('click',async()=>{
         if(await connectStore(code,false,false))document.getElementById('ovSetup').classList.remove('show');
         return;
       }
-    }catch(e){alert('雲端連線失敗，請稍後再試。');return}
+    }catch(e){alert('連線失敗，請檢查網路連線。');return}
   }else{
     code=genCode();
   }
@@ -8718,7 +8719,7 @@ async function checkUpdate(force){
   if(!force&&Date.now()-upd.checkedAt<60000)return;
   upd.checkedAt=Date.now();
   try{
-    const r=await fetch('./index.html',{cache:'no-store'});if(!r.ok)return;
+    const r=await fetch('./index.html',{cache:'no-cache'});if(!r.ok)return; // 向伺服器確認有沒有變：沒變回 304，不重新下載整個檔案
     const m=(await r.text()).match(/const APP_VERSION='([^']+)'/);
     if(m&&verNewer(m[1],APP_VERSION)){upd.target=m[1];applyUpdate()}
   }catch(e){}
