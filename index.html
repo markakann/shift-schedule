@@ -292,6 +292,7 @@ button,input,select,textarea{font-family:inherit}
 body.print-sizing .btn.gold{animation:none}
 .btn.editing{background:var(--red);border-color:var(--red);color:#fff}
 .save-hint{font-size:12px;color:#888;margin-left:auto;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.save-hint.warn{color:var(--red);font-weight:700}
 .help-btn{width:34px;padding:6px 0;font-weight:700;font-size:16px;color:var(--blue);flex-shrink:0}
 /* 窄螢幕：工具列收緊一點，多一顆按鈕也還擠得下一行 */
 @media (max-width:480px){
@@ -616,8 +617,9 @@ html.ov-open,html.ov-open body{overflow:hidden;overscroll-behavior:none}
 html.dark .lv-off-tag{color:#f0b978;border-color:#a8743a}
 .pub-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 6px;padding:6px 10px;border-radius:8px;font-size:13px;line-height:1.5}
 .pub-bar span{flex:1;min-width:12em}
-.pub-bar.draft,.pub-bar.dirty,.pub-bar.plan{background:var(--paper);border:1.5px solid var(--line);border-left:4px solid var(--accLine);color:var(--ink)} /* 素色，左側一條淡重點色線 */
-.pub-bar.draft b,.pub-bar.dirty b,.pub-bar.plan b{color:var(--blue)}
+.pub-bar.draft,.pub-bar.dirty,.pub-bar.plan,.pub-bar.arc{background:var(--paper);border:1.5px solid var(--line);border-left:4px solid var(--accLine);color:var(--ink)} /* 素色，左側一條淡重點色線 */
+.pub-bar.draft b,.pub-bar.dirty b,.pub-bar.plan b,.pub-bar.arc b{color:var(--blue)}
+.pub-bar .arc-hold{margin-left:10px;color:var(--fade2,#888)}
 .pub-bar.ok{color:#2a8a4a;padding:0 4px;font-size:12px;margin-bottom:4px}
 .pub-bar.auto{color:var(--fade2,#666);padding:0 4px;font-size:12px;margin-bottom:4px}
 .pub-bar.plan{border-style:dashed;border-left-style:solid} /* 預約中：外框虛線 */
@@ -2242,7 +2244,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
       <li>本頁最上方的「🏖 劃假教學」開啟<b>練習畫面</b>，依序操作一次劃假（選擇姓名、劃假方式、日期、送出）：名單為示範用的 Rich、Amanda，劃假未開放時亦可練習，內容不會送出或儲存。</li>
       <li class="edit-only">「📝 排班教學」實際點選一格，依序操作班別、自訂時間、排休、特休等假別與特定時段；教學中排入的內容不會儲存，結束後自動還原。班表尚無人員時以示範班表練習。未看過時，第一次按「🔒 排班」解鎖會自動開始。</li>
       <li class="edit-only">「⚙ 開放劃假教學」逐項介紹開放劃假的設定（月份、期間、候補、個別開放、紀錄保留），最後可實際按一次「儲存」查看結果，設定不會變更。未看過時，第一次開啟劃假的「⚙ 開放設定」會自動開始。</li>
-      <li class="view-only">主管發布或更新班表時，工具列的 🔔 出現紅點，開啟 App 時也會跳出通知；點 🔔 可查看發布的日期，更新時分兩種列出：<b>新排</b>＝原本未排的格子排上了；<b>異動</b>＝原本已有標示的格子有更改（包含改回未排）。點選即切換到該月份。尚未發布的月份顯示「尚未發布」。</li>
+      <li class="view-only">主管發布或更新班表時，工具列的 🔔 出現紅點，開啟 App 時也會跳出通知；點 🔔 可查看發布的日期，更新時分兩種列出：<b>新排</b>＝原本未排的格子排上了；<b>異動</b>＝原本已有標示的格子有更改（包含改回未排）。點選即切換到該月份。尚未發布的月份顯示「尚未發布」。已封存的年份也可以選擇查看。</li>
       <li>有新版本時，打開 App 或切回 App 會自動更新；排班中或視窗開著時，等鎖定、關閉後才更新。</li>
       <li>本頁最上方的「📲 安裝到手機」：Android 與 iPhone／iPad 的安裝步驟示意圖；Android 的 Chrome 可直接按「直接安裝」。安裝後由主畫面的「我的班表」圖示開啟。</li>
       <li>LINE 內建的瀏覽器無法安裝，代碼也不會保留到手機的瀏覽器。從 LINE 點網址時會自動改用預設瀏覽器開啟；仍在 LINE 內時，畫面上方會提示改用「以預設瀏覽器開啟」。<span class="edit-only">傳網址給夥伴時，可用「⋯ → 複製代碼 → 複製邀請訊息（LINE 用）」，網址與夥伴代碼一起複製。</span></li>
@@ -2433,6 +2435,8 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
         <li>同一組主管代碼共用一份班表並即時同步。</li>
         <li>夥伴代碼僅可查看、無法修改，供夥伴端使用。</li>
         <li>夥伴代碼可換發：後台設定 →「管理主管代碼」→ 夥伴代碼「更改」，留空按確定＝自動產生隨機代碼。舊代碼立即失效，使用中的手機會清空畫面；已劃的假與異動紀錄一起搬到新代碼。</li>
+        <li>雲端寫入失敗時（例如權限或資料量限制），修改先存在這台裝置，右上角顯示紅色提示並自動重試；重開 App 也會重新寫入。</li>
+        <li><b>年份封存</b>　每年 3 月起，主管打開 App 時自動把前一年的班表與劃假紀錄另外保存，雲端資料保持精簡。選擇該年份仍可查看（唯讀）；要修改請按班表上方的「取回編輯」，14 天後自動再封存。夥伴代碼也看得到封存的年份。</li>
       </ul>
 
       <div class="hr"></div>
@@ -2653,6 +2657,10 @@ const firebaseConfig={
   appId:"1:566165247359:web:eb0986693f8c5f0b6b764a"
 };
 let FB=null, storeCode=null, unsubCloud=null, lastWritten='', cloudStatus='雲端載入中…', viewerMode=false;
+/* 雲端寫入：lastWritten＝最近送出的那份（判斷自己寫入的回音、發布的基準）；cloudAcked／viewAcked＝雲端確認收到的那份。
+   寫入失敗時保留畫面上的修改（雲端退回的舊版本不套用），先存在這台裝置，之後自動重試，成功才算數。 */
+let cloudAcked='', viewAcked='', cloudFail=0, cloudRetryT=null;
+const UNSYNCED_KEY='paiban-unsynced'; // 這台裝置有還沒寫進雲端的修改（記主管代碼），重開 App 時以本機為準
 /* 開啟時：這台裝置用過主管代碼，但雲端還沒連上（loading）或連不上（fail）。
    這段期間畫面是本機的舊資料，看不出發布狀態，排班也會在連上後被雲端覆蓋，所以先暫停排班。 */
 let cloudBoot=null;
@@ -2663,8 +2671,8 @@ function cloudBootGuard(){ // 排班、加人員前檢查；回傳 true＝先不
 }
 let adminUser=null; // 目前登入後台的帳號（Firebase Auth）
 function payloadStr(){
-  return JSON.stringify({store:state.store,title:state.title,corner:state.corner,viewCode:state.viewCode||'',config:state.config||{},staff:state.staff,months:state.months,calCache:state.calCache,
-    pubV:state.pubV||0,pubLog:state.pubLog||[]});
+  return JSON.stringify({store:state.store,title:state.title,corner:state.corner,viewCode:state.viewCode||'',config:state.config||{},staff:state.staff,months:liveMonths(),calCache:state.calCache,
+    pubV:state.pubV||0,pubLog:state.pubLog||[],arcYears:state.arcYears||[],arcHold:state.arcHold||{}});
 }
 /* ────────── 發布：排好的班按「發布」夥伴才看得到 ──────────
    主管這份（stores）照常即時存檔；夥伴讀的唯讀複本（views）只放已發布的內容。
@@ -2721,7 +2729,7 @@ function pubBase(k){ // 夥伴目前看到的（發布當下的）內容；草�
 function pubTrack(){ // 存檔前：已發布的月份有修改就留下發布當下的版本；改回原樣就拿掉
   if(pubLegacy(state))return;
   Object.keys(state.months).forEach(k=>{
-    const m=state.months[k];if(!m||!m.pub)return;
+    const m=state.months[k];if(!m||!m.pub||isArcYear(+k.split('-')[0]))return;
     const b=pubBase(k);
     if(pubSame(pubContent(m),b))delete m.pubSnap;else m.pubSnap=b;
   });
@@ -2791,7 +2799,7 @@ function monthHasContent(m){return !!m&&(Object.values(m.sched||{}).some(r=>r&&O
 function pubPending(){ // 有待發布內容的月份（已預約的不算，時間到會自動發布最新內容）
   return Object.keys(state.months).map(k=>{
     const m=state.months[k],[y,mo]=k.split('-').map(Number);
-    if(!m||m.pubPlan)return null;
+    if(!m||m.pubPlan||isArcYear(y))return null;
     if(!m.pub)return monthHasContent(m)?{k,y,m:mo,first:1}:null;
     const ch=pubChanges(k);return ch?{k,y,m:mo,ch}:null;
   }).filter(Boolean).sort((p,q)=>(p.y*12+p.m)-(q.y*12+q.m));
@@ -2827,6 +2835,107 @@ function pubPickDays(k){ // 可選擇發布的日期：草稿＝有內容的日�
   return [...s].sort((p,q)=>p-q);
 }
 function pubNotesChanged(k){const m=state.months[k];if(!m)return false;return !pubSame((m.pub?(pubBase(k)||{}).notes:[])||[],m.notes||[])}
+/* ────────── 年份封存 ──────────
+   隔年 3 月起，主管打開 App 時自動把前一年封存成兩份雲端文件（文件數量沒有上限）：
+     stores/{主管代碼}_{年}＝主管那份（班表＋劃假紀錄），views/{夥伴代碼}_{年}＝夥伴那份（只有已發布的內容）。
+   代碼只能用 a-z 0-9 -，「_」不會跟真的代碼撞名。主檔記 arcYears（已封存的年份）、arcHold（取回編輯，期限內不再封存）。
+   選到封存的年份時才讀那一份，唯讀；要修改按「取回編輯」搬回主檔。 */
+const ARC_HOLD_DAYS=14;
+let arcCache={}, arcLoading={}, arcFailAt={}, arcBusy=false, leaveReady=false;
+function arcId(code,y){return code+'_'+y}
+function isArcYear(y){return (state.arcYears||[]).includes(+y)}
+function liveMonths(){ // 存進主檔的月份：已封存年份的（查看用的副本）不存
+  const ys=state.arcYears||[];if(!ys.length)return state.months;
+  const o={};Object.keys(state.months).forEach(k=>{if(!ys.includes(+k.split('-')[0]))o[k]=state.months[k]});return o;
+}
+function arcReset(){arcCache={};arcLoading={};arcFailAt={}}
+function arcLiveYear(y){for(const k of payloadMonthKeys)if(+k.split('-')[0]===+y)return true;return false}
+function arcNeedLoad(y){ // 要先讀封存：已封存；或過去的年份主檔沒有資料（以防封存紀錄被舊版裝置弄丟，先找找看）
+  y=+y;
+  if(arcCache[y]||!FB||!storeCode)return false;
+  if(isArcYear(y))return true;
+  return y<new Date(nowMs()).getFullYear()&&!arcLiveYear(y);
+}
+function arcMerge(){ // 已讀過的封存年份放回畫面用的月份（雲端更新後 state.months 會被換掉）
+  Object.keys(arcCache).forEach(y=>{const c=arcCache[y];if(c&&c.found&&isArcYear(y))Object.keys(c.months||{}).forEach(k=>{state.months[k]=c.months[k]})});
+}
+async function arcLoad(y){
+  y=+y;if(arcLoading[y]||arcCache[y]||!FB||!storeCode)return;
+  if(arcFailAt[y]&&Date.now()-arcFailAt[y]<8000)return;
+  arcLoading[y]=1;const code=storeCode;
+  try{
+    const s=await FB.getDoc(FB.doc(FB.db,viewerMode?'views':'stores',arcId(code,y)));
+    if(code!==storeCode)return;
+    if(s.exists()&&s.data().data){
+      const d=JSON.parse(s.data().data);
+      arcCache[y]={found:1,months:d.months||{},leaves:d.leaves||{}};
+      if(!isArcYear(y)){state.arcYears=[...(state.arcYears||[]),y].sort();if(!viewerMode)scheduleSave()} // 封存紀錄不見了（舊版裝置）：補回
+      arcMerge();
+    }else arcCache[y]={none:1};
+    delete arcFailAt[y];
+  }catch(e){arcFailAt[y]=Date.now()}
+  finally{delete arcLoading[y]}
+  renderAll();
+}
+function arcGuard(){ // 排班、加人員、備註前：封存的年份只能看
+  if(viewerMode)return false;
+  if(arcNeedLoad(state.y)){showToast('正在讀取封存資料，請稍候。');return true}
+  if(!isArcYear(state.y))return false;
+  showToast('<div class="ts-h">民國 '+(state.y-1911)+' 年已封存</div><div class="ts-n">只能查看；要修改請按班表上方的「取回編輯」。</div>',4000,true);
+  return true;
+}
+async function arcYear(Y){ // 封存一整年：先寫好兩份封存，成功後才從主檔拿掉
+  const code=storeCode,vc=state.viewCode;
+  const live=Object.keys(state.months).filter(k=>+k.split('-')[0]===Y);
+  if(!live.length||!code)return false;
+  let old=null;
+  try{const s=await FB.getDoc(FB.doc(FB.db,'stores',arcId(code,Y)));if(s.exists()&&s.data().data)old=JSON.parse(s.data().data)}catch(e){return false}
+  const months=Object.assign({},(old&&old.months)||{});live.forEach(k=>{months[k]=state.months[k]});
+  const lvKeys=Object.keys(leaveData||{}).filter(k=>/^\d{4}-\d{2}$/.test(k)&&+k.slice(0,4)===Y);
+  const leaves=Object.assign({},(old&&old.leaves)||{});lvKeys.forEach(k=>{leaves[k]=leaveData[k]});
+  try{
+    await FB.setDoc(FB.doc(FB.db,'stores',arcId(code,Y)),{data:JSON.stringify({year:Y,months,leaves,at:nowMs()}),updatedAt:FB.serverTimestamp()});
+    if(vc)await FB.setDoc(FB.doc(FB.db,'views',arcId(vc,Y)),{data:JSON.stringify({year:Y,months:viewPayloadOf({pubV:1,months}).months}),updatedAt:FB.serverTimestamp()});
+  }catch(e){return false}
+  if(code!==storeCode)return false;
+  arcCache[Y]={found:1,months:JSON.parse(JSON.stringify(months)),leaves};
+  state.arcYears=[...new Set([...(state.arcYears||[]),Y])].sort();
+  if(state.arcHold)delete state.arcHold[Y];
+  arcMerge();
+  await pushCloud(); // 主檔拿掉這一年
+  if(lvKeys.length&&vc&&FB.deleteField){ // 劃假：這一年的月份已在封存裡，從劃假文件拿掉
+    const del={};lvKeys.forEach(k=>{del[k]=FB.deleteField()});
+    try{await FB.setDoc(FB.doc(FB.db,'leaves',vc),del,{merge:true})}catch(e){}
+  }
+  return true;
+}
+async function arcAuto(tries){ // 主管打開 App：隔年 3 月起封存前一年
+  tries=tries||0;
+  if(viewerMode||!FB||!storeCode||arcBusy||pubLegacy(state))return;
+  if(editMode||cloudFail||document.getElementById('tour')||!leaveReady){if(tries<6)setTimeout(()=>arcAuto(tries+1),10000);return}
+  const now=nowMs(),hold=state.arcHold||{};
+  const ys=[...new Set(Object.keys(liveMonths()).map(k=>+k.split('-')[0]))]
+    .filter(Y=>now>=new Date(Y+1,2,1).getTime()&&!(hold[Y]>now)).sort();
+  if(!ys.length)return;
+  arcBusy=true;const done=[];
+  try{for(const Y of ys)if(await arcYear(Y))done.push(Y)}finally{arcBusy=false}
+  if(done.length){
+    renderAll();
+    showToast('<div class="ts-h">已封存 '+done.map(Y=>'民國 '+(Y-1911)+' 年').join('、')+'</div><div class="ts-n">班表與劃假紀錄已另外保存；選擇該年份仍可查看。</div>',6000,true);
+  }
+}
+async function arcTakeBack(Y){ // 取回編輯：搬回主檔，期限內不再自動封存
+  if(!confirm('取回民國 '+(Y-1911)+' 年的班表編輯？\n\n取回後可以修改；'+ARC_HOLD_DAYS+' 天後會自動再封存。'))return;
+  if(!arcCache[Y]||!arcCache[Y].found){showToast('正在讀取封存資料，請稍候再試。');arcLoad(Y);return}
+  const lv=arcCache[Y].leaves||{};
+  try{if(Object.keys(lv).length&&state.viewCode)await FB.setDoc(FB.doc(FB.db,'leaves',state.viewCode),lv,{merge:true})}catch(e){alert('取回失敗，請檢查網路連線。');return}
+  state.arcYears=(state.arcYears||[]).filter(x=>x!==Y);
+  state.arcHold=Object.assign({},state.arcHold||{},{[Y]:nowMs()+ARC_HOLD_DAYS*864e5});
+  Object.keys(arcCache[Y].months||{}).forEach(k=>{state.months[k]=arcCache[Y].months[k];payloadMonthKeys.add(k)});
+  delete arcCache[Y];
+  scheduleSave();renderAll();
+  showToast('已取回民國 '+(Y-1911)+' 年，可以修改了 ✓');
+}
 function pubFilledDays(c){ // 有排東西的日期（紅線不算）
   const s=new Set();
   Object.values((c&&c.sched)||{}).forEach(r=>Object.keys(r||{}).forEach(d=>{if(r[d]&&r[d].t!=='redline')s.add(+d)}));
@@ -2868,8 +2977,14 @@ function renderPubBar(){ // 班表上方：這個月的發布狀態
     bar.innerHTML=cloudBoot==='fail'?'<span>⚠ 連線失敗，暫時無法確認發布狀態。</span>':'<span>⋯ 正在同步雲端，確認發布狀態…</span>';
     return;
   }
+  if(!viewerMode&&storeCode&&isArcYear(state.y)){ // 封存的年份：唯讀，可取回編輯
+    bar.className='pub-bar arc';bar.style.display='';
+    bar.innerHTML='<span>🗄 <b>民國 '+(state.y-1911)+' 年已封存</b>，只能查看。</span><button class="btn" data-arcback="'+state.y+'">取回編輯</button>';
+    return;
+  }
   if(!pubEnabled()){bar.style.display='none';return}
   const k=ym(),m=state.months[k];let cls,h;
+  const hold=(state.arcHold||{})[state.y];
   if(m&&m.pubPlan){
     cls='plan';
     h='<span>⏰ <b>'+state.m+' 月預定 '+fmtMdHm(m.pubPlan.at)+' 發布</b>'+(m.pubPlan.days?'（'+pubRangeText(state.m,m.pubPlan.days,4)+'）':'')+'，到時間夥伴就看得到（以當時的最新內容為準）。</span>'+
@@ -2882,6 +2997,7 @@ function renderPubBar(){ // 班表上方：這個月的發布狀態
     if(ch){cls='dirty';h='<span>✎ <b>'+state.m+' 月有修改尚未發布</b>（'+esc(pubChText(state.m,ch))+'），夥伴看到的仍是上次發布的版本。</span><button class="btn primary" data-pubgo="'+k+'">發布更新</button>'}
     else{cls='ok';h='<span>✓ '+state.m+' 月已發布'+(m.pub.legacy?'':'　'+fmtMdHm(m.pub.at))+'</span>'}
   }
+  if(hold>nowMs()&&cls==='ok'){const hd=new Date(hold);h+='<span class="arc-hold">民國 '+(state.y-1911)+' 年已取回編輯，'+(hd.getMonth()+1)+'/'+hd.getDate()+' 後自動再封存</span>'}
   if(editMode&&cfg().pub.lock==='auto'&&(cls==='dirty'||cls==='draft')){ // 鎖定時直接發布：排班中不用再顯示發布按鈕
     cls='auto';h='<span>✎ 鎖定排班後，自動發布這次改到的月份。</span>';
   }
@@ -3094,6 +3210,7 @@ function applyPayload(json){
     state.config=d.config||{};
     state.staff=d.staff;state.months=d.months;state.calCache=d.calCache||{};
     state.pubV=d.pubV||0;state.pubLog=Array.isArray(d.pubLog)?d.pubLog:[];payloadMonthKeys=new Set(Object.keys(d.months));
+    state.arcYears=Array.isArray(d.arcYears)?d.arcYears:[];state.arcHold=d.arcHold||{};arcMerge();
     if(Object.values(d.months).some(m=>m&&m.pending))resolveViewerPlans(); // 夥伴那份：預約發布到點的月份換上內容
     legacyCalManual=(d.calManual&&Object.keys(d.calManual).length)?d.calManual:null; // 舊版存在店家資料裡的手動匯入，留著搬到共用行事曆
     sortStaff();
@@ -3157,9 +3274,14 @@ async function connectStore(code,isNew,silent){
   const ref=FB.doc(FB.db,'stores',code);
   try{
     const snap=await FB.getDoc(ref);
+    if(code!==storeCode)arcReset();
     if(snap.exists()&&snap.data().data){
-      lastWritten=snap.data().data;
-      applyPayload(lastWritten);
+      let keepLocal=false;
+      try{keepLocal=!isNew&&localStorage.getItem(UNSYNCED_KEY)===code&&localStorage.getItem('paiban-store-code')===code&&!storeCode}catch(e){}
+      lastWritten=cloudAcked=snap.data().data;viewAcked='';
+      if(keepLocal){ // 上次寫入雲端失敗：畫面保留這台裝置的修改，連上後重新寫入
+        setTimeout(()=>{showToast('<div class="ts-h">重新寫入雲端</div><div class="ts-n">這台裝置有上次沒寫進雲端的修改，正在重新寫入。</div>',4500,true);pushCloud()},800);
+      }else applyPayload(lastWritten);
       renderAll();
     }else if(isNew){
       // 建立全新店家前，先清空目前畫面資料，避免把原本店家的人員／班表複製過去
@@ -3167,11 +3289,13 @@ async function connectStore(code,isNew,silent){
       state.staff=[];state.months={};state.calCache={};state.config={};
       state.viewCode='view-'+genCodeSuffix();
       state.pubV=1;state.pubLog=[]; // 新店家一開始就用發布機制
+      state.arcYears=[];state.arcHold={};
       document.getElementById('storeName').value='';
       document.getElementById('sheetTitle').value='排班表';
       lastWritten=payloadStr();
       await FB.setDoc(ref,{data:lastWritten,updatedAt:FB.serverTimestamp()});
-      await FB.setDoc(FB.doc(FB.db,'views',state.viewCode),{data:JSON.stringify(viewPayloadOf(JSON.parse(lastWritten))),updatedAt:FB.serverTimestamp()}); // 夥伴代碼跟主管代碼一起建立，不用等到下次存檔才補上
+      cloudAcked=lastWritten;viewAcked=JSON.stringify(viewPayloadOf(JSON.parse(lastWritten)));
+      await FB.setDoc(FB.doc(FB.db,'views',state.viewCode),{data:viewAcked,updatedAt:FB.serverTimestamp()}); // 夥伴代碼跟主管代碼一起建立，不用等到下次存檔才補上
       renderAll();
     }else{
       // 找不到主管代碼 → 試試是不是夥伴代碼（唯讀鏡像）
@@ -3213,8 +3337,10 @@ async function connectStore(code,isNew,silent){
       return;
     }
     const d=s.data().data;
-    if(d&&d!==lastWritten){ // 其他裝置的更新
-      lastWritten=d;
+    if(d&&d!==lastWritten&&d!==cloudAcked){ // 其他裝置的更新（雲端退回的舊版本＝cloudAcked，不算）
+      if(cloudFail){setHint('⚠ 其他裝置有更新，這台的修改尚未寫入雲端');return} // 先保住這台的修改，重試成功後以這台為準
+      lastWritten=cloudAcked=d;
+      try{viewAcked=JSON.stringify(viewPayloadOf(JSON.parse(d)))}catch(e){viewAcked=''}
       let viewChanged=false;
       tourRealDo(()=>{const pv=state.viewCode;applyPayload(d);viewChanged=!!pv&&state.viewCode!==pv});
       tourRealDo(()=>{if(pubFinalizePlans())scheduleSave();pubArmTimer()});
@@ -3242,6 +3368,7 @@ async function connectStore(code,isNew,silent){
   migrateLegacyCal();
   setTimeout(maybeAskReport,1200);
   setTimeout(pubNotifyManager,2600); // 有沒發布的班表就提醒一次
+  setTimeout(()=>arcAuto(),6000); // 隔年 3 月起封存前一年
   maybeStartTour(); // 主管版新手教學：每支手機一次
   return true;
 }
@@ -3253,6 +3380,7 @@ async function connectViewer(code,silent){ // 以夥伴代碼連線：唯讀，�
       if(!silent)alert('查無此代碼，請確認輸入是否正確。');
       return false;
     }
+    if(code!==storeCode)arcReset(); // 換了代碼：別家的封存快取不能用
     lastWritten=vsnap.data().data;
     applyPayload(lastWritten);
     renderAll();
@@ -3320,17 +3448,41 @@ async function pushCloud(){
   if(!FB||!storeCode||viewerMode)return false;
   pubTrack(); // 已發布的月份有修改：先留下夥伴那份要看的版本
   const p=payloadStr();
-  if(p===lastWritten)return true;
+  const vp=state.viewCode?JSON.stringify(viewPayloadOf(JSON.parse(p))):''; // 唯讀鏡像，供夥伴代碼讀取：只放已發布的內容
+  if(p===cloudAcked&&(!vp||vp===viewAcked)){if(cloudFail)cloudWriteOk();return true} // 雲端都已確認收到
+  lastWritten=p;
+  const code=storeCode,vc=state.viewCode;
   try{
-    lastWritten=p;
-    await FB.setDoc(FB.doc(FB.db,'stores',storeCode),{data:p,updatedAt:FB.serverTimestamp()});
-    if(state.viewCode){ // 同步唯讀鏡像，供夥伴代碼讀取：只放已發布的內容
-      await FB.setDoc(FB.doc(FB.db,'views',state.viewCode),{data:JSON.stringify(viewPayloadOf(JSON.parse(p))),updatedAt:FB.serverTimestamp()});
+    if(p!==cloudAcked){
+      await FB.setDoc(FB.doc(FB.db,'stores',code),{data:p,updatedAt:FB.serverTimestamp()});
+      if(storeCode===code)cloudAcked=p;
     }
+    if(vp&&vp!==viewAcked){
+      await FB.setDoc(FB.doc(FB.db,'views',vc),{data:vp,updatedAt:FB.serverTimestamp()});
+      if(state.viewCode===vc)viewAcked=vp;
+    }
+    cloudWriteOk();
     return true;
-  }catch(e){return false}
+  }catch(e){cloudWriteFail();return false}
 }
-function setHint(t){document.getElementById('saveHint').textContent=t}
+function cloudWriteFail(){ // 寫入被雲端拒絕（例如權限、資料過大）：修改先留在這台裝置，稍後自動重試
+  cloudFail++;
+  try{localStorage.setItem(UNSYNCED_KEY,storeCode||'')}catch(e){}
+  setHint('⚠ 雲端寫入失敗，修改先存在這台裝置');
+  if(cloudFail===1)showToast('<div class="ts-h">雲端寫入失敗</div><div class="ts-n">修改先存在這台裝置，會自動重試；成功前，其他裝置與夥伴看不到這些修改。</div>',6000,true);
+  clearTimeout(cloudRetryT);
+  cloudRetryT=setTimeout(cloudRetry,Math.min(30000*Math.pow(2,cloudFail-1),300000)); // 30 秒起，越等越久，最多 5 分鐘
+}
+function cloudWriteOk(){
+  try{localStorage.removeItem(UNSYNCED_KEY)}catch(e){}
+  if(!cloudFail)return;
+  cloudFail=0;clearTimeout(cloudRetryT);
+  setHint('雲端已同步 ✓');
+  showToast('雲端寫入恢復，修改已同步 ✓',3000);
+}
+function cloudRetry(){pushCloud()}
+window.addEventListener('online',()=>{if(cloudFail){clearTimeout(cloudRetryT);cloudRetry()}});
+function setHint(t){const el=document.getElementById('saveHint');el.textContent=t;el.classList.toggle('warn',/^⚠/.test(t))}
 
 /* ────────── 狀態 ────────── */
 let state={
@@ -3362,6 +3514,7 @@ function monthStaff(){ // 本月名單（人員本體永久保留在 state.staff
 }
 function ensureRoster(){ // 首次開啟某月時，詢問是否帶入最近月份的名單
   if(viewerMode)return; // 夥伴端唯讀，不詢問
+  if(arcNeedLoad(state.y)||isArcYear(state.y))return; // 封存的年份：唯讀
   const md=monthData();
   if(md.roster!==null)return;
   let y=state.y,m=state.m,src=null,label='';
@@ -3791,6 +3944,7 @@ function scheduleSave(){
     const localOk=await saveRaw(JSON.stringify(state));
     const cloudOk=await pushCloud();
     if(cloudOk&&FB&&storeCode)setHint('雲端已同步 ✓');
+    else if(FB&&storeCode&&cloudFail){} // 寫入失敗的提示已顯示（並會自動重試）
     else if(localOk)setHint(FB&&storeCode?'已存本機（雲端寫入失敗）':'已存本機 ✓');
     else setHint('儲存失敗（預覽環境可能不保留資料）');
   },400);
@@ -4010,6 +4164,12 @@ function renderSheet(){
     const sh=document.getElementById('sheet');sh.classList.add('unpub-sheet');
     sh.innerHTML='<tbody><tr><td class="unpub-msg"><b>'+state.m+' 月班表尚未發布</b><br>發布後，工具列的 🔔 會出現通知。</td></tr></tbody>';
     renderPubBar();return;
+  }
+  if(arcNeedLoad(state.y)){ // 封存的年份：先讀那一份
+    const sh=document.getElementById('sheet');sh.classList.add('unpub-sheet');
+    const fail=arcFailAt[state.y]&&!arcLoading[state.y];
+    sh.innerHTML='<tbody><tr><td class="unpub-msg">'+(fail?'<b>無法讀取民國 '+(state.y-1911)+' 年的封存資料</b><br>請檢查網路連線，<button type="button" class="btn" data-arcretry="'+state.y+'">重試</button>':'讀取民國 '+(state.y-1911)+' 年的封存資料…')+'</td></tr></tbody>';
+    arcLoad(state.y);renderPubBar();return;
   }
   document.getElementById('sheet').classList.remove('unpub-sheet');
   const md=monthData(),N=daysInMonth();
@@ -4242,8 +4402,9 @@ function leaveStateOf(L){ // 現在能不能劃假：off未開啟／before還沒
   }
   return {state:'open',L};
 }
-function leaveOf(ym,sid){ // 取出某人某月的劃假內容
-  const rec=(leaveData[ym]||{})[sid];
+function leaveOf(ym,sid){ // 取出某人某月的劃假內容（封存的年份看封存裡的劃假）
+  const ac=arcCache[+String(ym).slice(0,4)];
+  const rec=(leaveData[ym]||(ac&&ac.leaves&&ac.leaves[ym])||{})[sid];
   if(!rec||!rec.json)return null;
   try{const o=JSON.parse(rec.json);o.days=o.days||{};return o}catch(e){return null}
 }
@@ -4365,7 +4526,7 @@ function watchLeave(){ // 監聽劃假文件，夥伴一送出店長那邊就會
       srvState='ok';
       updateReportBtn(); // 校時後今天可能跨進或跨出戰績那五天，重算一次
     }
-    leaveData=d;
+    leaveData=d;leaveReady=true;
     refreshLeaveIfOpen();
     renderSheet();
     updateLeaveBadge();
@@ -5397,6 +5558,8 @@ function setEntry(entry){
 
 /* ────────── 事件 ────────── */
 document.getElementById('sheet').addEventListener('click',ev=>{
+  const ar=ev.target.closest('[data-arcretry]');
+  if(ar){delete arcFailAt[+ar.dataset.arcretry];arcLoad(+ar.dataset.arcretry);renderSheet();return}
   const cw=ev.target.closest('.cov-warn');
   if(cw){
     const th=cw.closest('th[data-day]');
@@ -5406,6 +5569,7 @@ document.getElementById('sheet').addEventListener('click',ev=>{
   if(otBtn&&otBtn.dataset.ot){openOT(otBtn.dataset.ot);return}
   if(ev.target.closest('#monthTotalCell')){openMonthTotal();return} // 唯讀也能看總工時
   if(!editMode)return;
+  if(isArcYear(state.y)){arcGuard();return} // 排班中切到封存的年份：只能看
   const td=ev.target.closest('td.day-cell');
   if(td&&td.dataset.sid){openCell(td.dataset.sid,parseInt(td.dataset.day));return}
   const th=ev.target.closest('thead th[data-day]');
@@ -5418,6 +5582,7 @@ let pubAtUnlock=null; // 解鎖當下各月份的內容，鎖定時比對這次�
 function pubFingerprint(){const o={};Object.keys(state.months).forEach(k=>{o[k]=stableStr(pubContent(state.months[k]))});return o}
 document.getElementById('btnEdit').addEventListener('click',()=>{
   if(!editMode&&cloudBootGuard())return; // 雲端還沒連上：先不要排班，免得連上後被雲端覆蓋
+  if(!editMode&&arcGuard())return; // 封存的年份只能看
   editMode=!editMode;
   document.body.classList.toggle('editing',editMode);
   const b=document.getElementById('btnEdit');
@@ -5449,6 +5614,7 @@ document.getElementById('btnEdit').addEventListener('click',()=>{
   renderSheet(); // 紅色驚嘆號只在鎖定後才檢查，切換狀態要立即反映
 });
 document.getElementById('pubBar').addEventListener('click',ev=>{
+  const ab=ev.target.closest('[data-arcback]');if(ab){arcTakeBack(+ab.dataset.arcback);return}
   const c=ev.target.closest('[data-pubcancel]');
   if(c){if(confirm('取消 '+(+c.dataset.pubcancel.split('-')[1])+' 月的預約發布？'))pubCancelPlan(c.dataset.pubcancel);return}
   const b=ev.target.closest('[data-pubgo]');if(b)openPublish([b.dataset.pubgo]);
@@ -5650,6 +5816,7 @@ document.getElementById('smArchived').addEventListener('click',ev=>{
 });
 document.getElementById('btnStaff').addEventListener('click',()=>{
   if(cloudBootGuard())return; // 雲端還沒連上：先不要改人員
+  if(arcGuard())return;
   if(viewerMode)return;
   renderStaffList();
   document.getElementById('ovStaffList').classList.add('show');
@@ -6166,6 +6333,7 @@ document.getElementById('btnCloseStaff').addEventListener('click',()=>document.g
 
 /* 備註 */
 document.getElementById('btnAddNote').addEventListener('click',()=>{
+  if(arcGuard())return; // 封存的年份只能看
   curNoteIdx=-1;
   document.getElementById('noteText').value='';
   document.getElementById('btnDelNote').style.display='none';
@@ -6261,18 +6429,20 @@ document.getElementById('btnInstallGuide').addEventListener('click',()=>{
    更新次數自目前大版本上線起，每上傳一次 index.html 加 1（劃假上線那次為 000）。
    每次更新：APP_VERSION 改成「3.115MMDD.次數」，CHANGELOG 最上面同一天的那筆 ver 跟著改；新的一天加一筆。
    add＝新增功能，fix＝問題改善；項目寫成 [文字, 1] 表示只有主管會用到（夥伴代碼不顯示） */
-const APP_VERSION='3.1151106.086';
+const APP_VERSION='3.1151106.087';
 const CHANGELOG=[
-  {v:'2026.11.06',ver:'3.1151106.086',add:[
+  {v:'2026.11.06',ver:'3.1151106.087',add:[
     ['發布班表：排好的班按「發布」後夥伴才看得到，新的月份預設為草稿；班表上方顯示發布狀態。',1],
     ['已發布的月份再修改時，夥伴看到的仍是上次發布的版本，修改過的格子右上角標示小三角形，按「發布更新」才更新。',1],
     ['預約發布：發布時可指定日期時間，時間一到夥伴就看得到（以當時的最新內容為準），夥伴屆時才收到通知；可立即發布或取消預約。',1],
+    ['年份封存：每年 3 月起，自動把前一年的班表與劃假紀錄另外保存（主管、夥伴各一份），雲端資料保持精簡；選擇該年份仍可查看，要修改按「取回編輯」。',1],
     ['選擇日期發布：發布視窗可選「全部發布」或「選擇日期」，在日曆上點選日期，按住滑過可選取整段；沒選的日期，夥伴看到的維持不變。預約發布也適用。',1],
     ['自動更新：打開 App 或切回 App 時檢查新版本，自動更新；排班中或視窗開著時，等鎖定、關閉後才更新。'],
     ['後台設定新增「發布」：鎖定排班時不詢問（預設）／詢問／直接發布，以及打開 App 時是否提醒未發布的班表。',1],
     ['夥伴端：班表發布或更新時跳出通知，工具列新增 🔔，列出發布的日期，更新時分「新排」與「異動」，點選即切換到該月份；尚未發布的月份顯示「尚未發布」。'],
     ['啟用時，這個月與以前的月份視為已發布，之後已排的月份成為草稿。',1]
   ],fix:[
+    ['雲端寫入失敗時，修改先保留在這台裝置並自動重試，不會被雲端的舊版本蓋掉；右上角顯示紅色提示，重開 App 也會重新寫入。',1],
     ['打開 App 時雲端還沒連上，班表上方不會顯示未發布的修改：改為顯示「正在同步雲端」，連上後才顯示發布狀態；這段期間暫停排班與加人員，避免連上後被雲端覆蓋。本機存檔也一併保留發布當下的版本。',1],
     ['發布狀態列只顯示修改的天數，日期以小三角形標示。',1],
     ['後台設定：右側摘要平常為灰色，改過還沒儲存的項目改為重點色。'],
@@ -8039,11 +8209,13 @@ document.getElementById('btnMgrRenameView').addEventListener('click',async()=>{
     try{
       await FB.setDoc(FB.doc(FB.db,'stores',storeCode),{data:p,updatedAt:FB.serverTimestamp()});
     }catch(e){state.viewCode=oldCode;throw e}
-    await FB.setDoc(FB.doc(FB.db,'views',newCode),{data:JSON.stringify(viewPayloadOf(JSON.parse(p))),updatedAt:FB.serverTimestamp()});
+    const vp=JSON.stringify(viewPayloadOf(JSON.parse(p)));
+    await FB.setDoc(FB.doc(FB.db,'views',newCode),{data:vp,updatedAt:FB.serverTimestamp()});
     await FB.deleteDoc(FB.doc(FB.db,'views',oldCode)); // 舊代碼立即失效：正在用舊代碼的夥伴會被登出
+    await arcMoveDocs('views',oldCode,newCode,state.arcYears); // 夥伴那份的年份封存一起搬到新代碼
     try{await FB.deleteDoc(FB.doc(FB.db,'leaves',oldCode))}
     catch(e){try{await FB.setDoc(FB.doc(FB.db,'leaves',oldCode),{})}catch(e2){}} // 刪不掉就清空，舊代碼查不到任何劃假
-    lastWritten=p;
+    lastWritten=cloudAcked=p;viewAcked=vp;
     moveCodeKeys(oldCode,newCode);
     watchLeave(); // 改看新代碼底下的劃假
     cloudStatus='雲端已連線｜主管代碼：'+storeCode+'｜夥伴代碼：'+state.viewCode;
@@ -8053,6 +8225,16 @@ document.getElementById('btnMgrRenameView').addEventListener('click',async()=>{
     alert('更改失敗，請檢查網路連線。');
   }
 });
+async function arcMoveDocs(col,oldCode,newCode,years){ // 代碼改了：年份封存跟著搬（新代碼底下寫一份、舊的刪掉）
+  for(const Y of (years||[])){
+    try{
+      const s=await FB.getDoc(FB.doc(FB.db,col,arcId(oldCode,Y)));
+      if(!s.exists())continue;
+      await FB.setDoc(FB.doc(FB.db,col,arcId(newCode,Y)),s.data());
+      await FB.deleteDoc(FB.doc(FB.db,col,arcId(oldCode,Y)));
+    }catch(e){}
+  }
+}
 function moveCodeKeys(oldCode,newCode){ // 換夥伴代碼：這台裝置的劃假已讀、已提醒紀錄跟著搬，不會整批又變未讀
   try{
     const ks=[];for(let i=0;i<localStorage.length;i++)ks.push(localStorage.key(i));
@@ -8104,12 +8286,14 @@ document.getElementById('mgrList').addEventListener('click',async ev=>{
       if(!oldSnap.exists()){alert('找不到原本的資料，可能已被刪除。');removeCodeHistory(oldCode);renderMgrList();return}
       await FB.setDoc(newRef,oldSnap.data());
       await FB.deleteDoc(oldRef);
+      let ys=[];try{ys=JSON.parse(oldSnap.data().data).arcYears||[]}catch(e){}
+      await arcMoveDocs('stores',oldCode,newCode,ys); // 主管那份的年份封存一起搬
       removeCodeHistory(oldCode);
       recordCodeHistory(newCode);
       if(storeCode===oldCode)await connectStore(newCode,false,true);
       renderMgrList();
       alert('已將代碼改為「'+newCode+'」。');
-    }catch(e){alert('操作失敗，請確認網路連線與 Firestore 設定。')}
+    }catch(e){alert('操作失敗，請檢查網路連線。')}
     return;
   }
   if(del){
@@ -8126,11 +8310,15 @@ document.getElementById('btnConfirmDelCode').addEventListener('click',async()=>{
   try{
     // 夥伴代碼跟主管代碼是綁在一起的一組，刪除前先讀出對應的夥伴代碼一併清除
     const snap=await FB.getDoc(FB.doc(FB.db,'stores',code));
-    let pairedView=null;
+    let pairedView=null,arcYs=[];
     if(snap.exists()&&snap.data().data){
-      try{pairedView=JSON.parse(snap.data().data).viewCode||null}catch(e){}
+      try{const o=JSON.parse(snap.data().data);pairedView=o.viewCode||null;arcYs=o.arcYears||[]}catch(e){}
     }
     await FB.deleteDoc(FB.doc(FB.db,'stores',code));
+    for(const Y of arcYs){ // 年份封存一併刪除，不留孤兒文件
+      try{await FB.deleteDoc(FB.doc(FB.db,'stores',arcId(code,Y)))}catch(e){}
+      if(pairedView)try{await FB.deleteDoc(FB.doc(FB.db,'views',arcId(pairedView,Y)))}catch(e){}
+    }
     if(pairedView){
       await FB.deleteDoc(FB.doc(FB.db,'views',pairedView));
       try{await FB.deleteDoc(FB.doc(FB.db,'leaves',pairedView))}catch(e){} // 劃假資料一併清掉，不留孤兒文件
