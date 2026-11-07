@@ -2062,7 +2062,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
     <div class="pub-when">
       <label class="cfg-row"><input type="radio" name="pubWhen" value="now" checked><span>立即發布</span></label>
       <label class="cfg-row"><input type="radio" name="pubWhen" value="at"><span>指定時間</span><input class="txt" type="date" id="pubAtD"><select class="txt" id="pubAtT"></select></label>
-      <div class="small-note" id="pubAtNote">時間一到夥伴就看得到，內容以當時的最新版本為準。預約時間只有主管看得到，夥伴在發布時才收到通知。</div>
+      <div class="small-note" id="pubAtNote">時間一到夥伴就看得到，內容以當時的最新版本為準；時間以雲端為準，改手機時間也不會提早看到。預約時間只有主管看得到，夥伴在發布時才收到通知。</div>
     </div>
     <div class="small-note" style="margin-top:8px">發布後，夥伴開啟 App 時會收到通知，🔔 也會列出更新的日期。</div>
     <div class="m-actions">
@@ -2261,7 +2261,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
         <li><b>發布</b>　排好的班按「發布」後夥伴才看得到。新的月份預設為草稿，班表上方顯示目前狀態（尚未發布／有修改尚未發布／已發布）。</li>
         <li>已發布的月份再修改時，夥伴看到的仍是上次發布的版本；修改過的格子右上角標示<b>小三角形</b>（重點色），按「發布更新」後才更新給夥伴。</li>
         <li><b>選擇日期發布</b>　發布視窗勾選月份後，可選「全部發布」或「選擇日期」：在日曆上點一下選一天，按住滑到另一天可選取整段。沒選的日期，夥伴看到的維持上次發布的內容（草稿月份則為空白）；人員名單一併發布，備註可選擇是否一併發布。預約發布也可以只發布選擇的日期。</li>
-        <li><b>預約發布</b>　發布視窗選「指定時間」：時間一到夥伴就看得到，內容以當時的最新版本為準。預約時間只有主管看得到，夥伴在發布時才收到通知。班表上方可「立即發布」或「取消預約」。</li>
+        <li><b>預約發布</b>　發布視窗選「指定時間」：時間一到夥伴就看得到，內容以當時的最新版本為準；時間以雲端為準，改手機時間也不會提早看到。預約時間只有主管看得到，夥伴在發布時才收到通知。班表上方可「立即發布」或「取消預約」。</li>
         <li>鎖定排班時要不要詢問發布（不詢問／詢問／直接發布），以及打開 App 時是否提醒未發布的班表，於後台設定「發布」調整；預設鎖定時不詢問、打開 App 時提醒。選「直接發布」時，排班中班表上方只顯示「鎖定排班後，自動發布這次改到的月份」，不需另外按發布；打開 App 時的提醒固定開啟，提醒沒發布出去的修改（例如鎖定時沒有網路）。</li>
         <li>發布後，夥伴開啟 App 時跳出通知，夥伴的 🔔 列出更新的月份與日期。人員名單、劃假開放設定等不受發布控制，儲存後即同步。</li>
         <li>自訂時間以 15 分鐘為單位，分鐘可為 00、15、30、45（例如 900、1315、1345）；±按鈕每次調整 15 分鐘。</li>
@@ -2769,16 +2769,24 @@ function pubCancelPlan(k){
   showToast('已取消 '+(+k.split('-')[1])+' 月的預約發布');
 }
 function resolveViewerPlans(){ // 夥伴端：預約時間到了就換上預約的內容；App 開著時到點自動換
-  const now=nowMs();let next=Infinity;
+  // 只用雲端時間判斷：還沒對好時間（或手機時間被改過）就先不顯示，對好後再判斷
+  const ok=srvTimeOk(),now=nowMs();let next=Infinity;
   Object.keys(state.months).forEach(k=>{
     const m=state.months[k];if(!m||!m.planAt||!m.pending)return;
-    if(now>=m.planAt)state.months[k]=Object.assign({},m.pending,{pubAt:m.planAt,planDone:m.planAt});
+    if(ok&&now>=m.planAt)state.months[k]=Object.assign({},m.pending,{pubAt:m.planAt,planDone:m.planAt});
     else next=Math.min(next,m.planAt);
   });
   (state.pubLog||[]).forEach(x=>{if((x.at||0)>now)next=Math.min(next,x.at)});
   clearTimeout(resolveViewerPlans._t);
-  if(next<Infinity)resolveViewerPlans._t=setTimeout(()=>{resolveViewerPlans();renderAll();pubNotifyViewer()},Math.min(Math.max(next-now+500,1000),2147483000));
+  const again=()=>{resolveViewerPlans();renderAll();pubNotifyViewer()};
+  if(!ok&&next<Infinity){ // 還沒對好時間：去對時間，過一下再看
+    if(srvState!=='wait'&&viewerMode&&storeCode)syncServerClock();
+    resolveViewerPlans._t=setTimeout(again,srvState==='fail'?60000:5000);
+  }else if(next<Infinity)resolveViewerPlans._t=setTimeout(again,Math.min(Math.max(next-now+500,1000),2147483000));
 }
+document.addEventListener('visibilitychange',()=>{ // 切回 App：手機時間可能被改過，重新檢查
+  if(document.visibilityState==='visible'&&viewerHasPlans()){resolveViewerPlans();renderAll()}
+});
 function pubChanges(k){ // 已發布後的修改：{days,other,cells}；沒有修改回傳 null
   const m=state.months[k],b=pubBase(k);if(!m||!b)return null;
   const c=pubContent(m),days=new Set(),cells=new Set(),other=[];
@@ -3132,7 +3140,7 @@ function pubNotifyManager(){ // 打開班表時：有沒發布的內容就提醒
 function pubSeenKey(){return 'paiban-pub-seen-'+(storeCode||'')}
 function pubToastKey(){return 'paiban-pub-toast-'+(storeCode||'')}
 function pubSeenAt(){try{return +localStorage.getItem(pubSeenKey())||0}catch(e){return 0}}
-function pubVisibleLog(){const now=nowMs();return (state.pubLog||[]).filter(x=>!x.kind&&(!x.planned||(x.at||0)<=now))} // 預約的發布到時間才算數
+function pubVisibleLog(){const now=nowMs(),ok=!viewerMode||srvTimeOk();return (state.pubLog||[]).filter(x=>!x.kind&&(!x.planned||(ok&&(x.at||0)<=now)))} // 預約的發布到時間才算數（夥伴端以雲端時間為準）
 function pubUnseen(){const s=pubSeenAt();return pubVisibleLog().filter(x=>(x.at||0)>s)}
 function pubMerge(list){ // 同一個月的多次發布併成一行
   const by={};
@@ -4337,7 +4345,15 @@ function parseYm(ym){const p=String(ym||'').split('-');return {y:+p[0],m:+p[1]}}
 let srvOffset=0;          // 伺服器時間 − 本機時間（毫秒）
 let srvState='none';       // none 尚未校時／wait 等待中／ok 已校時／fail 取不到
 let clockNonce=null, clockSentAt=0;
+let clockAnchor=null; // 校時當下的「本機時間−開機以來的時間」：App 開著時手機時間被改，這個差就會變
 function nowMs(){return Date.now()+srvOffset}
+function clockJumped(){return clockAnchor!==null&&Math.abs((Date.now()-performance.now())-clockAnchor)>120000}
+function srvTimeOk(){ // 已跟雲端對過時間、而且之後手機時間沒被改過（預約發布只認這個，改手機時間看不到）
+  if(srvState!=='ok')return false;
+  if(clockJumped()){srvState='none';clockAnchor=null;syncServerClock();return false}
+  return true;
+}
+function viewerHasPlans(){return viewerMode&&Object.values(state.months).some(m=>m&&m.planAt&&m.pending)}
 function todayStr(){const t=new Date(nowMs());return t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0')}
 async function syncServerClock(){ // 每次連線只校一次
   if(srvState==='ok'||srvState==='wait')return;
@@ -4351,7 +4367,8 @@ async function syncServerClock(){ // 每次連線只校一次
     await FB.setDoc(FB.doc(FB.db,'leaves',code),{clock:FB.serverTimestamp(),clockNonce},{merge:true});
   }catch(e){srvState='fail';refreshLeaveIfOpen()}
 }
-function needServerClock(){ // 劃假的開放判定，以及戰績那五天，都不能被裝置時間左右
+function needServerClock(){ // 劃假的開放判定、戰績那五天、夥伴端的預約發布，都不能被裝置時間左右
+  if(viewerHasPlans())return true;
   if(cfg().leave.on||(cfg().leave.solo||[]).length)return true;
   // 先用裝置時間粗篩，前後各放寬一天，避免手機時間偏差剛好讓這一天漏掉
   const t=new Date(), y=t.getFullYear(), m=t.getMonth()+1, d=t.getDate();
@@ -4525,7 +4542,8 @@ function watchLeave(){ // 監聽劃假文件，夥伴一送出店長那邊就會
     if(clk&&clk.toMillis&&nonce&&nonce===clockNonce&&!pending){
       const half=(Date.now()-clockSentAt)/2;   // 扣掉來回網路時間的一半
       srvOffset=clk.toMillis()+half-Date.now();
-      srvState='ok';
+      srvState='ok';clockAnchor=Date.now()-performance.now();
+      if(viewerHasPlans())setTimeout(()=>{resolveViewerPlans();renderAll();pubNotifyViewer()},0); // 對好時間：到點的預約發布現在顯示
       updateReportBtn(); // 校時後今天可能跨進或跨出戰績那五天，重算一次
     }
     leaveData=d;leaveReady=true;
@@ -6432,13 +6450,14 @@ document.getElementById('btnInstallGuide').addEventListener('click',()=>{
    更新次數自目前大版本上線起，每上傳一次 index.html 加 1（劃假上線那次為 000）。
    每次更新：APP_VERSION 改成「3.115MMDD.次數」，CHANGELOG 最上面同一天的那筆 ver 跟著改；新的一天加一筆。
    add＝新增功能，fix＝問題改善；項目寫成 [文字, 1] 表示只有主管會用到（夥伴代碼不顯示） */
-const APP_VERSION='3.1151107.087';
+const APP_VERSION='3.1151107.088';
 const CHANGELOG=[
-  {v:'2026.11.07',ver:'3.1151107.087',add:[
+  {v:'2026.11.07',ver:'3.1151107.088',add:[
     ['年份封存：每年 3 月起，自動把前一年的班表與劃假紀錄另外保存（主管、夥伴各一份），雲端資料保持精簡；選擇該年份仍可查看，要修改按「取回編輯」。',1]
   ],fix:[
     ['雲端寫入失敗時，修改先保留在這台裝置並自動重試，不會被雲端的舊版本蓋掉；右上角顯示紅色提示，重開 App 也會重新寫入。',1],
-    ['預約發布的時間改為日期＋24 小時制的時間選單，選好後也以 24 小時制顯示。',1]
+    ['預約發布的時間改為日期＋24 小時制的時間選單，選好後也以 24 小時制顯示。',1],
+    ['預約發布改以雲端時間判定：夥伴改手機時間也不會提早看到；App 開著時改手機時間會重新對時。',1]
   ]},
   {v:'2026.11.06',ver:'3.1151106.086',add:[
     ['發布班表：排好的班按「發布」後夥伴才看得到，新的月份預設為草稿；班表上方顯示發布狀態。',1],
