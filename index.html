@@ -1935,14 +1935,14 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
 <div class="overlay" id="ovCfgPub">
   <div class="modal">
     <div class="m-title">發布</div>
-    <div class="m-sub">排好的班按「發布」後夥伴才看得到。以下為鎖定排班與打開 App 時的處理方式。</div>
+    <div class="m-sub">班表經「發布」後開放夥伴查看。以下設定鎖定排班與開啟 App 時的處理方式。</div>
     <div class="sec-label" style="margin-top:10px">鎖定排班時</div>
     <label class="cfg-row"><input type="radio" name="cfgPubLock" value="none"><span>不詢問，於班表上方自行發布（預設）</span></label>
     <label class="cfg-row"><input type="radio" name="cfgPubLock" value="ask"><span>詢問是否發布</span></label>
-    <label class="cfg-row"><input type="radio" name="cfgPubLock" value="auto"><span>直接發布這次改到的月份</span></label>
+    <label class="cfg-row"><input type="radio" name="cfgPubLock" value="auto"><span>直接發布本次修改的月份</span></label>
     <div class="hr"></div>
     <label class="cfg-row"><input type="checkbox" id="cfgPubRemind"><span>打開 App 時提醒未發布的班表</span></label>
-    <div class="small-note" id="cfgPubRemindNote" style="display:none;margin:-2px 0 0 28px">直接發布時，仍會提醒沒發布出去的修改（例如鎖定時沒有網路）。</div>
+    <div class="small-note" id="cfgPubRemindNote" style="display:none;margin:-2px 0 0 28px">直接發布時，仍會提醒未完成發布的修改（例如鎖定時無網路）。</div>
     <div class="m-actions"><button class="btn primary cfg-back">完成</button></div>
   </div>
 </div>
@@ -2057,12 +2057,12 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
 <div class="overlay" id="ovPublish">
   <div class="modal">
     <div class="m-title">發布班表</div>
-    <div class="m-sub">發布後夥伴才看得到。已發布的月份之後再修改，也要再發布一次才會更新給夥伴。</div>
+    <div class="m-sub">發布後開放夥伴查看。已發布的月份修改後，需再次發布才會更新。</div>
     <div id="pubList"></div>
     <div class="pub-when">
       <label class="cfg-row"><input type="radio" name="pubWhen" value="now" checked><span>立即發布</span></label>
       <label class="cfg-row"><input type="radio" name="pubWhen" value="at"><span>指定時間</span><input class="txt" type="date" id="pubAtD"><select class="txt" id="pubAtT"></select></label>
-      <div class="small-note" id="pubAtNote">時間一到夥伴就看得到，內容以當時的最新版本為準；時間以雲端為準，改手機時間也不會提早看到。預約時間只有主管看得到，夥伴在發布時才收到通知。</div>
+      <div class="small-note" id="pubAtNote">於指定時間開放夥伴查看，內容以當時的最新版本為準；時間以雲端為準，不受手機時間影響。預約時間僅主管可見，夥伴於發布時收到通知。</div>
     </div>
     <div class="small-note" style="margin-top:8px">發布後，夥伴開啟 App 時會收到通知，🔔 也會列出更新的日期。</div>
     <div class="m-actions">
@@ -2258,11 +2258,11 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
       <div class="sec-label">排班</div>
       <ul class="hul">
         <li>按「🔒 排班」解鎖後方可編輯，再按一次即鎖定。</li>
-        <li><b>發布</b>　排好的班按「發布」後夥伴才看得到。新的月份預設為草稿，班表上方顯示目前狀態（尚未發布／有修改尚未發布／已發布）。</li>
-        <li>已發布的月份再修改時，夥伴看到的仍是上次發布的版本；修改過的格子右上角標示<b>小三角形</b>（重點色），按「發布更新」後才更新給夥伴。</li>
-        <li><b>選擇日期發布</b>　發布視窗勾選月份後，可選「全部發布」或「選擇日期」：在日曆上點一下選一天，按住滑到另一天可選取整段。沒選的日期，夥伴看到的維持上次發布的內容（草稿月份則為空白）；人員名單一併發布，備註可選擇是否一併發布。預約發布也可以只發布選擇的日期。</li>
-        <li><b>預約發布</b>　發布視窗選「指定時間」：時間一到夥伴就看得到，內容以當時的最新版本為準；時間以雲端為準，改手機時間也不會提早看到。預約時間只有主管看得到，夥伴在發布時才收到通知。班表上方可「立即發布」或「取消預約」。</li>
-        <li>鎖定排班時要不要詢問發布（不詢問／詢問／直接發布），以及打開 App 時是否提醒未發布的班表，於後台設定「發布」調整；預設鎖定時不詢問、打開 App 時提醒。選「直接發布」時，排班中班表上方只顯示「鎖定排班後，自動發布這次改到的月份」，不需另外按發布；打開 App 時的提醒固定開啟，提醒沒發布出去的修改（例如鎖定時沒有網路）。</li>
+        <li><b>發布</b>　班表經「發布」後開放夥伴查看。新的月份預設為草稿，班表上方顯示目前狀態（尚未發布／有修改尚未發布／已發布）。</li>
+        <li>已發布的月份再修改時，夥伴端維持上次發布的版本；修改過的格子右上角標示<b>小三角形</b>（重點色），按「發布更新」後更新。</li>
+        <li><b>選擇日期發布</b>　發布視窗勾選月份後，可選「全部發布」或「選擇日期」：在日曆上點一下選一天，按住滑到另一天可選取整段。未選取的日期，夥伴端維持上次發布的內容（草稿月份則為空白）；人員名單一併發布，備註可選擇是否一併發布。預約發布也可以只發布選擇的日期。</li>
+        <li><b>預約發布</b>　發布視窗選「指定時間」：於指定時間開放夥伴查看，內容以當時的最新版本為準；時間以雲端為準，不受手機時間影響。預約時間僅主管可見，夥伴於發布時收到通知。班表上方可「立即發布」或「取消預約」。</li>
+        <li>鎖定排班時是否詢問發布（不詢問／詢問／直接發布），以及開啟 App 時是否提醒未發布的班表，於後台設定「發布」調整；預設為鎖定時不詢問、開啟 App 時提醒。選「直接發布」時，排班中班表上方僅顯示「鎖定排班後，自動發布本次修改的月份」，不需另外發布；開啟 App 時的提醒固定開啟，用於提醒未完成發布的修改（例如鎖定時無網路）。</li>
         <li>發布後，夥伴開啟 App 時跳出通知，夥伴的 🔔 列出更新的月份與日期。人員名單、劃假開放設定等不受發布控制，儲存後即同步。</li>
         <li>自訂時間以 15 分鐘為單位，分鐘可為 00、15、30、45（例如 900、1315、1345）；±按鈕每次調整 15 分鐘。</li>
         <li>班表上以小時的小數顯示：13:15 寫成 13.25、13:30 寫成 13.5、13:45 寫成 13.75。</li>
@@ -2365,7 +2365,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
         <li>每次送出均留下紀錄，<b>取消劃假同樣記錄</b>。</li>
         <li>有未讀異動時，工具列的 🔔 顯示<b style="color:var(--red)">紅點</b>。</li>
         <li>點 🔔 不用打開劃假，就能看到最近異動（未讀的直接展開，改了備註會顯示新內容）與所有夥伴的備註；只寫備註、沒劃日期的夥伴也會列出。</li>
-        <li>🔔 只有主管代碼看得到，夥伴代碼不顯示。</li>
+        <li>🔔 僅顯示於主管代碼，夥伴代碼不顯示。</li>
         <li><b>最近異動</b>統一在 🔔 查看，逐筆列出，點一下可展開細項；可依「時間」或「姓名」排序，依時間排時最下面那筆最早送出，候補可依此先到先受理。</li>
         <li>「劃假 → 全員總覽」只列目前的劃假；有未讀異動時，最上方會出現一行提示，點了直接打開 🔔。</li>
       </ul>
@@ -2437,7 +2437,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
         <li>夥伴代碼僅可查看、無法修改，供夥伴端使用。</li>
         <li>夥伴代碼可換發：後台設定 →「管理主管代碼」→ 夥伴代碼「更改」，留空按確定＝自動產生隨機代碼。舊代碼立即失效，使用中的手機會清空畫面；已劃的假與異動紀錄一起搬到新代碼。</li>
         <li>雲端寫入失敗時（例如權限或資料量限制），修改先存在這台裝置，右上角顯示紅色提示並自動重試；重開 App 也會重新寫入。</li>
-        <li><b>年份封存</b>　每年 3 月起，主管打開 App 時自動把前一年的班表與劃假紀錄另外保存，雲端資料保持精簡。選擇該年份仍可查看（唯讀）；要修改請按班表上方的「取回編輯」，14 天後自動再封存。夥伴代碼也看得到封存的年份。</li>
+        <li><b>年份封存</b>　每年 3 月起，主管打開 App 時自動把前一年的班表與劃假紀錄另外保存，雲端資料保持精簡。選擇該年份仍可查看（唯讀）；要修改請按班表上方的「取回編輯」，14 天後自動再封存。夥伴代碼亦可查看封存的年份。</li>
       </ul>
 
       <div class="hr"></div>
@@ -2996,19 +2996,19 @@ function renderPubBar(){ // 班表上方：這個月的發布狀態
   const hold=(state.arcHold||{})[state.y];
   if(m&&m.pubPlan){
     cls='plan';
-    h='<span>⏰ <b>'+state.m+' 月預定 '+fmtMdHm(m.pubPlan.at)+' 發布</b>'+(m.pubPlan.days?'（'+pubRangeText(state.m,m.pubPlan.days,4)+'）':'')+'，到時間夥伴就看得到（以當時的最新內容為準）。</span>'+
+    h='<span>⏰ <b>'+state.m+' 月預定 '+fmtMdHm(m.pubPlan.at)+' 發布</b>'+(m.pubPlan.days?'（'+pubRangeText(state.m,m.pubPlan.days,4)+'）':'')+'，內容以屆時的最新版本為準。</span>'+
       '<button class="btn primary" data-pubgo="'+k+'">立即發布</button><button class="btn" data-pubcancel="'+k+'">取消預約</button>';
   }else if(!m||!m.pub){
     cls='draft';
-    h='<span>📝 <b>'+state.m+' 月尚未發布</b>，夥伴看不到這個月的班表。</span>'+(monthHasContent(m)?'<button class="btn primary" data-pubgo="'+k+'">發布 '+state.m+' 月</button>':'');
+    h='<span>📝 <b>'+state.m+' 月尚未發布</b>，夥伴端不顯示此月份。</span>'+(monthHasContent(m)?'<button class="btn primary" data-pubgo="'+k+'">發布 '+state.m+' 月</button>':'');
   }else{
     const ch=pubChanges(k);
-    if(ch){cls='dirty';h='<span>✎ <b>'+state.m+' 月有修改尚未發布</b>（'+esc(pubChText(state.m,ch))+'），夥伴看到的仍是上次發布的版本。</span><button class="btn primary" data-pubgo="'+k+'">發布更新</button>'}
+    if(ch){cls='dirty';h='<span>✎ <b>'+state.m+' 月有修改尚未發布</b>（'+esc(pubChText(state.m,ch))+'），夥伴端仍為上次發布的版本。</span><button class="btn primary" data-pubgo="'+k+'">發布更新</button>'}
     else{cls='ok';h='<span>✓ '+state.m+' 月已發布'+(m.pub.legacy?'':'　'+fmtMdHm(m.pub.at))+'</span>'}
   }
   if(hold>nowMs()&&cls==='ok'){const hd=new Date(hold);h+='<span class="arc-hold">民國 '+(state.y-1911)+' 年已取回編輯，'+(hd.getMonth()+1)+'/'+hd.getDate()+' 後自動再封存</span>'}
   if(editMode&&cfg().pub.lock==='auto'&&(cls==='dirty'||cls==='draft')){ // 鎖定時直接發布：排班中不用再顯示發布按鈕
-    cls='auto';h='<span>✎ 鎖定排班後，自動發布這次改到的月份。</span>';
+    cls='auto';h='<span>✎ 鎖定排班後，自動發布本次修改的月份。</span>';
   }
   bar.className='pub-bar '+cls;bar.innerHTML=h;bar.style.display='';
 }
@@ -3046,7 +3046,7 @@ function renderPubPick(k){ // 發布視窗：這個月份要全部發布，還�
     for(let d=1;d<=N;d++)h+='<button type="button" class="pp-d'+(st.days.has(d)?' on':'')+'" data-ppd="'+d+'"'+(cand.has(d)?'':' disabled')+'>'+d+'</button>';
     h+='</div><div class="pp-act"><button type="button" class="btn" data-ppall>全選</button><button type="button" class="btn" data-ppnone>清除</button><span class="pp-n"></span></div>';
     if(pubNotesChanged(k))h+='<label class="pp-notes"><input type="checkbox" data-ppnotes'+(st.notes?' checked':'')+'><span>備註也一併發布</span></label>';
-    h+='<div class="small-note">點一下選一天，按住滑到另一天可選取整段（只能選'+(draft?'有內容':'有修改')+'的日期）。沒選的日期'+(draft?'先不發布，夥伴看到的是空白。':'，夥伴看到的維持上次發布的內容。')+'</div>';
+    h+='<div class="small-note">點一下選一天，按住滑到另一天可選取整段（僅限'+(draft?'有內容':'有修改')+'的日期）。未選取的日期'+(draft?'暫不發布，夥伴端顯示為空白。':'，夥伴端維持上次發布的內容。')+'</div>';
   }
   wrap.innerHTML=h;
   pubPickCount(k);
@@ -3122,7 +3122,7 @@ async function publishMonths(items,planAt){ // items：月份 'YYYY-M'，或 {k,
   renderAll();
   if(ok)setHint('雲端已同步 ✓');
   const what=planAt?'已預約 '+names.join('、')+'　'+fmtMdHm(planAt)+' 發布':'已發布 '+names.join('、');
-  showToast(ok?'<div class="ts-h">'+what+' ✓</div><div class="ts-n">'+(planAt?'到時間夥伴就看得到（以當時的最新內容為準），屆時夥伴才會收到通知。':'夥伴開啟 App 時會收到通知，🔔 也會列出。')+'</div>'
+  showToast(ok?'<div class="ts-h">'+what+' ✓</div><div class="ts-n">'+(planAt?'屆時開放夥伴查看並發送通知，內容以當時的最新版本為準。':'夥伴開啟 App 時收到通知，🔔 同時列出。')+'</div>'
               :'<div class="ts-h">'+what+'，但雲端寫入失敗</div><div class="ts-n">連線恢復後存檔時會一併更新給夥伴。</div>',4500,true);
 }
 let pubToldThisSession=false;
@@ -3132,7 +3132,7 @@ function pubNotifyManager(){ // 打開班表時：有沒發布的內容就提醒
   pubToldThisSession=true;
   const msg='<div class="ts-h">有未發布的班表</div>'+
     list.slice(0,4).map(x=>'<div class="ts-k">'+pubYmLabel(x.y,x.m)+'：'+(x.first?'草稿':x.ch.days.length?x.ch.days.length+' 天有修改':esc(x.ch.other.join('、'))+'有修改')+'</div>').join('')+
-    '<div class="ts-n">夥伴看不到未發布的內容，可於班表上方按「發布」。</div>';
+    '<div class="ts-n">未發布的內容不會顯示於夥伴端，可於班表上方按「發布」。</div>';
   let n=0;const go=()=>{if(document.getElementById('splash')&&++n<40){setTimeout(go,500);return}showToast(msg,6000,true)};
   go();
 }
@@ -3479,7 +3479,7 @@ function cloudWriteFail(){ // 寫入被雲端拒絕（例如權限、資料過�
   cloudFail++;
   try{localStorage.setItem(UNSYNCED_KEY,storeCode||'')}catch(e){}
   setHint('⚠ 雲端寫入失敗，修改先存在這台裝置');
-  if(cloudFail===1)showToast('<div class="ts-h">雲端寫入失敗</div><div class="ts-n">修改先存在這台裝置，會自動重試；成功前，其他裝置與夥伴看不到這些修改。</div>',6000,true);
+  if(cloudFail===1)showToast('<div class="ts-h">雲端寫入失敗</div><div class="ts-n">修改暫存於此裝置並自動重試；寫入成功前，其他裝置與夥伴端不會更新。</div>',6000,true);
   clearTimeout(cloudRetryT);
   cloudRetryT=setTimeout(cloudRetry,Math.min(30000*Math.pow(2,cloudFail-1),300000)); // 30 秒起，越等越久，最多 5 分鐘
 }
@@ -6450,20 +6450,21 @@ document.getElementById('btnInstallGuide').addEventListener('click',()=>{
    更新次數自目前大版本上線起，每上傳一次 index.html 加 1（劃假上線那次為 000）。
    每次更新：APP_VERSION 改成「3.115MMDD.次數」，CHANGELOG 最上面同一天的那筆 ver 跟著改；新的一天加一筆。
    add＝新增功能，fix＝問題改善；項目寫成 [文字, 1] 表示只有主管會用到（夥伴代碼不顯示） */
-const APP_VERSION='3.1151107.088';
+const APP_VERSION='3.1151107.089';
 const CHANGELOG=[
-  {v:'2026.11.07',ver:'3.1151107.088',add:[
+  {v:'2026.11.07',ver:'3.1151107.089',add:[
     ['年份封存：每年 3 月起，自動把前一年的班表與劃假紀錄另外保存（主管、夥伴各一份），雲端資料保持精簡；選擇該年份仍可查看，要修改按「取回編輯」。',1]
   ],fix:[
     ['雲端寫入失敗時，修改先保留在這台裝置並自動重試，不會被雲端的舊版本蓋掉；右上角顯示紅色提示，重開 App 也會重新寫入。',1],
     ['預約發布的時間改為日期＋24 小時制的時間選單，選好後也以 24 小時制顯示。',1],
+    ['發布、預約發布相關的提示與說明改為中性用語。',1],
     ['預約發布改以雲端時間判定：夥伴改手機時間也不會提早看到；App 開著時改手機時間會重新對時。',1]
   ]},
   {v:'2026.11.06',ver:'3.1151106.086',add:[
-    ['發布班表：排好的班按「發布」後夥伴才看得到，新的月份預設為草稿；班表上方顯示發布狀態。',1],
-    ['已發布的月份再修改時，夥伴看到的仍是上次發布的版本，修改過的格子右上角標示小三角形，按「發布更新」才更新。',1],
-    ['預約發布：發布時可指定日期時間，時間一到夥伴就看得到（以當時的最新內容為準），夥伴屆時才收到通知；可立即發布或取消預約。',1],
-    ['選擇日期發布：發布視窗可選「全部發布」或「選擇日期」，在日曆上點選日期，按住滑過可選取整段；沒選的日期，夥伴看到的維持不變。預約發布也適用。',1],
+    ['發布班表：班表經「發布」後開放夥伴查看，新的月份預設為草稿；班表上方顯示發布狀態。',1],
+    ['已發布的月份再修改時，夥伴端維持上次發布的版本，修改過的格子右上角標示小三角形，按「發布更新」後更新。',1],
+    ['預約發布：發布時可指定日期時間，屆時開放夥伴查看並發送通知，內容以當時的最新版本為準；可立即發布或取消預約。',1],
+    ['選擇日期發布：發布視窗可選「全部發布」或「選擇日期」，在日曆上點選日期，按住滑過可選取整段；未選取的日期，夥伴端維持不變。預約發布也適用。',1],
     ['自動更新：打開 App 或切回 App 時檢查新版本，自動更新；排班中或視窗開著時，等鎖定、關閉後才更新。'],
     ['後台設定新增「發布」：鎖定排班時不詢問（預設）／詢問／直接發布，以及打開 App 時是否提醒未發布的班表。',1],
     ['夥伴端：班表發布或更新時跳出通知，工具列新增 🔔，列出發布的日期，更新時分「新排」與「異動」，點選即切換到該月份；尚未發布的月份顯示「尚未發布」。'],
@@ -6475,7 +6476,7 @@ const CHANGELOG=[
     ['發布設定為「直接發布」時，排班中不再顯示「發布更新」按鈕，改為提示鎖定後自動發布；打開 App 時的提醒固定開啟。',1],
     ['後台設定選單分兩組：「所選主管代碼的設定」與「所有主管代碼共用」（行事曆、更新日誌），避免誤以為行事曆只套用到單一代碼。'],
     ['未發布修改的小三角形改用重點色並調淡；班表上方的發布狀態列改為素色、左側一條重點色線，不與「柿橙」等主題撞色。',1],
-    ['預約時間只有主管看得到，夥伴端到時間才收到「已發布」的通知。',1],
+    ['預約時間僅主管可見，夥伴端於發布時收到「已發布」通知。',1],
     ['連線失敗的提示改為「連線失敗，請檢查網路連線」；夥伴端狀態只顯示「夥伴代碼」。'],
     ['夥伴端的小通知只寫月份；🔔 列出發布的日期範圍，更新時分「新排」（原本未排的格子排上了）與「異動」（已有標示的格子有更改，包含改回未排）。']
   ]},
@@ -7175,8 +7176,8 @@ function tourSteps(role,full){ // full：完整新手教學，走到排班、開
     {el:()=>tourShown($('#btnEdit')),h:'開始排班',b:()=>'按此<b>解鎖</b>後，點選格子即可排入班別、自訂時間或假別；完成後再按一次<b>鎖定</b>。<br>鎖定後才進行人力檢查，紅色「！」於此時顯示。'+
       (!full?'':monthStaff().length?'<br>下一步起實際操作一次排班。':'<br>本月尚無人員，下一步起以示範班表實際操作一次排班。')},
     {seg:'sched',when:()=>full},
-    {el:()=>tourShown($('#pubBar'))||tourShown($('#btnEdit')),h:'發布',b:'排好的班按<b>「發布」</b>後夥伴才看得到；新的月份預設為草稿，班表上方顯示目前狀態。<br>'+
-      '已發布的月份再修改時，夥伴看到的仍是上次發布的版本；修改過的格子右上角標示<b>小三角形</b>，按「發布更新」才會更新。<br>'+
+    {el:()=>tourShown($('#pubBar'))||tourShown($('#btnEdit')),h:'發布',b:'班表經<b>「發布」</b>後開放夥伴查看；新的月份預設為草稿，班表上方顯示目前狀態。<br>'+
+      '已發布的月份再修改時，夥伴端維持上次發布的版本；修改過的格子右上角標示<b>小三角形</b>，按「發布更新」後更新。<br>'+
       '發布時可選「全部發布」或「選擇日期」，也可選「指定時間」預約發布；鎖定排班時是否詢問發布，於後台設定「發布」調整。發布後夥伴會收到通知。'},
     {el:()=>tourShown($('#btnStaff')),h:'＋ 人員',b:'人員的新增、編輯與離職皆於此處理。以下依序預覽各畫面，僅供查看，不會變更資料。'},
     {enter:()=>{tourStaffWith(renderStaffList);document.getElementById('ovStaffList').classList.add('show')},
