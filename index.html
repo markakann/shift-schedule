@@ -624,8 +624,9 @@ html.dark .lv-off-tag{color:#f0b978;border-color:#a8743a}
 .pub-bar.auto{color:var(--fade2,#666);padding:0 4px;font-size:12px;margin-bottom:4px}
 .pub-bar.plan{border-style:dashed;border-left-style:solid} /* 預約中：外框虛線 */
 .pub-when{margin-top:10px;padding-top:4px}
-.pub-when .cfg-row input.txt{width:auto;flex:1;min-width:0}
-.pub-when .cfg-row input.txt:disabled{opacity:.45}
+.pub-when .cfg-row .txt{width:auto;min-width:0}
+.pub-when .cfg-row input.txt{flex:1}
+.pub-when .cfg-row .txt:disabled{opacity:.45}
 .pub-bar .btn{padding:4px 12px;font-size:13px}
 html.dark .pub-bar.ok{color:#6fcf8f}
 .unpub-tri{position:absolute;top:0;right:0;width:0;height:0;border-top:10px solid var(--blue);border-left:10px solid transparent;opacity:.6;pointer-events:none;z-index:1} /* 跟著重點色、淡一點，修改多時不會滿版濃色 */
@@ -2060,7 +2061,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
     <div id="pubList"></div>
     <div class="pub-when">
       <label class="cfg-row"><input type="radio" name="pubWhen" value="now" checked><span>立即發布</span></label>
-      <label class="cfg-row"><input type="radio" name="pubWhen" value="at"><span>指定時間</span><input class="txt" type="datetime-local" id="pubAt"></label>
+      <label class="cfg-row"><input type="radio" name="pubWhen" value="at"><span>指定時間</span><input class="txt" type="date" id="pubAtD"><select class="txt" id="pubAtT"></select></label>
       <div class="small-note" id="pubAtNote">時間一到夥伴就看得到，內容以當時的最新版本為準。預約時間只有主管看得到，夥伴在發布時才收到通知。</div>
     </div>
     <div class="small-note" style="margin-top:8px">發布後，夥伴開啟 App 時會收到通知，🔔 也會列出更新的日期。</div>
@@ -3021,7 +3022,8 @@ function openPublish(pre){
   list.forEach(x=>renderPubPick(x.k));
   document.querySelector('input[name="pubWhen"][value="now"]').checked=true;
   const t=new Date(nowMs());t.setDate(t.getDate()+1);t.setHours(9,0,0,0); // 預設明天 09:00
-  document.getElementById('pubAt').value=isoDay(t)+'T09:00';
+  document.getElementById('pubAtD').value=isoDay(t); // 日期＋24 小時制的時間選單（原生的日期時間欄會跟著系統變成 12 小時制）
+  document.getElementById('pubAtT').innerHTML=timeOptions(540).replace(/<option value="1440"[^>]*>[^<]*<\/option>/,'');
   syncPubWhen();
   document.getElementById('toast').classList.remove('show');
   document.getElementById('ovPublish').classList.add('show');
@@ -5621,12 +5623,12 @@ document.getElementById('pubBar').addEventListener('click',ev=>{
 });
 function syncPubWhen(){
   const at=document.querySelector('input[name="pubWhen"]:checked').value==='at';
-  document.getElementById('pubAt').disabled=!at;
+  document.getElementById('pubAtD').disabled=document.getElementById('pubAtT').disabled=!at;
   document.getElementById('pubAtNote').style.display=at?'':'none';
   document.getElementById('btnPubGo').textContent=at?'預約發布':'發布';
 }
 document.querySelectorAll('input[name="pubWhen"]').forEach(r=>r.addEventListener('change',syncPubWhen));
-document.getElementById('pubAt').addEventListener('focus',()=>{document.querySelector('input[name="pubWhen"][value="at"]').checked=true;syncPubWhen()});
+['pubAtD','pubAtT'].forEach(id=>document.getElementById(id).addEventListener('focus',()=>{document.querySelector('input[name="pubWhen"][value="at"]').checked=true;syncPubWhen()}));
 document.getElementById('btnPubGo').addEventListener('click',()=>{
   const keys=[];
   for(const inp of document.querySelectorAll('#pubList input[data-pubk]:checked')){
@@ -5638,8 +5640,9 @@ document.getElementById('btnPubGo').addEventListener('click',()=>{
   }
   if(!keys.length){alert('請勾選要發布的月份。');return}
   if(document.querySelector('input[name="pubWhen"]:checked').value==='at'){
-    const v=document.getElementById('pubAt').value,t=v?new Date(v).getTime():NaN;
-    if(!v||isNaN(t)){alert('請選擇發布的日期與時間。');return}
+    const v=document.getElementById('pubAtD').value,mi=+document.getElementById('pubAtT').value,dp=v.split('-').map(Number);
+    const t=v&&dp.length===3?new Date(dp[0],dp[1]-1,dp[2],0,mi).getTime():NaN;
+    if(isNaN(t)){alert('請選擇發布的日期與時間。');return}
     if(t<nowMs()+60000){alert('預約時間需晚於現在至少 1 分鐘。');return}
     publishMonths(keys,t);return;
   }
@@ -6429,20 +6432,24 @@ document.getElementById('btnInstallGuide').addEventListener('click',()=>{
    更新次數自目前大版本上線起，每上傳一次 index.html 加 1（劃假上線那次為 000）。
    每次更新：APP_VERSION 改成「3.115MMDD.次數」，CHANGELOG 最上面同一天的那筆 ver 跟著改；新的一天加一筆。
    add＝新增功能，fix＝問題改善；項目寫成 [文字, 1] 表示只有主管會用到（夥伴代碼不顯示） */
-const APP_VERSION='3.1151106.087';
+const APP_VERSION='3.1151107.087';
 const CHANGELOG=[
-  {v:'2026.11.06',ver:'3.1151106.087',add:[
+  {v:'2026.11.07',ver:'3.1151107.087',add:[
+    ['年份封存：每年 3 月起，自動把前一年的班表與劃假紀錄另外保存（主管、夥伴各一份），雲端資料保持精簡；選擇該年份仍可查看，要修改按「取回編輯」。',1]
+  ],fix:[
+    ['雲端寫入失敗時，修改先保留在這台裝置並自動重試，不會被雲端的舊版本蓋掉；右上角顯示紅色提示，重開 App 也會重新寫入。',1],
+    ['預約發布的時間改為日期＋24 小時制的時間選單，選好後也以 24 小時制顯示。',1]
+  ]},
+  {v:'2026.11.06',ver:'3.1151106.086',add:[
     ['發布班表：排好的班按「發布」後夥伴才看得到，新的月份預設為草稿；班表上方顯示發布狀態。',1],
     ['已發布的月份再修改時，夥伴看到的仍是上次發布的版本，修改過的格子右上角標示小三角形，按「發布更新」才更新。',1],
     ['預約發布：發布時可指定日期時間，時間一到夥伴就看得到（以當時的最新內容為準），夥伴屆時才收到通知；可立即發布或取消預約。',1],
-    ['年份封存：每年 3 月起，自動把前一年的班表與劃假紀錄另外保存（主管、夥伴各一份），雲端資料保持精簡；選擇該年份仍可查看，要修改按「取回編輯」。',1],
     ['選擇日期發布：發布視窗可選「全部發布」或「選擇日期」，在日曆上點選日期，按住滑過可選取整段；沒選的日期，夥伴看到的維持不變。預約發布也適用。',1],
     ['自動更新：打開 App 或切回 App 時檢查新版本，自動更新；排班中或視窗開著時，等鎖定、關閉後才更新。'],
     ['後台設定新增「發布」：鎖定排班時不詢問（預設）／詢問／直接發布，以及打開 App 時是否提醒未發布的班表。',1],
     ['夥伴端：班表發布或更新時跳出通知，工具列新增 🔔，列出發布的日期，更新時分「新排」與「異動」，點選即切換到該月份；尚未發布的月份顯示「尚未發布」。'],
     ['啟用時，這個月與以前的月份視為已發布，之後已排的月份成為草稿。',1]
   ],fix:[
-    ['雲端寫入失敗時，修改先保留在這台裝置並自動重試，不會被雲端的舊版本蓋掉；右上角顯示紅色提示，重開 App 也會重新寫入。',1],
     ['打開 App 時雲端還沒連上，班表上方不會顯示未發布的修改：改為顯示「正在同步雲端」，連上後才顯示發布狀態；這段期間暫停排班與加人員，避免連上後被雲端覆蓋。本機存檔也一併保留發布當下的版本。',1],
     ['發布狀態列只顯示修改的天數，日期以小三角形標示。',1],
     ['後台設定：右側摘要平常為灰色，改過還沒儲存的項目改為重點色。'],
