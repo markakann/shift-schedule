@@ -2261,7 +2261,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
         <li><b>發布</b>　班表經「發布」後開放夥伴查看。新的月份預設為草稿，班表上方顯示目前狀態（尚未發布／有修改尚未發布／已發布）。</li>
         <li>已發布的月份再修改時，夥伴端維持上次發布的版本；修改過的格子右上角標示<b>小三角形</b>（重點色），按「發布更新」後更新。</li>
         <li><b>選擇日期發布</b>　發布視窗勾選月份後，可選「全部發布」或「選擇日期」：在日曆上點一下選一天，按住滑到另一天可選取整段。未選取的日期，夥伴端維持上次發布的內容（草稿月份則為空白）；人員名單一併發布，備註可選擇是否一併發布。預約發布也可以只發布選擇的日期。</li>
-        <li><b>預約發布</b>　發布視窗選「指定時間」：於指定時間開放夥伴查看，內容以當時的最新版本為準；時間以雲端為準，不受手機時間影響。預約時間僅主管可見，夥伴於發布時收到通知。班表上方可「立即發布」或「取消預約」。</li>
+        <li><b>預約發布</b>　發布視窗選「指定時間」：於指定時間開放夥伴查看，內容以當時的最新版本為準；時間以雲端為準，不受手機時間影響。預約時間僅主管可見，夥伴於發布時收到通知。預約時選「全部發布」為整月，屆時連同之後新增的修改一併發布；選「選擇日期」則只發布所選日期，其他日期之後的修改不會跟著發布。班表上方顯示預約範圍，可「立即發布」或「取消預約」。</li>
         <li>鎖定排班時是否詢問發布（不詢問／詢問／直接發布），以及開啟 App 時是否提醒未發布的班表，於後台設定「發布」調整；預設為鎖定時不詢問、開啟 App 時提醒。選「直接發布」時，排班中班表上方僅顯示「鎖定排班後，自動發布本次修改的月份」，不需另外發布；開啟 App 時的提醒固定開啟，用於提醒未完成發布的修改（例如鎖定時無網路）。</li>
         <li>發布後，夥伴開啟 App 時跳出通知，夥伴的 🔔 列出更新的月份與日期。人員名單、劃假開放設定等不受發布控制，儲存後即同步。</li>
         <li>自訂時間以 15 分鐘為單位，分鐘可為 00、15、30、45（例如 900、1315、1345）；±按鈕每次調整 15 分鐘。</li>
@@ -2996,7 +2996,8 @@ function renderPubBar(){ // 班表上方：這個月的發布狀態
   const hold=(state.arcHold||{})[state.y];
   if(m&&m.pubPlan){
     cls='plan';
-    h='<span>⏰ <b>'+state.m+' 月預定 '+fmtMdHm(m.pubPlan.at)+' 發布</b>'+(m.pubPlan.days?'（'+pubRangeText(state.m,m.pubPlan.days,4)+'）':'')+'，內容以屆時的最新版本為準。</span>'+
+    h='<span>⏰ <b>'+state.m+' 月預定 '+fmtMdHm(m.pubPlan.at)+' 發布'+(m.pubPlan.days?'（'+pubRangeText(state.m,m.pubPlan.days,4)+'）':'（整月）')+'</b>'+
+      (m.pubPlan.days?'，所選日期以屆時的最新版本為準，其他日期不發布。':'，整月以屆時的最新版本為準，之後新增的修改也一併發布。')+'</span>'+
       '<button class="btn primary" data-pubgo="'+k+'">立即發布</button><button class="btn" data-pubcancel="'+k+'">取消預約</button>';
   }else if(!m||!m.pub){
     cls='draft';
@@ -3024,7 +3025,7 @@ function openPublish(pre){
     const on=preset.has(x.k);
     return '<div class="pub-item'+(on?' on':'')+'" data-pubitem="'+x.k+'">'+
       '<label class="pub-row"><input type="checkbox" data-pubk="'+x.k+'"'+(on?' checked':'')+'>'+
-      '<span><b>'+pubYmLabel(x.y,x.m)+'</b>　'+(x.plan?'已預約 '+fmtMdHm(x.plan)+' 發布'+(x.pdays?'（'+pubRangeText(x.m,x.pdays,4)+'）':''):x.first?'草稿，第一次發布':esc(pubChText(x.m,x.ch))+'有修改')+'</span></label>'+
+      '<span><b>'+pubYmLabel(x.y,x.m)+'</b>　'+(x.plan?'已預約 '+fmtMdHm(x.plan)+' 發布'+(x.pdays?'（'+pubRangeText(x.m,x.pdays,4)+'）':'（整月）'):x.first?'草稿，第一次發布':esc(pubChText(x.m,x.ch))+'有修改')+'</span></label>'+
       '<div class="pub-pickwrap"></div></div>';
   }).join('');
   list.forEach(x=>renderPubPick(x.k));
@@ -3109,7 +3110,7 @@ async function publishMonths(items,planAt){ // items：月份 'YYYY-M'，或 {k,
       if(np&&!pubSame(np,pubContent(m)))m.pubSnap=np;else delete m.pubSnap;
       log.push(Object.assign({at,ym:k},en));
     }
-    names.push(mo+' 月'+(days?'（'+pubRangeText(mo,days,3)+'）':''));
+    names.push(mo+' 月'+(days?'（'+pubRangeText(mo,days,3)+'）':planAt?'（整月）':''));
   });
   state.pubLog=log.slice(-30);
   pubArmTimer();
@@ -5648,13 +5649,14 @@ function syncPubWhen(){
 document.querySelectorAll('input[name="pubWhen"]').forEach(r=>r.addEventListener('change',syncPubWhen));
 ['pubAtD','pubAtT'].forEach(id=>document.getElementById(id).addEventListener('focus',()=>{document.querySelector('input[name="pubWhen"][value="at"]').checked=true;syncPubWhen()}));
 document.getElementById('btnPubGo').addEventListener('click',()=>{
-  const keys=[];
+  const keys=[],sched=document.querySelector('input[name="pubWhen"]:checked').value==='at';
   for(const inp of document.querySelectorAll('#pubList input[data-pubk]:checked')){
     const k=inp.dataset.pubk,st=pubPick[k];
     if(!st||st.mode!=='pick'){keys.push(k);continue}
     if(!st.days.size){alert('請選擇 '+(+k.split('-')[1])+' 月要發布的日期，或改為「全部發布」。');return}
     const cand=pubPickDays(k),allDays=cand.every(d=>st.days.has(d));
-    keys.push(allDays&&(st.notes||!pubNotesChanged(k))?k:{k,days:[...st.days],notes:st.notes}); // 全部選了＝全部發布
+    // 立即發布：全選＝全部發布。預約：保留所選日期，之後在其他日期新增的修改不會跟著發布
+    keys.push(!sched&&allDays&&(st.notes||!pubNotesChanged(k))?k:{k,days:[...st.days],notes:st.notes});
   }
   if(!keys.length){alert('請勾選要發布的月份。');return}
   if(document.querySelector('input[name="pubWhen"]:checked').value==='at'){
@@ -6450,8 +6452,12 @@ document.getElementById('btnInstallGuide').addEventListener('click',()=>{
    更新次數自目前大版本上線起，每上傳一次 index.html 加 1（劃假上線那次為 000）。
    每次更新：APP_VERSION 改成「3.115MMDD.次數」，CHANGELOG 最上面同一天的那筆 ver 跟著改；新的一天加一筆。
    add＝新增功能，fix＝問題改善；項目寫成 [文字, 1] 表示只有主管會用到（夥伴代碼不顯示） */
-const APP_VERSION='3.1151107.089';
+const APP_VERSION='3.1151108.090';
 const CHANGELOG=[
+  {v:'2026.11.08',ver:'3.1151108.090',fix:[
+    ['預約發布時選「選擇日期」，即使選了當下所有修改過的日期，也只發布所選日期；之後在其他日期新增的修改不會跟著發布。',1],
+    ['班表上方的預約狀態顯示範圍：「整月」或所選日期。',1]
+  ]},
   {v:'2026.11.07',ver:'3.1151107.089',add:[
     ['年份封存：每年 3 月起，自動把前一年的班表與劃假紀錄另外保存（主管、夥伴各一份），雲端資料保持精簡；選擇該年份仍可查看，要修改按「取回編輯」。',1]
   ],fix:[
