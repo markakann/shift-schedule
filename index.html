@@ -3005,7 +3005,14 @@ function renderPubBar(){ // 班表上方：這個月的發布狀態
   }else{
     const ch=pubChanges(k);
     if(ch){cls='dirty';h='<span>✎ <b>'+state.m+' 月有修改尚未發布</b>（'+esc(pubChText(state.m,ch))+'），夥伴端仍為上次發布的版本。</span><button class="btn primary" data-pubgo="'+k+'">發布更新</button>'}
-    else{cls='ok';h='<span>✓ '+state.m+' 月已發布'+(m.pub.legacy?'':'　'+fmtMdHm(m.pub.at))+'</span>'}
+    else{ // 已發布：寫出夥伴端目前有內容的日期，以及最近一次發布的時間與範圍
+      cls='ok';
+      const cover=pubFilledDays(pubContent(m)),all=cover.length>=daysInMonth();
+      const last=(state.pubLog||[]).filter(x=>x.ym===k&&!x.kind&&x.at===m.pub.at)[0];
+      const ld=last&&!last.first&&(last.days||[]).length?last.days:null;
+      h='<span>✓ '+state.m+' 月已發布'+(all?'（整月）':cover.length?' '+pubRangeText(state.m,cover,6):'')+
+        (m.pub.legacy?'':'　最近一次 '+fmtMdHm(m.pub.at)+(ld?'（'+pubRangeText(state.m,ld,4)+'）':''))+'</span>';
+    }
   }
   if(hold>nowMs()&&cls==='ok'){const hd=new Date(hold);h+='<span class="arc-hold">民國 '+(state.y-1911)+' 年已取回編輯，'+(hd.getMonth()+1)+'/'+hd.getDate()+' 後自動再封存</span>'}
   if(editMode&&cfg().pub.lock==='auto'&&(cls==='dirty'||cls==='draft')){ // 鎖定時直接發布：排班中不用再顯示發布按鈕
@@ -6452,8 +6459,11 @@ document.getElementById('btnInstallGuide').addEventListener('click',()=>{
    更新次數自目前大版本上線起，每上傳一次 index.html 加 1（劃假上線那次為 000）。
    每次更新：APP_VERSION 改成「3.115MMDD.次數」，CHANGELOG 最上面同一天的那筆 ver 跟著改；新的一天加一筆。
    add＝新增功能，fix＝問題改善；項目寫成 [文字, 1] 表示只有主管會用到（夥伴代碼不顯示） */
-const APP_VERSION='3.1151108.090';
+const APP_VERSION='3.1151110.091';
 const CHANGELOG=[
+  {v:'2026.11.10',ver:'3.1151110.091',fix:[
+    ['班表上方的「已發布」改為寫出已發布的日期範圍（例如 11/1–11/20），以及最近一次發布的時間與更新的日期，不再只寫「11 月已發布」。',1]
+  ]},
   {v:'2026.11.08',ver:'3.1151108.090',fix:[
     ['預約發布時選「選擇日期」，即使選了當下所有修改過的日期，也只發布所選日期；之後在其他日期新增的修改不會跟著發布。',1],
     ['班表上方的預約狀態顯示範圍：「整月」或所選日期。',1]
