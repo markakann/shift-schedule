@@ -1373,9 +1373,9 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
   <button id="btnLeave" class="btn">🏖 劃假</button>
   <button id="btnReportTop" class="btn gold" style="display:none">🏆 戰績</button>
   <button id="btnFilter" class="btn">📅 篩選<span class="wide-only">日期</span></button>
+  <button id="btnLook" class="btn help-btn" title="外觀設定">🎨</button>
   <button id="btnNotice" class="btn help-btn" title="劃假通知">🔔</button>
   <button id="btnMore" class="btn">⋯</button>
-  <button id="btnLook" class="btn help-btn" title="外觀設定">🎨</button>
   <button id="btnHelp" class="btn help-btn" title="如何使用">？</button>
   <button id="btnClearMarks" class="btn mark-btn" style="display:none">✕ 清除標示</button>
   <span id="saveHint" class="save-hint"></span>
@@ -6555,9 +6555,10 @@ document.getElementById('btnInstallGuide').addEventListener('click',()=>{
    更新次數自目前大版本上線起，每上傳一次 index.html 加 1（劃假上線那次為 000）。
    每次更新：APP_VERSION 改成「3.115MMDD.次數」，CHANGELOG 最上面同一天的那筆 ver 跟著改；新的一天加一筆。
    add＝新增功能，fix＝問題改善；項目寫成 [文字, 1] 表示只有主管會用到（夥伴代碼不顯示） */
-const APP_VERSION='3.1151111.092';
+const APP_VERSION='3.1151111.093';
 const CHANGELOG=[
-  {v:'2026.11.11',ver:'3.1151111.092',fix:[
+  {v:'2026.11.11',ver:'3.1151111.093',fix:[
+    ['工具列順序調整為：排班、人員、劃假、篩選日期、外觀設定、通知、更多、說明；教學順序一併調整。'],
     ['兩台裝置同時排班時逐格合併，不會互相蓋掉對方的修改；兩邊改了同一格，採用雲端的版本並提示。',1],
     ['雲端寫入失敗期間其他裝置的更新，以及寫入失敗後重開 App，都改為逐格合併，不再以這台裝置整份覆蓋。',1]
   ]},
@@ -7317,8 +7318,8 @@ function tourSteps(role,full){ // full：完整新手教學，走到排班、開
       (full?'<br>下一步起依序介紹開放設定，以及夥伴的劃假畫面。':'<br>夥伴的劃假方式可於「？」的「🏖 劃假教學」以練習畫面查看；開放設定另有「⚙ 開放劃假教學」。')},
     {seg:'lcfg',when:()=>full},
     {seg:'leave',when:()=>full},
-    {el:()=>tourShown($('#btnNotice')),h:'劃假通知',b:'有夥伴劃假或修改時，🔔 顯示'+RED('紅點')+'；點開可查看最近異動與各夥伴的備註。'},
     {el:()=>tourShown($('#btnFilter')),h:'篩選日期',b:'僅顯示指定的日期範圍，例如 1～15 號；也可將該範圍存成<b>圖片</b>。'},
+    {el:()=>tourShown($('#btnNotice')),h:'劃假通知',b:'有夥伴劃假或修改時，🔔 顯示'+RED('紅點')+'；點開可查看最近異動與各夥伴的備註。'},
     {el:()=>tourShown($('#btnMore')),h:'更多 ⋯',b:'<b>複製代碼</b>：提供<b>夥伴代碼</b>給夥伴查看班表與劃假；主管代碼僅提供給共同排班的人。<br>'+
       '<b>匯出或備份</b>：匯出 PDF／列印，或存成備份檔。<br><b>載入備份</b>：由備份檔還原。<br>'+
       '<b>後台設定</b>：班段、人力規則、劃假、分段工時、發布、行事曆、更新日誌，以及換發夥伴代碼（需登入）。<br><b>已隱藏人員</b>：查看或復原已離職的人員。<br>'+
@@ -7347,12 +7348,12 @@ function tourSteps(role,full){ // full：完整新手教學，走到排班、開
     SUMROW(false),
     ...OT,
     {el:()=>[tourShown($('#selYear')),tourShown($('#selMonth'))].filter(Boolean),h:'切換月份',b:'於此切換查看其他月份的班表；尚未發布的月份顯示「尚未發布」。'},
-    {el:()=>tourShown($('#btnNotice')),h:'🔔 通知',b:'主管發布或更新班表時，這裡出現紅點，開啟 App 時也會跳出通知。<br>點開可查看發布的日期，更新時分「新排」（原本未排的格子排上了）與「異動」（已排的格子有更改）列出，點選即切換到該月份。'},
     {el:()=>tourShown($('#btnLeave')),h:'劃假',b:()=>'開放期間於此標出無法上班的日子，完成後按「送出」。'+
       (full?'<br>下一步起以練習畫面實際操作一次，練習內容不會送出。':'<br>操作方式可於「？」的<b>「🏖 劃假教學」</b>以練習畫面試做，練習內容不會送出。')},
     {seg:'leave',when:()=>full},
-    {el:()=>tourShown($('#btnMore')),h:'更多 ⋯',b:'<b>匯出或備份</b>：將班表存成 PDF 或列印。<br><b>複製代碼</b>：複製夥伴代碼，提供給新進同事。<br><b>加入現有代碼</b>：切換至其他代碼，例如支援其他門市。<br>最下方顯示目前版本號。'},
     {el:()=>tourShown($('#btnLook')),h:'外觀設定',b:'可調整字級、顏色與深色模式，僅影響本裝置。'},
+    {el:()=>tourShown($('#btnNotice')),h:'🔔 通知',b:'主管發布或更新班表時，這裡出現紅點，開啟 App 時也會跳出通知。<br>點開可查看發布的日期，更新時分「新排」（原本未排的格子排上了）與「異動」（已排的格子有更改）列出，點選即切換到該月份。'},
+    {el:()=>tourShown($('#btnMore')),h:'更多 ⋯',b:'<b>匯出或備份</b>：將班表存成 PDF 或列印。<br><b>複製代碼</b>：複製夥伴代碼，提供給新進同事。<br><b>加入現有代碼</b>：切換至其他代碼，例如支援其他門市。<br>最下方顯示目前版本號。'},
     {opt:1,el:()=>tourShown($('#btnReportTop')),h:'🏆 每月戰績',b:t=>(t?'<b>目前正在顯示。</b>':'')+
       '每月<b>倒數第二天至下月 3 號</b>，工具列出現金色「🏆 ○月戰績」按鈕，其餘時間不顯示。<br>'+
       '內容為當月的小統計，例如開店與收班次數、最常同班的組合、人數最多的一天；期間首次開啟 App 時會詢問是否查看。'},
