@@ -2437,6 +2437,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
         <li>夥伴代碼僅可查看、無法修改，供夥伴端使用。</li>
         <li>夥伴代碼可換發：後台設定 →「管理主管代碼」→ 夥伴代碼「更改」，留空按確定＝自動產生隨機代碼。舊代碼立即失效，使用中的手機會清空畫面；已劃的假與異動紀錄一起搬到新代碼。</li>
         <li>雲端寫入失敗時（例如權限或資料量限制），修改先存在這台裝置，右上角顯示紅色提示並自動重試；重開 App 也會重新寫入。</li>
+        <li>兩台裝置同時排班、或寫入失敗期間其他裝置有更新時，會逐格合併：只有一邊改過的格子保留該邊的修改；兩邊改了同一格，採用雲端的版本並提示是哪幾格。</li>
         <li><b>年份封存</b>　每年 3 月起，主管打開 App 時自動把前一年的班表與劃假紀錄另外保存，雲端資料保持精簡。選擇該年份仍可查看（唯讀）；要修改請按班表上方的「取回編輯」，14 天後自動再封存。夥伴代碼亦可查看封存的年份。</li>
       </ul>
 
@@ -2662,6 +2663,19 @@ let FB=null, storeCode=null, unsubCloud=null, lastWritten='', cloudStatus='雲�
    寫入失敗時保留畫面上的修改（雲端退回的舊版本不套用），先存在這台裝置，之後自動重試，成功才算數。 */
 let cloudAcked='', viewAcked='', cloudFail=0, cloudRetryT=null;
 const UNSYNCED_KEY='paiban-unsynced'; // 這台裝置有還沒寫進雲端的修改（記主管代碼），重開 App 時以本機為準
+const UNSYNCED_BASE='paiban-unsynced-base'; // 那些修改是以哪一版雲端資料為基準（重開時逐格合併用）
+/* 版本：每次寫入在資料裡附上 _v（這一版）與 _p（以哪一版為基準）。
+   收到其他裝置的更新時，用「基準、這台、雲端」三份逐格合併：只有一邊改的格子用那一邊，兩邊都改同一格才以雲端為準並提示。
+   這樣兩台同時排班、或寫入失敗期間其他裝置有更新，都不會把對方的修改蓋掉。 */
+let cloudVer='', sentFull=[], verMap=new Map(), remoteSeq=0; // remoteSeq：套用其他裝置更新的次數（寫入途中有新版本進來，就不要用自己這版蓋掉基準）
+function newVerId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+function strHash(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return (h>>>0).toString(36)+s.length.toString(36)}
+function splitMeta(full){ // 雲端那份 → {content（不含版本欄位的資料）, v, p}；舊版寫入的沒有版本，用內容算一個（各裝置算出來一樣）
+  try{const o=JSON.parse(full);const v=o._v||'',pp=o._p||'';delete o._v;delete o._p;const c=(v||pp)?JSON.stringify(o):full;return {content:c,v:v||'h'+strHash(c),p:pp}}
+  catch(e){return {content:full,v:'h'+strHash(full),p:''}}
+}
+function rememberVer(v,content){if(!v)return;verMap.set(v,content);if(verMap.size>12)verMap.delete(verMap.keys().next().value)}
+function rememberSent(full){sentFull.push(full);if(sentFull.length>20)sentFull.shift()}
 /* 開啟時：這台裝置用過主管代碼，但雲端還沒連上（loading）或連不上（fail）。
    這段期間畫面是本機的舊資料，看不出發布狀態，排班也會在連上後被雲端覆蓋，所以先暫停排班。 */
 let cloudBoot=null;
@@ -2671,6 +2685,62 @@ function cloudBootGuard(){ // 排班、加人員前檢查；回傳 true＝先不
   return true;
 }
 let adminUser=null; // 目前登入後台的帳號（Firebase Auth）
+function mergePayload(b,l,r){ // 三份逐格合併：b＝共同基準、l＝這台、r＝雲端；回傳 {payload, conflicts}
+  const conf=[],nz=x=>x===undefined?null:x,eq=(x,y)=>stableStr(nz(x))===stableStr(nz(y));
+  const m3=(bv,lv,rv,onC)=>{if(eq(lv,bv))return rv;if(eq(rv,bv))return lv;if(eq(lv,rv))return lv;if(onC)onC();return rv};
+  const keys=(...o)=>[...new Set([].concat(...o.map(x=>Object.keys(x||{}))))];
+  const byKey=(bo,lo,ro,fn)=>{const out={};keys(bo,lo,ro).forEach(k=>{const v=fn(k,(bo||{})[k],(lo||{})[k],(ro||{})[k]);if(v!==undefined)out[k]=v});return out};
+  b=b||{};l=l||{};r=r||{};
+  const months=byKey(b.months,l.months,r.months,(k,bm,lm,rm)=>{
+    if(eq(lm,bm))return rm;if(eq(rm,bm))return lm;
+    if(!lm||!rm)return rm||lm; // 一邊刪掉整個月、另一邊有改：保留
+    bm=bm||{};const o={};
+    o.sched=byKey(bm.sched,lm.sched,rm.sched,(sid,bs,ls,rs)=>{
+      const row=byKey(bs,ls,rs,(d,bc,lc,rc)=>m3(bc,lc,rc,()=>conf.push({k,sid,d:+d})));
+      return (Object.keys(row).length||ls||rs)?row:undefined;
+    });
+    ['dayOv','dayNames'].forEach(f=>{o[f]=byKey(bm[f],lm[f],rm[f],(d,x,y,z)=>m3(x,y,z))});
+    keys(bm,lm,rm).forEach(f=>{
+      if(['sched','dayOv','dayNames','pubSnap'].includes(f))return;
+      const v=m3(bm[f],lm[f],rm[f],()=>{if(f==='notes')conf.push({k,notes:1})});
+      if(v!==undefined)o[f]=v;
+    });
+    if(o.pub){ // 發布當下的版本：跟著採用的那一邊的發布紀錄
+      const src=eq(lm.pub,bm.pub)?rm:(eq(rm.pub,bm.pub)?lm:rm);
+      const snap=JSON.parse(JSON.stringify(src.pubSnap||pubContent(src)));
+      if(!pubSame(pubContent(o),snap))o.pubSnap=snap;
+    }
+    return o;
+  });
+  const out={};
+  keys(b,l,r).forEach(f=>{
+    if(f==='months'||f==='_v'||f==='_p')return;
+    let v;
+    if(f==='staff'){ // 人員：逐人合併，順序以雲端為主，這台新增的接在後面
+      const mp=a=>{const o={};(a||[]).forEach(s=>{if(s&&s.id)o[s.id]=s});return o};
+      const B=mp(b.staff),L=mp(l.staff),R=mp(r.staff),m=byKey(B,L,R,(id,x,y,z)=>m3(x,y,z));
+      const order=[...(r.staff||[]).map(s=>s.id),...(l.staff||[]).map(s=>s.id)];
+      v=[...new Set(order)].filter(id=>m[id]).map(id=>m[id]);
+    }else if(f==='pubLog'){ // 發布紀錄：逐筆合併
+      const mp=a=>{const o={};(a||[]).forEach(x=>{o[[x.at,x.ym,x.kind||'',x.planned||0].join('|')]=x});return o};
+      v=Object.values(byKey(mp(b.pubLog),mp(l.pubLog),mp(r.pubLog),(k,x,y,z)=>m3(x,y,z))).sort((p,q)=>(p.at||0)-(q.at||0)).slice(-30);
+    }else if(f==='arcYears'){
+      const mp=a=>{const o={};(a||[]).forEach(y=>{o[y]=1});return o};
+      v=Object.keys(byKey(mp(b.arcYears),mp(l.arcYears),mp(r.arcYears),(k,x,y,z)=>m3(x,y,z))).map(Number).sort();
+    }else if(f==='config'||f==='arcHold'){
+      v=byKey(b[f],l[f],r[f],(k,x,y,z)=>m3(x,y,z));
+    }else v=m3(b[f],l[f],r[f]);
+    if(v!==undefined)out[f]=v;
+  });
+  out.months=months;
+  return {payload:out,conflicts:conf};
+}
+function mergeNotice(conf,staff){ // 兩邊改了同一格：告知採用了雲端的版本
+  if(!conf.length)return;
+  const nm=id=>((staff||[]).find(s=>s.id===id)||{}).name||'';
+  const items=conf.slice(0,6).map(c=>{const mo=+c.k.split('-')[1];return c.notes?mo+' 月備註':mo+'/'+c.d+' '+nm(c.sid)});
+  showToast('<div class="ts-h">兩台裝置改了相同的格子</div><div class="ts-n">已採用雲端的版本：'+esc(items.join('、'))+(conf.length>6?' 等 '+conf.length+' 處':'')+'</div>',8000,true);
+}
 function payloadStr(){
   return JSON.stringify({store:state.store,title:state.title,corner:state.corner,viewCode:state.viewCode||'',config:state.config||{},staff:state.staff,months:liveMonths(),calCache:state.calCache,
     pubV:state.pubV||0,pubLog:state.pubLog||[],arcYears:state.arcYears||[],arcHold:state.arcHold||{}});
@@ -3294,11 +3364,16 @@ async function connectStore(code,isNew,silent){
     const snap=await FB.getDoc(ref);
     if(code!==storeCode)arcReset();
     if(snap.exists()&&snap.data().data){
-      let keepLocal=false;
-      try{keepLocal=!isNew&&localStorage.getItem(UNSYNCED_KEY)===code&&localStorage.getItem('paiban-store-code')===code&&!storeCode}catch(e){}
-      lastWritten=cloudAcked=snap.data().data;viewAcked='';
-      if(keepLocal){ // 上次寫入雲端失敗：畫面保留這台裝置的修改，連上後重新寫入
-        setTimeout(()=>{showToast('<div class="ts-h">重新寫入雲端</div><div class="ts-n">這台裝置有上次沒寫進雲端的修改，正在重新寫入。</div>',4500,true);pushCloud()},800);
+      let keepLocal=false,base=null;
+      try{keepLocal=!isNew&&localStorage.getItem(UNSYNCED_KEY)===code&&localStorage.getItem('paiban-store-code')===code&&!storeCode;base=JSON.parse(localStorage.getItem(UNSYNCED_BASE)||'null')}catch(e){}
+      const sm=splitMeta(snap.data().data);
+      lastWritten=cloudAcked=sm.content;cloudVer=sm.v;rememberVer(sm.v,sm.content);viewAcked='';
+      if(keepLocal){ // 上次寫入雲端失敗：這台的修改跟雲端逐格合併後重新寫入（雲端在這之後有其他裝置的修改也保得住）
+        let conf=[];
+        if(base&&base.data&&base.data!==sm.content){
+          try{const mg=mergePayload(JSON.parse(base.data),JSON.parse(payloadStr()),JSON.parse(sm.content));applyPayload(JSON.stringify(mg.payload));conf=mg.conflicts}catch(e){}
+        }
+        setTimeout(()=>{showToast('<div class="ts-h">重新寫入雲端</div><div class="ts-n">這台裝置有上次沒寫進雲端的修改，已與雲端合併並重新寫入。</div>',4500,true);mergeNotice(conf,state.staff);pushCloud()},800);
       }else applyPayload(lastWritten);
       renderAll();
     }else if(isNew){
@@ -3311,8 +3386,9 @@ async function connectStore(code,isNew,silent){
       document.getElementById('storeName').value='';
       document.getElementById('sheetTitle').value='排班表';
       lastWritten=payloadStr();
-      await FB.setDoc(ref,{data:lastWritten,updatedAt:FB.serverTimestamp()});
-      cloudAcked=lastWritten;viewAcked=JSON.stringify(viewPayloadOf(JSON.parse(lastWritten)));
+      const nv=newVerId(),full=lastWritten.slice(0,-1)+',"_v":"'+nv+'","_p":""}';rememberSent(full);
+      await FB.setDoc(ref,{data:full,updatedAt:FB.serverTimestamp()});
+      cloudAcked=lastWritten;cloudVer=nv;rememberVer(nv,lastWritten);viewAcked=JSON.stringify(viewPayloadOf(JSON.parse(lastWritten)));
       await FB.setDoc(FB.doc(FB.db,'views',state.viewCode),{data:viewAcked,updatedAt:FB.serverTimestamp()}); // 夥伴代碼跟主管代碼一起建立，不用等到下次存檔才補上
       renderAll();
     }else{
@@ -3354,20 +3430,38 @@ async function connectStore(code,isNew,silent){
       openFirstSetup();
       return;
     }
-    const d=s.data().data;
-    if(d&&d!==lastWritten&&d!==cloudAcked){ // 其他裝置的更新（雲端退回的舊版本＝cloudAcked，不算）
-      if(cloudFail){setHint('⚠ 其他裝置有更新，這台的修改尚未寫入雲端');return} // 先保住這台的修改，重試成功後以這台為準
-      lastWritten=cloudAcked=d;
-      try{viewAcked=JSON.stringify(viewPayloadOf(JSON.parse(d)))}catch(e){viewAcked=''}
+    const full=s.data().data;
+    if(!full||sentFull.includes(full))return; // 自己寫入的回音
+    const sm=splitMeta(full),d=sm.content;
+    if(d===cloudAcked)return; // 雲端退回已知的版本（寫入被拒）或內容沒變
+    // 其他裝置的更新：這台有還沒寫上去的修改、或對方不是在最新版上改的（同時排班），就逐格合併
+    let next=d,conf=[],differs=false,keptLocal=false;
+    const local=payloadStr(),concurrent=!!(sm.p&&cloudVer&&sm.p!==cloudVer);
+    if(local!==cloudAcked||concurrent){
+      const baseStr=(concurrent&&verMap.get(sm.p))||cloudAcked;
+      try{
+        const mg=mergePayload(JSON.parse(baseStr||'{}'),JSON.parse(local),JSON.parse(d)),rd=JSON.parse(d),nz=x=>x===undefined?null:x;
+        next=JSON.stringify(mg.payload);conf=mg.conflicts;
+        differs=stableStr(mg.payload)!==stableStr(rd); // 合併結果跟雲端不同：要寫回去
+        keptLocal=['months','staff','config','store','title','corner'].some(f=>stableStr(nz(mg.payload[f]))!==stableStr(nz(rd[f]))); // 保留了這台的修改
+      }catch(e){next=d}
+    }
+    lastWritten=cloudAcked=d;cloudVer=sm.v||'';rememberVer(sm.v,d);remoteSeq++;
+    if(cloudFail)try{localStorage.setItem(UNSYNCED_BASE,JSON.stringify({v:cloudVer,data:d}))}catch(e){} // 之後重開時的合併基準
+    try{viewAcked=JSON.stringify(viewPayloadOf(JSON.parse(d)))}catch(e){viewAcked=''}
+    {
       let viewChanged=false;
-      tourRealDo(()=>{const pv=state.viewCode;applyPayload(d);viewChanged=!!pv&&state.viewCode!==pv});
+      tourRealDo(()=>{const pv=state.viewCode;applyPayload(next);viewChanged=!!pv&&state.viewCode!==pv});
       tourRealDo(()=>{if(pubFinalizePlans())scheduleSave();pubArmTimer()});
       if(viewChanged){ // 夥伴代碼在其他裝置換發了：劃假改看新代碼
         tourRealDo(()=>watchLeave());
         cloudStatus='雲端已連線｜主管代碼：'+code+'｜夥伴代碼：'+state.viewCode;
       }
       renderAll();
-      setHint('已同步其他裝置的更新 ✓');
+      mergeNotice(conf,state.staff);
+      if(differs&&!cloudFail)scheduleSave(); // 合併後含這台的修改：寫回雲端（寫入失敗中則等重試）
+      if(keptLocal)setHint(cloudFail?'⚠ 已合併其他裝置的更新，這台的修改尚未寫入雲端':'已合併其他裝置的更新 ✓');
+      else setHint('已同步其他裝置的更新 ✓');
     }
   },()=>{cloudStatus='雲端監聽中斷';setHint('雲端監聽中斷')});
   if(!state.viewCode){ // 舊資料尚無夥伴代碼：自動補產生並上傳
@@ -3469,11 +3563,13 @@ async function pushCloud(){
   const vp=state.viewCode?JSON.stringify(viewPayloadOf(JSON.parse(p))):''; // 唯讀鏡像，供夥伴代碼讀取：只放已發布的內容
   if(p===cloudAcked&&(!vp||vp===viewAcked)){if(cloudFail)cloudWriteOk();return true} // 雲端都已確認收到
   lastWritten=p;
-  const code=storeCode,vc=state.viewCode;
+  const code=storeCode,vc=state.viewCode,seq=remoteSeq;
   try{
     if(p!==cloudAcked){
-      await FB.setDoc(FB.doc(FB.db,'stores',code),{data:p,updatedAt:FB.serverTimestamp()});
-      if(storeCode===code)cloudAcked=p;
+      const nv=newVerId(),full=p.slice(0,-1)+',"_v":"'+nv+'","_p":"'+cloudVer+'"}'; // 這一版、以哪一版為基準
+      rememberSent(full);rememberVer(nv,p);
+      await FB.setDoc(FB.doc(FB.db,'stores',code),{data:full,updatedAt:FB.serverTimestamp()});
+      if(storeCode===code&&seq===remoteSeq){cloudAcked=p;cloudVer=nv}
     }
     if(vp&&vp!==viewAcked){
       await FB.setDoc(FB.doc(FB.db,'views',vc),{data:vp,updatedAt:FB.serverTimestamp()});
@@ -3485,14 +3581,14 @@ async function pushCloud(){
 }
 function cloudWriteFail(){ // 寫入被雲端拒絕（例如權限、資料過大）：修改先留在這台裝置，稍後自動重試
   cloudFail++;
-  try{localStorage.setItem(UNSYNCED_KEY,storeCode||'')}catch(e){}
+  try{localStorage.setItem(UNSYNCED_KEY,storeCode||'');localStorage.setItem(UNSYNCED_BASE,JSON.stringify({v:cloudVer,data:cloudAcked}))}catch(e){}
   setHint('⚠ 雲端寫入失敗，修改先存在這台裝置');
   if(cloudFail===1)showToast('<div class="ts-h">雲端寫入失敗</div><div class="ts-n">修改暫存於此裝置並自動重試；寫入成功前，其他裝置與夥伴端不會更新。</div>',6000,true);
   clearTimeout(cloudRetryT);
   cloudRetryT=setTimeout(cloudRetry,Math.min(30000*Math.pow(2,cloudFail-1),300000)); // 30 秒起，越等越久，最多 5 分鐘
 }
 function cloudWriteOk(){
-  try{localStorage.removeItem(UNSYNCED_KEY)}catch(e){}
+  try{localStorage.removeItem(UNSYNCED_KEY);localStorage.removeItem(UNSYNCED_BASE)}catch(e){}
   if(!cloudFail)return;
   cloudFail=0;clearTimeout(cloudRetryT);
   setHint('雲端已同步 ✓');
@@ -6459,8 +6555,12 @@ document.getElementById('btnInstallGuide').addEventListener('click',()=>{
    更新次數自目前大版本上線起，每上傳一次 index.html 加 1（劃假上線那次為 000）。
    每次更新：APP_VERSION 改成「3.115MMDD.次數」，CHANGELOG 最上面同一天的那筆 ver 跟著改；新的一天加一筆。
    add＝新增功能，fix＝問題改善；項目寫成 [文字, 1] 表示只有主管會用到（夥伴代碼不顯示） */
-const APP_VERSION='3.1151110.091';
+const APP_VERSION='3.1151111.092';
 const CHANGELOG=[
+  {v:'2026.11.11',ver:'3.1151111.092',fix:[
+    ['兩台裝置同時排班時逐格合併，不會互相蓋掉對方的修改；兩邊改了同一格，採用雲端的版本並提示。',1],
+    ['雲端寫入失敗期間其他裝置的更新，以及寫入失敗後重開 App，都改為逐格合併，不再以這台裝置整份覆蓋。',1]
+  ]},
   {v:'2026.11.10',ver:'3.1151110.091',fix:[
     ['班表上方的「已發布」改為寫出已發布的日期範圍（例如 11/1–11/20），以及最近一次發布的時間與更新的日期，不再只寫「11 月已發布」。',1]
   ]},
@@ -8186,9 +8286,11 @@ async function saveCfgToTarget(newCfg){ // 寫入目前選定的代碼：自己�
     if(!snap.exists()||!snap.data().data){alert('查無此代碼的資料，可能已被刪除。');return false}
     const payload=JSON.parse(snap.data().data);
     payload.config=newCfg;
+    payload._p=payload._v||'';payload._v=newVerId(); // 新的一版：那邊的裝置收到後以前一版為基準合併
     const str=JSON.stringify(payload);
     await FB.setDoc(FB.doc(FB.db,'stores',cfgTargetCode),{data:str,updatedAt:FB.serverTimestamp()});
-    if(payload.viewCode)await FB.setDoc(FB.doc(FB.db,'views',payload.viewCode),{data:JSON.stringify(viewPayloadOf(payload)),updatedAt:FB.serverTimestamp()});
+    const vpay=Object.assign({},payload);delete vpay._v;delete vpay._p;
+    if(payload.viewCode)await FB.setDoc(FB.doc(FB.db,'views',payload.viewCode),{data:JSON.stringify(viewPayloadOf(vpay)),updatedAt:FB.serverTimestamp()});
     cfgTargetPayload=payload;
     showToast('已儲存「'+cfgTargetCode+'」的設定 ✓');
     return true;
@@ -8248,9 +8350,10 @@ document.getElementById('btnMgrRenameView').addEventListener('click',async()=>{
     if(lv){delete lv.clock;delete lv.clockNonce;await FB.setDoc(FB.doc(FB.db,'leaves',newCode),lv)}
     state.viewCode=newCode;
     pubTrack(); // 剛改的格子還沒存檔時，也要留著發布當下的版本，夥伴那份才不會看到未發布的內容
-    const p=payloadStr();
+    const p=payloadStr(),nv=newVerId(),full=p.slice(0,-1)+',"_v":"'+nv+'","_p":"'+cloudVer+'"}';
+    rememberSent(full);
     try{
-      await FB.setDoc(FB.doc(FB.db,'stores',storeCode),{data:p,updatedAt:FB.serverTimestamp()});
+      await FB.setDoc(FB.doc(FB.db,'stores',storeCode),{data:full,updatedAt:FB.serverTimestamp()});
     }catch(e){state.viewCode=oldCode;throw e}
     const vp=JSON.stringify(viewPayloadOf(JSON.parse(p)));
     await FB.setDoc(FB.doc(FB.db,'views',newCode),{data:vp,updatedAt:FB.serverTimestamp()});
@@ -8258,7 +8361,7 @@ document.getElementById('btnMgrRenameView').addEventListener('click',async()=>{
     await arcMoveDocs('views',oldCode,newCode,state.arcYears); // 夥伴那份的年份封存一起搬到新代碼
     try{await FB.deleteDoc(FB.doc(FB.db,'leaves',oldCode))}
     catch(e){try{await FB.setDoc(FB.doc(FB.db,'leaves',oldCode),{})}catch(e2){}} // 刪不掉就清空，舊代碼查不到任何劃假
-    lastWritten=cloudAcked=p;viewAcked=vp;
+    lastWritten=cloudAcked=p;cloudVer=nv;rememberVer(nv,p);viewAcked=vp;
     moveCodeKeys(oldCode,newCode);
     watchLeave(); // 改看新代碼底下的劃假
     cloudStatus='雲端已連線｜主管代碼：'+storeCode+'｜夥伴代碼：'+state.viewCode;
