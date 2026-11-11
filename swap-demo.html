@@ -1572,9 +1572,8 @@ html.dark .swp-to{color:var(--blue)}
   </div>
   <div id="dbStepsBox" hidden>
     ① 以「夥伴」身分按 🔁 換班：選擇姓名、要換出的班、代班或換班、對象，送出申請。<br>
-    ② 在「申請紀錄」以對方的名字按「同意」。<br>
-    ③ 切換為「主管」：🔔 通知中開啟申請，查看規則提醒後核准。<br>
-    ④ 切回「夥伴」：班表已更新，🔔 列出結果。<br>
+    ② 切換為「主管」：🔔 通知中開啟申請，查看規則提醒後核准或退回。<br>
+    ③ 切回「夥伴」：班表已更新，🔔 列出結果。<br>
     兩個分頁分別切成夥伴、主管，可同時對照。
   </div>
 </div>
@@ -1826,11 +1825,11 @@ html.dark .swp-to{color:var(--blue)}
   </div>
 </div>
 
-<!-- 🔁 換班／代班（夥伴代碼）：申請、同意、撤回 -->
+<!-- 🔁 換班／代班（夥伴代碼）：申請、撤回 -->
 <div class="overlay" id="ovSwap">
   <div class="modal" style="max-width:480px">
     <div class="m-title">🔁 換班／代班</div>
-    <div class="m-sub">申請送出後，經對方同意、主管核准，班表才會更新。</div>
+    <div class="m-sub">申請前請先與對方確認；送出後經主管核准，班表才會更新。</div>
     <div class="swp-tabs" id="swTabs">
       <button class="swp-tab" data-swtab="new">申請</button>
       <button class="swp-tab" data-swtab="list">申請紀錄</button>
@@ -9330,9 +9329,10 @@ document.querySelectorAll('.overlay').forEach(ov=>ov.addEventListener('click',ev
 
 /* ────────── 4.0 換班／代班 ────────── */
 /* 申請存在 leaves/{夥伴代碼} 的 swaps 欄位（夥伴本來就能寫這份文件；跟劃假一樣用 merge 只寫這一筆，不會蓋掉別人同時送出的）。
-   swaps:{id:{j:申請內容 JSON, st:狀態, at:申請時間, atB:對方回覆, atM:主管處理, atC:撤回, why:退回原因}}
+   swaps:{id:{j:申請內容 JSON, st:狀態, at:申請時間, atM:主管處理, atC:撤回, why:退回原因}}
    申請內容：{k:'cover' 代班｜'swap' 換班, a:申請人, b:對象, an/bn:姓名, ch:[{k:'YYYY-M', d, sid, from, to}], msg:留言}
-   狀態：wait 等待對方回覆 → agree 等待主管核准 → done 已核准；no 對方婉拒、rej 主管退回、cancel 撤回。
+   雙方先自行確認，送出後直接交主管審核。
+   狀態：wait 等待主管核准 → done 已核准；rej 主管退回、cancel 撤回。
    過期（日期已過）與失效（申請後班表有異動）不寫入，顯示時判斷。
    夥伴代碼只能讀班表，所以核准一定由主管的裝置寫入班表：只改申請裡的那幾格，並直接發布這幾格（其他未發布的修改不受影響）。 */
 var swTab='new', swForm={who:null,pick:null,kind:'cover',b:null,opt:null,msg:''}, swFocus=null, swRvId=null, swPruned=false, swSending=false;
@@ -9392,7 +9392,7 @@ function swState(r){ // 顯示用的狀態：exp 過期、void 失效
   const td=todayStr();
   if(r.ch.some(c=>swDk(c.k,c.d)<td))return 'exp';
   if(swStale(r))return 'void';
-  return r.st==='agree'?'agree':'wait';
+  return 'wait';
 }
 function swStale(r){ // 申請後這幾格有沒有被改過（主管這邊同時比對已發布的內容）
   return r.ch.some(c=>{
@@ -9406,7 +9406,7 @@ function swStale(r){ // 申請後這幾格有沒有被改過（主管這邊同�
 }
 function swBusy(){ // 進行中的申請佔用的格子
   const s=new Set();
-  swapList().forEach(r=>{const st=swState(r);if(st==='wait'||st==='agree')r.ch.forEach(c=>s.add(c.k+'|'+c.sid+'|'+c.d))});
+  swapList().forEach(r=>{const st=swState(r);if(st==='wait')r.ch.forEach(c=>s.add(c.k+'|'+c.sid+'|'+c.d))});
   return s;
 }
 function swWhoList(){const ks=swMonths();return state.staff.filter(st=>ks.some(k=>swOnRoster(k,st.id)))}
@@ -9472,20 +9472,17 @@ function swLinesHtml(r){ // 依日期列出前後
 }
 function swStText(r){
   const s=swState(r);
-  return {wait:'等待 '+r.bn+' 回覆',agree:'等待主管核准',done:'已核准',no:r.bn+' 婉拒',rej:'已退回',cancel:'已撤回',exp:'已過期',void:'已失效'}[s]||'';
+  return {wait:'等待主管核准',done:'已核准',rej:'已退回',cancel:'已撤回',exp:'已過期',void:'已失效'}[s]||'';
 }
 function swMetaText(r){
   const p=['申請 '+fmtMdHm(r.at)];
-  if(r.atB)p.push(r.bn+(r.st==='no'?' 婉拒 ':' 同意 ')+fmtMdHm(r.atB));
   if(r.atM)p.push((r.st==='done'?'核准 ':'退回 ')+fmtMdHm(r.atM));
   if(r.atC)p.push('撤回 '+fmtMdHm(r.atC));
   return p.join('・');
 }
 function swEventText(r){
   const kd=swKind(r),pair=r.an+(r.k==='cover'?' → ':' ⇄ ')+r.bn;
-  return {wait:r.an+' 申請'+(r.k==='cover'?'由 '+r.bn+' 代班':'與 '+r.bn+' 換班')+'（'+swDates(r)+'）',
-    agree:r.bn+' 已同意 '+r.an+' 的'+kd+'申請，等待主管核准',
-    no:r.bn+' 婉拒了 '+r.an+' 的'+kd+'申請',
+  return {wait:r.an+' 申請'+(r.k==='cover'?'由 '+r.bn+' 代班':'與 '+r.bn+' 換班')+'（'+swDates(r)+'），等待主管核准',
     done:pair+' 的'+kd+'已核准，班表已更新（'+swDates(r)+'）',
     rej:pair+' 的'+kd+'申請已退回',
     cancel:r.an+' 撤回了'+kd+'申請'}[r.st]||'';
@@ -9506,7 +9503,7 @@ function swapMarkSeen(){
   const m=swapList().reduce((x,r)=>Math.max(x,evAt(r)),0);
   try{if(m>swSeenAt())DEMO_LS.setItem(swSeenKey(),String(m))}catch(e){}
 }
-function swapPendingCount(){return viewerMode?0:swapList().filter(r=>swState(r)==='agree').length} // 主管：待核准
+function swapPendingCount(){return viewerMode?0:swapList().filter(r=>swState(r)==='wait').length} // 主管：待核准
 async function swapWrite(id,obj){ // 只寫這一筆
   const code=leaveDocCode();
   if(!FB||!code)return false;
@@ -9538,9 +9535,9 @@ function swapToast(){
     if(!fresh.length||ovShown('ovNotice')||ovShown('ovSwap'))return;
     swToastLater('<div class="ts-h">🔁 換班申請</div><div class="ts-k">'+esc(swEventText(fresh[0]))+'</div>'+
       '<div class="ts-n">'+(fresh.length>1?'另有 '+(fresh.length-1)+' 筆更新。':'')+'詳細內容列於 🔔 通知。</div>');
-  }else{ // 主管：對方同意、等待核准的才通知
-    const pend=list.filter(r=>swState(r)==='agree'),maxB=pend.reduce((x,r)=>Math.max(x,r.atB||0),0);
-    const fresh=pend.filter(r=>(r.atB||0)>(+t||0));
+  }else{ // 主管：新送來、等待核准的申請
+    const pend=list.filter(r=>swState(r)==='wait'),maxB=pend.reduce((x,r)=>Math.max(x,r.at||0),0);
+    const fresh=pend.filter(r=>(r.at||0)>(+t||0));
     if(maxB>(+t||0))try{DEMO_LS.setItem(key,String(maxB))}catch(e){}
     if(!fresh.length||ovShown('ovNotice')||ovShown('ovSwapRv'))return;
     swToastLater('<div class="ts-h">🔁 換班申請待核准</div><div class="ts-k">'+esc(swTitle(fresh[0]))+'</div>'+
@@ -9577,7 +9574,7 @@ function swCurCh(){
   return swBuild(f.kind,f.who,k,d,f.b,opt);
 }
 function renderSwap(){
-  const list=swapList(),act=list.filter(r=>['wait','agree'].includes(swState(r))).length;
+  const list=swapList(),act=list.filter(r=>swState(r)==='wait').length;
   document.querySelectorAll('#swTabs [data-swtab]').forEach(b=>{
     b.classList.toggle('on',b.dataset.swtab===swTab);
     if(b.dataset.swtab==='list')b.textContent='申請紀錄'+(act?'（'+act+'）':'');
@@ -9642,7 +9639,7 @@ function swNewHtml(){
   const ch=swCurCh(),r={ch,a:f.who,b:swForm.b,an:swName(f.who),bn:swName(swForm.b)};
   h+='<div class="swp-sec">④ 確認內容</div><div class="swp-prev">'+swLinesHtml(r)+'</div>'+
     '<input class="txt swp-msgin" id="swMsg" maxlength="60" placeholder="留言（選填）" value="'+esc(f.msg||'')+'">'+
-    '<div class="swp-note">送出後由 '+esc(r.bn)+' 同意，再經主管核准，班表才會更新。</div>';
+    '<div class="swp-note">送出前請先與 '+esc(r.bn)+' 確認；送出後由主管核准，班表才會更新。</div>';
   return h;
 }
 function swCardHtml(r){
@@ -9656,18 +9653,16 @@ function swCardHtml(r){
   h+='<div class="swp-meta">'+esc(swMetaText(r))+'</div>';
   const acts=[];
   if(s==='wait'){
-    acts.push('<button type="button" class="btn primary" data-swact="agree" data-swid="'+esc(r.id)+'">'+esc(r.bn)+'：同意</button>');
-    acts.push('<button type="button" class="btn" data-swact="no" data-swid="'+esc(r.id)+'">'+esc(r.bn)+'：婉拒</button>');
+    acts.push('<button type="button" class="btn" data-swact="cancel" data-swid="'+esc(r.id)+'">撤回申請</button>');
+    acts.push('<button type="button" class="btn" data-swshare="'+esc(r.id)+'">傳送通知</button>');
   }
-  if(s==='wait'||s==='agree')acts.push('<button type="button" class="btn" data-swact="cancel" data-swid="'+esc(r.id)+'">'+esc(r.an)+'：撤回</button>');
-  if(s==='wait'||s==='agree')acts.push('<button type="button" class="btn" data-swshare="'+esc(r.id)+'">傳送通知</button>');
   if(acts.length)h+='<div class="swp-acts">'+acts.join('')+'</div>';
   return h+'</div>';
 }
 function swListHtml(){
   const now=nowMs(),list=swapList();
-  const act=list.filter(r=>['wait','agree'].includes(swState(r)));
-  const done=list.filter(r=>!['wait','agree'].includes(swState(r))&&now-evAt(r)<30*864e5).sort((p,q)=>evAt(q)-evAt(p));
+  const act=list.filter(r=>swState(r)==='wait');
+  const done=list.filter(r=>!swState(r)==='wait'&&now-evAt(r)<30*864e5).sort((p,q)=>evAt(q)-evAt(p));
   let h='<div class="swp-sec" style="margin-top:2px">進行中</div>'+(act.length?act.map(swCardHtml).join(''):'<div class="swp-empty">目前沒有進行中的申請。</div>');
   if(done.length)h+='<div class="swp-sec">已結束（30 天內）</div>'+done.slice(0,20).map(swCardHtml).join('');
   return h;
@@ -9687,27 +9682,27 @@ async function swSend(){
   swLocal(id,rec);swAddMine(id+':wait');
   swForm={who:f.who,pick:null,kind:f.kind,b:null,opt:null,msg:''};
   swTab='list';swFocus=id;renderSwap();
-  showToast('<div class="ts-h">已送出申請</div><div class="ts-n">等待 '+esc(o.bn)+' 回覆。可按「傳送通知」以 LINE 等方式告知。</div>',5000,true);
+  showToast('<div class="ts-h">已送出申請</div><div class="ts-n">等待主管核准。可按「傳送通知」以 LINE 等方式告知。</div>',5000,true);
 }
 async function swAct(id,act){
   const r=swapList().find(x=>x.id===id);if(!r)return;
   const s=swState(r);
-  if((act==='agree'||act==='no')&&s!=='wait'){alert('這筆申請目前無法'+(act==='agree'?'同意':'婉拒')+'（'+swStText(r)+'）。');renderSwap();return}
-  if(act==='cancel'&&s!=='wait'&&s!=='agree'){alert('這筆申請目前無法撤回（'+swStText(r)+'）。');renderSwap();return}
-  const q={agree:'以 '+r.bn+' 的身分同意這筆'+swKind(r)+'申請？\n同意後送交主管核准。',no:'以 '+r.bn+' 的身分婉拒這筆'+swKind(r)+'申請？',cancel:'撤回 '+r.an+' 的這筆'+swKind(r)+'申請？'}[act];
+  if(act!=='cancel')return;
+  if(s!=='wait'){alert('這筆申請目前無法撤回（'+swStText(r)+'）。');renderSwap();return}
+  const q='撤回這筆'+swKind(r)+'申請？\n（'+r.an+(r.k==='cover'?' → ':' ⇄ ')+r.bn+'　'+swDates(r)+'）';
   if(!confirm(q))return;
-  const t=nowMs(),obj=act==='agree'?{st:'agree',atB:t}:act==='no'?{st:'no',atB:t}:{st:'cancel',atC:t};
+  const obj={st:'cancel',atC:nowMs()};
   const ok=await swapWrite(id,obj);
   if(!ok){alert('寫入失敗，請檢查網路連線。');return}
   swLocal(id,obj);swAddMine(id+':'+obj.st);renderSwap();
-  showToast({agree:'已同意，等待主管核准',no:'已婉拒',cancel:'已撤回'}[act]);
+  showToast('已撤回');
 }
 function swGive(r){return r.ch.filter(c=>swShift(c.from)&&!pubSame(c.from,c.to))}
 function swShareText(r){
   const s=swState(r),lines=['【'+swKind(r)+'申請】'+r.an+(r.k==='cover'?' → ':' ⇄ ')+r.bn];
   swGive(r).forEach(c=>lines.push(swDay(c.k,c.d)+' '+(r.k==='cover'?'':swName(c.sid,r)+' ')+swCellText(c.from)));
   if(r.msg)lines.push('留言：'+r.msg);
-  lines.push(s==='agree'?'雙方已同意，等待主管核准。':'請至「我的班表」🔁 換班 回覆。');
+  lines.push('已送出，等待主管核准。');
   lines.push(location.origin+location.pathname);
   return lines.join('\n');
 }
@@ -9742,12 +9737,12 @@ document.getElementById('swBody').addEventListener('click',ev=>{
 /* ── 🔔 通知：換班申請 ── */
 function swNoticeHtml(){
   const now=nowMs(),all=swapList();
-  const list=all.filter(r=>{const s=swState(r);return s==='wait'||s==='agree'||now-evAt(r)<3*864e5}).sort((p,q)=>evAt(q)-evAt(p));
+  const list=all.filter(r=>{const s=swState(r);return s==='wait'||now-evAt(r)<3*864e5}).sort((p,q)=>evAt(q)-evAt(p));
   if(!list.length)return '';
-  const pend=all.filter(r=>swState(r)==='agree').length,seen=swSeenAt();
+  const pend=all.filter(r=>swState(r)==='wait').length,seen=swSeenAt();
   let h='<div class="nt-head"><b>換班申請</b>'+(!viewerMode&&pend?'<span class="lv-chg-n">'+pend+' 筆待核准</span>':'')+'</div>';
   h+=list.slice(0,10).map(r=>{
-    const s=swState(r),nw=viewerMode?(evAt(r)>seen&&!swIsMine(r)):s==='agree';
+    const s=swState(r),nw=viewerMode?(evAt(r)>seen&&!swIsMine(r)):s==='wait';
     return '<button type="button" class="pub-nt'+(nw?' new':'')+'" '+(viewerMode?'data-swopen':'data-swrv')+'="'+esc(r.id)+'">'+
       '<span class="pub-at">'+fmtMdHm(evAt(r))+'</span><b>'+esc(swTitle(r))+'</b>'+(nw&&viewerMode?'<span class="pub-new">新</span>':'')+
       '<span class="pub-days"><em class="sw-'+s+'">'+esc(swStText(r))+'</em>'+esc(swDates(r))+'</span></button>';
@@ -9826,20 +9821,20 @@ function renderSwapReview(fresh){
   if(s==='void')h+='<div class="lv-warn" style="margin-top:10px">申請後班表有異動，這筆申請已失效。退回後會通知申請人。</div>'+
     '<input class="txt swp-msgin" id="swRvWhy" maxlength="60" placeholder="退回原因（選填）" value="'+esc(why||'班表已異動')+'">';
   if(s==='exp')h+='<div class="swp-note">日期已過。</div>';
-  if(s==='wait'||s==='agree'){
+  if(s==='wait'){
     const ck=swChecks(r);
     h+='<div class="swp-sec">規則提醒</div><div class="swp-chk">'+(ck.warn.length?ck.warn.map(t=>'<div class="w">⚠ '+esc(t)+'</div>').join(''):'<div class="ok">✓ 沒有新增的規則提醒</div>')+'</div>';
     if(ck.info.length)h+='<div class="swp-sec">時數與月休</div><div class="swp-chk">'+ck.info.map(t=>'<div>'+esc(t)+'</div>').join('')+'</div>';
-    h+='<div class="swp-note">'+(s==='wait'?esc(r.bn)+' 同意後才能核准。':'核准後班表直接更新，並發布這幾天的異動。')+'</div>';
+    h+='<div class="swp-note">核准後班表直接更新，並發布這幾天的異動。</div>';
     h+='<input class="txt swp-msgin" id="swRvWhy" maxlength="60" placeholder="退回原因（選填）" value="'+esc(why)+'">';
   }
   document.getElementById('swRvBody').innerHTML=h;
-  document.getElementById('btnSwapOk').style.display=s==='agree'?'':'none';
-  document.getElementById('btnSwapRej').style.display=(s==='wait'||s==='agree'||s==='void')?'':'none';
+  document.getElementById('btnSwapOk').style.display=s==='wait'?'':'none';
+  document.getElementById('btnSwapRej').style.display=(s==='wait'||s==='void')?'':'none';
 }
 async function swapApprove(){
   const r=swapList().find(x=>x.id===swRvId);if(!r)return;
-  if(swState(r)!=='agree'){alert('這筆申請目前無法核准（'+swStText(r)+'）。');renderSwapReview();return}
+  if(swState(r)!=='wait'){alert('這筆申請目前無法核准（'+swStText(r)+'）。');renderSwapReview();return}
   if(!pubEnabled()){alert('雲端連線後才能核准。');return}
   if(r.ch.some(c=>isArcYear(swYm(c.k).y))){alert('封存的年份無法修改。');return}
   const ck=swChecks(r);
@@ -9873,7 +9868,7 @@ async function swapApprove(){
 async function swapReject(){
   const r=swapList().find(x=>x.id===swRvId);if(!r)return;
   const s=swState(r);
-  if(s!=='wait'&&s!=='agree'&&s!=='void'){renderSwapReview();return}
+  if(s!=='wait'&&s!=='void'){renderSwapReview();return}
   const why=String((document.getElementById('swRvWhy')||{}).value||'').trim().slice(0,60);
   if(!confirm('退回這筆'+swKind(r)+'申請？'))return;
   const obj={st:'rej',atM:nowMs(),why};
