@@ -858,8 +858,8 @@ html.dark .lc-solo-row span{color:var(--fade2)}
 .late-lim .cfg-row{margin-top:6px}
 .lvchk-set .small-note{margin:2px 0 0}
 .lvchk-set select.txt{width:8em;flex:0 0 auto}
-#ovLvChk{z-index:95} /* 劃假視窗上面 */
-#lvChkList{max-height:50vh;overflow-y:auto;margin-top:4px}
+#ovLvChk,#ovPubChk{z-index:95} /* 疊在劃假／發布視窗上面 */
+#lvChkList,#pubChkList{max-height:50vh;overflow-y:auto;margin-top:4px}
 .lvchk-row{padding:8px 2px;border-bottom:1px dashed var(--line)}
 .lvchk-row:last-child{border-bottom:0}
 .lvchk-row b{margin-right:8px}
@@ -2005,6 +2005,19 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
   </div>
 </div>
 
+<!-- 發布前：要發布的日期裡還有夥伴未排班 -->
+<div class="overlay" id="ovPubChk">
+  <div class="modal" style="max-width:440px">
+    <div class="m-title">尚有夥伴未排班</div>
+    <div class="m-sub">以下日期仍有夥伴未排班（不含支援），發布後夥伴端的這些格子為空白。</div>
+    <div id="pubChkList"></div>
+    <div class="m-actions">
+      <button class="btn primary" id="btnPubChkGo">仍要發布</button>
+      <button class="btn" id="btnPubChkBack">返回</button>
+    </div>
+  </div>
+</div>
+
 <!-- 劃假送出前：可上班時段可能排不進班 -->
 <div class="overlay" id="ovLvChk">
   <div class="modal" style="max-width:440px">
@@ -2291,6 +2304,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
         <li>已發布的月份再修改時，夥伴端維持上次發布的版本；修改過的格子右上角標示<b>小三角形</b>（重點色），按「發布更新」後更新。</li>
         <li><b>選擇日期發布</b>　發布視窗勾選月份後，可選「全部發布」或「選擇日期」：在日曆上點一下選一天，按住滑到另一天可選取整段。未選取的日期，夥伴端維持上次發布的內容（草稿月份則為空白）；人員名單一併發布，備註可選擇是否一併發布。預約發布也可以只發布選擇的日期。</li>
         <li><b>預約發布</b>　發布視窗選「指定時間」：於指定時間開放夥伴查看，內容以當時的最新版本為準；時間以雲端為準，不受手機時間影響。預約時間僅主管可見，夥伴於發布時收到通知。預約時選「全部發布」為整月，屆時連同之後新增的修改一併發布；選「選擇日期」則只發布所選日期，其他日期之後的修改不會跟著發布。班表上方顯示預約範圍，可「立即發布」或「取消預約」。</li>
+        <li><b>未排提醒</b>　要發布的日期裡還有夥伴（不含支援）未排班時，發布前列出這些日期與姓名，仍可選擇發布；整天都還沒排的日期不列入。「直接發布」模式不另外詢問，改於發布後的通知中註明。</li>
         <li>鎖定排班時是否詢問發布（不詢問／詢問／直接發布），以及開啟 App 時是否提醒未發布的班表，於後台設定「發布」調整；預設為鎖定時不詢問、開啟 App 時提醒。選「直接發布」時，排班中班表上方僅顯示「鎖定排班後，自動發布本次修改的月份」，不需另外發布；開啟 App 時的提醒固定開啟，用於提醒未完成發布的修改（例如鎖定時無網路）。</li>
         <li>發布後，夥伴開啟 App 時跳出通知，夥伴的 🔔 列出更新的月份與日期。人員名單、劃假開放設定等不受發布控制，儲存後即同步。</li>
         <li>自訂時間以 15 分鐘為單位，分鐘可為 00、15、30、45（例如 900、1315、1345）；±按鈕每次調整 15 分鐘。</li>
@@ -3202,8 +3216,40 @@ function pubPickCount(k){
   });
   ['pointerup','pointercancel'].forEach(t=>document.addEventListener(t,()=>{drag=null}));
 })();
-async function publishMonths(items,planAt){ // items：月份 'YYYY-M'，或 {k,days,notes} 只發布選擇的日期；planAt：預約時間（不給＝立即發布）
+function pubBlankDays(items){ // 發布前檢查：要發布的日期裡，還有人（不含支援）未排的日子；整天都還沒排、夥伴端也沒內容的日子不算
+  const out=[];
+  items.map(x=>typeof x==='string'?{k:x}:x).forEach(({k,days})=>{
+    const m=state.months[k];if(!m)return;
+    withMonth(k,()=>{
+      const all=monthStaff(),core=all.filter(st=>st.type!=='sup');
+      if(!core.length)return;
+      const base=m.pub?pubBase(k):null,N=daysInMonth();
+      const ds=days&&days.length?days.map(Number).sort((p,q)=>p-q):Array.from({length:N},(_,i)=>i+1);
+      ds.forEach(d=>{
+        const blank=core.filter(st=>!entryOf(st.id,d));
+        if(!blank.length)return;
+        const has=all.some(st=>{const e=entryOf(st.id,d);return e&&e.t!=='redline'})||
+          (!!base&&Object.values(base.sched||{}).some(r=>r&&r[d]&&r[d].t!=='redline')); // 這天整個被清空也要提醒
+        if(has)out.push({k,d,label:state.m+'/'+d+'（'+WD[new Date(state.y,state.m-1,d).getDay()]+'）',names:blank.map(st=>st.name)});
+      });
+    });
+  });
+  return out;
+}
+function pubBlankAsk(list,sched){ // 仍要發布 → true；返回 → false
+  return new Promise(res=>{
+    const ov=document.getElementById('ovPubChk'),bk=document.getElementById('btnPubChkBack'),go=document.getElementById('btnPubChkGo');
+    document.getElementById('pubChkList').innerHTML=list.map(i=>'<div class="lvchk-row"><b>'+esc(i.label)+'</b>'+
+      esc(i.names.slice(0,5).join('、')+(i.names.length>5?' 等 '+i.names.length+' 人':''))+'</div>').join('');
+    go.textContent=sched?'仍要預約':'仍要發布';
+    const done=v=>{ov.classList.remove('show');bk.onclick=go.onclick=null;res(v)};
+    bk.onclick=()=>done(false);go.onclick=()=>done(true);
+    ov.classList.add('show');
+  });
+}
+async function publishMonths(items,planAt,opt){ // items：月份 'YYYY-M'，或 {k,days,notes} 只發布選擇的日期；planAt：預約時間（不給＝立即發布）
   const at=nowMs(),names=[];
+  const bl=opt&&opt.auto?pubBlankDays(items):[]; // 直接發布不另外詢問，在通知裡註明（發布前先算，清空的日子才比得到夥伴端原本的內容）
   window.__saveAt=Date.now();
   let log=(state.pubLog||[]).slice();
   items.map(x=>typeof x==='string'?{k:x}:x).forEach(({k,days,notes})=>{
@@ -3234,7 +3280,8 @@ async function publishMonths(items,planAt){ // items：月份 'YYYY-M'，或 {k,
   renderAll();
   if(ok)setHint('雲端已同步 ✓');
   const what=planAt?'已預約 '+names.join('、')+'　'+fmtMdHm(planAt)+' 發布':'已發布 '+names.join('、');
-  showToast(ok?'<div class="ts-h">'+what+' ✓</div><div class="ts-n">'+(planAt?'屆時開放夥伴查看並發送通知，內容以當時的最新版本為準。':'夥伴開啟 App 時收到通知，🔔 同時列出。')+'</div>'
+  const blN=bl.length?'<div class="ts-k">'+esc(bl.slice(0,4).map(x=>x.label.replace(/（.）/,'')).join('、'))+(bl.length>4?' 等 '+bl.length+' 天':' ')+'尚有夥伴未排班</div>':'';
+  showToast(ok?'<div class="ts-h">'+what+' ✓</div>'+blN+'<div class="ts-n">'+(planAt?'屆時開放夥伴查看並發送通知，內容以當時的最新版本為準。':'夥伴開啟 App 時收到通知，🔔 同時列出。')+'</div>'
               :'<div class="ts-h">'+what+'，但雲端寫入失敗</div><div class="ts-n">連線恢復後存檔時會一併更新給夥伴。</div>',4500,true);
 }
 let pubToldThisSession=false;
@@ -5804,7 +5851,7 @@ document.getElementById('btnEdit').addEventListener('click',()=>{
     const pend=pubPending().filter(x=>touched.has(x.k)).map(x=>x.k);
     const mode=cfg().pub.lock; // 後台設定：不詢問（預設）／詢問／直接發布
     if(pend.length&&mode==='ask')setTimeout(()=>openPublish(pend),350);
-    if(pend.length&&mode==='auto')publishMonths(pend); // 直接發布：馬上套用，狀態列不會先閃一下「尚未發布」
+    if(pend.length&&mode==='auto')publishMonths(pend,null,{auto:1}); // 直接發布：馬上套用，狀態列不會先閃一下「尚未發布」
   }
   if(!editMode)pubAtUnlock=null;
   renderSheet(); // 紅色驚嘆號只在鎖定後才檢查，切換狀態要立即反映
@@ -5823,7 +5870,7 @@ function syncPubWhen(){
 }
 document.querySelectorAll('input[name="pubWhen"]').forEach(r=>r.addEventListener('change',syncPubWhen));
 ['pubAtD','pubAtT'].forEach(id=>document.getElementById(id).addEventListener('focus',()=>{document.querySelector('input[name="pubWhen"][value="at"]').checked=true;syncPubWhen()}));
-document.getElementById('btnPubGo').addEventListener('click',()=>{
+document.getElementById('btnPubGo').addEventListener('click',async()=>{
   const keys=[],sched=document.querySelector('input[name="pubWhen"]:checked').value==='at';
   for(const inp of document.querySelectorAll('#pubList input[data-pubk]:checked')){
     const k=inp.dataset.pubk,st=pubPick[k];
@@ -5839,8 +5886,10 @@ document.getElementById('btnPubGo').addEventListener('click',()=>{
     const t=v&&dp.length===3?new Date(dp[0],dp[1]-1,dp[2],0,mi).getTime():NaN;
     if(isNaN(t)){alert('請選擇發布的日期與時間。');return}
     if(t<nowMs()+60000){alert('預約時間需晚於現在至少 1 分鐘。');return}
+    const bl=pubBlankDays(keys);if(bl.length&&!await pubBlankAsk(bl,true))return;
     publishMonths(keys,t);return;
   }
+  const bl=pubBlankDays(keys);if(bl.length&&!await pubBlankAsk(bl,false))return; // 還有人未排：提醒，仍可發布
   publishMonths(keys);
 });
 document.getElementById('btnPubLater').addEventListener('click',()=>document.getElementById('ovPublish').classList.remove('show'));
@@ -6627,9 +6676,10 @@ document.getElementById('btnInstallGuide').addEventListener('click',()=>{
    更新次數自目前大版本上線起，每上傳一次 index.html 加 1（劃假上線那次為 000）。
    每次更新：APP_VERSION 改成「3.115MMDD.次數」，CHANGELOG 最上面同一天的那筆 ver 跟著改；新的一天加一筆。
    add＝新增功能，fix＝問題改善；項目寫成 [文字, 1] 表示只有主管會用到（夥伴代碼不顯示） */
-const APP_VERSION='3.1151114.095';
+const APP_VERSION='3.1151114.096';
 const CHANGELOG=[
-  {v:'2026.11.14',ver:'3.1151114.095',add:[
+  {v:'2026.11.14',ver:'3.1151114.096',add:[
+    ['發布前提醒：要發布的日期裡還有夥伴（不含支援）未排班時，列出日期與姓名，仍可選擇發布；「直接發布」模式改於發布後的通知中註明。',1],
     ['劃假可於後台開啟「送出前檢查可上班時段」：時段內排不進任何班段，或可上班時數未滿設定（預設 4 小時）時，送出前列出這些日期，夥伴可返回修改或仍要送出。',1]
   ]},
   {v:'2026.11.13',ver:'3.1151113.094',fix:[
@@ -9143,7 +9193,7 @@ document.getElementById('sheetTitle').addEventListener('input',scheduleSave);
 /* 點空白處：純選單／說明類視窗＝按它的「關閉」鈕（走同一套流程）；其他有輸入或設定的視窗一律不關，避免誤觸放棄修改 */
 const BACKDROP_CLOSE={ovNotice:'btnCloseNotice',ovMore:'btnCloseMore',ovHelp:'btnCloseHelp',ovHidden:'btnCloseHidden',ovStaffList:'btnCloseStaffList',
   ovOT:'btnCloseOT',ovTotal:'btnCloseTotal',ovCoverage:'btnCloseCoverage',ovReport:'btnCloseReport',
-  ovExportChoice:'btnCloseExportChoice',ovCopyChoice:'btnCloseCopyChoice',ovLook:'btnCloseLook',ovUpdates:'btnCloseUpdates',ovInstall:'btnCloseInstall',ovPublish:'btnPubLater',ovLvChk:'btnLvChkBack'};
+  ovExportChoice:'btnCloseExportChoice',ovCopyChoice:'btnCloseCopyChoice',ovLook:'btnCloseLook',ovUpdates:'btnCloseUpdates',ovInstall:'btnCloseInstall',ovPublish:'btnPubLater',ovLvChk:'btnLvChkBack',ovPubChk:'btnPubChkBack'};
 document.querySelectorAll('.overlay').forEach(ov=>ov.addEventListener('click',ev=>{
   if(ev.target!==ov||ov.id==='ovCell')return; // 排班格子另有處理：改動即時套用，點外面直接關
   const btn=BACKDROP_CLOSE[ov.id]&&document.getElementById(BACKDROP_CLOSE[ov.id]);
