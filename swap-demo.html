@@ -1442,6 +1442,7 @@ html:not(.viewer-boot) #btnSwap{display:none!important} /* 只有夥伴代碼會
 .swp-tabs{display:flex;gap:6px;margin:8px 0 10px}
 .swp-tab{flex:1;border:1.5px solid var(--grid);background:var(--paper);color:var(--ink);border-radius:6px;padding:7px 0;font:inherit;font-size:14px;font-weight:600;cursor:pointer}
 .swp-tab.on{background:var(--blue);border-color:var(--blue);color:var(--onBlue)}
+.swp-key{color:var(--blue);font-weight:700} /* 重點色＋粗體，字級不變，避免跟標題搶 */
 .swp-sec{font-size:13px;font-weight:700;color:#777;margin:14px 0 6px}
 .swp-opts{display:flex;flex-direction:column;gap:6px}
 .swp-opt{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:9px 11px;border:1.5px solid var(--line);border-radius:9px;
@@ -1610,7 +1611,7 @@ html.dark .swp-to{color:var(--blue)}
   <button id="btnReportTop" class="btn gold" style="display:none">🏆 戰績</button>
   <button id="btnFilter" class="btn">📅 篩選<span class="wide-only">日期</span></button>
   <button id="btnLook" class="btn help-btn" title="外觀設定">🎨</button>
-  <button id="btnNotice" class="btn help-btn" title="劃假通知">🔔</button>
+  <button id="btnNotice" class="btn help-btn" title="通知">🔔</button>
   <button id="btnMore" class="btn">⋯</button>
   <button id="btnHelp" class="btn help-btn" title="如何使用">？</button>
   <button id="btnClearMarks" class="btn mark-btn" style="display:none">✕ 清除標示</button>
@@ -1829,7 +1830,7 @@ html.dark .swp-to{color:var(--blue)}
 <div class="overlay" id="ovSwap">
   <div class="modal" style="max-width:480px">
     <div class="m-title">🔁 換班／代班</div>
-    <div class="m-sub">申請前請先與對方確認；送出後經主管核准，班表才會更新。</div>
+    <div class="m-sub"><b class="swp-key">申請前請先與對方確認</b><br>送出後經主管核准，班表才會更新。</div>
     <div class="swp-tabs" id="swTabs">
       <button class="swp-tab" data-swtab="new">申請</button>
       <button class="swp-tab" data-swtab="list">申請紀錄</button>
@@ -1856,10 +1857,10 @@ html.dark .swp-to{color:var(--blue)}
 </div>
 
 <!-- 劃假 -->
-<!-- 🔔 劃假通知：不用打開劃假，也能看最近異動與夥伴備註 -->
+<!-- 🔔 通知（主管代碼）：不用打開劃假，也能看最近異動與夥伴備註 -->
 <div class="overlay" id="ovNotice">
   <div class="modal">
-    <div class="m-title">🔔 劃假通知</div>
+    <div class="m-title">🔔 通知</div>
     <div class="m-sub" id="ntSub"></div>
     <div id="ntBody"></div>
     <div class="m-actions">
@@ -2631,7 +2632,7 @@ html.dark .swp-to{color:var(--blue)}
         <li>每次送出均留下紀錄，<b>取消劃假同樣記錄</b>。</li>
         <li>有未讀異動時，工具列的 🔔 顯示<b style="color:var(--red)">紅點</b>。</li>
         <li>點 🔔 不用打開劃假，就能看到最近異動（未讀的直接展開，改了備註會顯示新內容）與所有夥伴的備註；只寫備註、沒劃日期的夥伴也會列出。</li>
-        <li>🔔 僅顯示於主管代碼，夥伴代碼不顯示。</li>
+        <li>劃假異動只列於主管代碼的 🔔；夥伴代碼的 🔔 列出班表發布與換班申請。</li>
         <li><b>最近異動</b>統一在 🔔 查看，逐筆列出，點一下可展開細項；可依「時間」或「姓名」排序，依時間排時最下面那筆最早送出，候補可依此先到先受理。</li>
         <li>「劃假 → 全員總覽」只列目前的劃假；有未讀異動時，最上方會出現一行提示，點了直接打開 🔔。</li>
       </ul>
@@ -3804,7 +3805,7 @@ function applyViewerUI(){ // 檢視模式下隱藏所有可編輯入口；回到
   const hide=viewerMode?'none':'';
   document.documentElement.classList.toggle('viewer-boot',viewerMode); // 與首次繪製前的身分判定保持一致
   ['btnEdit','btnStaff','btnAddNote','btnFilter'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=hide});
-  const nb=document.getElementById('btnNotice');if(nb)nb.title=viewerMode?'通知':'劃假通知'; // 夥伴的 🔔：班表發布通知
+  const nb=document.getElementById('btnNotice');if(nb)nb.title='通知'; // 主管的 🔔：劃假異動；夥伴的 🔔：班表發布通知
   updatePubBadge();
   document.getElementById('storeName').readOnly=viewerMode;
   document.getElementById('sheetTitle').readOnly=viewerMode;
@@ -5127,7 +5128,7 @@ function changeLinesHtml(ym,c){ // 展開後的逐項明細
   }
   return h;
 }
-/* ────────── 🔔 劃假通知 ────────── */
+/* ────────── 🔔 通知（主管代碼：劃假異動與夥伴備註） ────────── */
 let ntOpenMap={}; // 每筆異動的展開狀態；沒點過時，未讀的預設展開
 function noticeYm(){return leaveTargetYm()||ymOf(state.y,state.m)}
 function renderNotice(fresh){ // fresh＝剛打開或換排序：清單從最上面開始；其餘（標示已讀、資料更新）維持原本捲到的位置
@@ -5182,9 +5183,7 @@ function renderNotice(fresh){ // fresh＝剛打開或換排序：清單從最上
        (Object.keys(o.days||{}).length?'':'<span class="nt-nodays">沒有劃日期</span>')+'</div>'+
        '<div class="nt-text">'+esc(o.note)+'</div></div>').join('')+'</div>'
     :'<div class="nt-empty">'+p.m+' 月還沒有人寫備註。</div>';
-  const swh=swNoticeHtml();
-  document.querySelector('#ovNotice .m-title').textContent=swh?'🔔 通知':'🔔 劃假通知';
-  document.getElementById('ntBody').innerHTML=swh+h;
+  document.getElementById('ntBody').innerHTML=swNoticeHtml()+h;
   const nl=document.querySelector('#ntBody .nt-list');if(nl&&keepTop)nl.scrollTop=keepTop;
 }
 function ntReveal(el){ // 展開後讓這則（含明細）留在清單可見範圍內，標題優先
@@ -5204,7 +5203,7 @@ function openNotice(){
     return;
   }
   document.getElementById('toast').classList.remove('show');
-  document.querySelector('#ovNotice .m-title').textContent='🔔 劃假通知';
+  document.querySelector('#ovNotice .m-title').textContent='🔔 通知';
   document.getElementById('btnNoticeLeave').style.display='';
   if(needServerClock())syncServerClock();
   renderNotice(true);
@@ -6817,6 +6816,9 @@ document.getElementById('btnInstallGuide').addEventListener('click',()=>{
    add＝新增功能，fix＝問題改善；項目寫成 [文字, 1] 表示只有主管會用到（夥伴代碼不顯示） */
 const APP_VERSION='4.1151111.001';
 const CHANGELOG=[
+  {v:'2026.11.13',ver:'3.1151113.094',fix:[
+    ['🔔 劃假通知改名為「🔔 通知」，與夥伴代碼一致；說明中「🔔 僅顯示於主管代碼」的過時敘述一併更正。',1]
+  ]},
   {v:'2026.11.11',ver:'3.1151111.093',fix:[
     ['工具列順序調整為：排班、人員、劃假、篩選日期、外觀設定、通知、更多、說明；教學順序一併調整。'],
     ['兩台裝置同時排班時逐格合併，不會互相蓋掉對方的修改；兩邊改了同一格，採用雲端的版本並提示。',1],
@@ -7579,7 +7581,7 @@ function tourSteps(role,full){ // full：完整新手教學，走到排班、開
     {seg:'lcfg',when:()=>full},
     {seg:'leave',when:()=>full},
     {el:()=>tourShown($('#btnFilter')),h:'篩選日期',b:'僅顯示指定的日期範圍，例如 1～15 號；也可將該範圍存成<b>圖片</b>。'},
-    {el:()=>tourShown($('#btnNotice')),h:'劃假通知',b:'有夥伴劃假或修改時，🔔 顯示'+RED('紅點')+'；點開可查看最近異動與各夥伴的備註。'},
+    {el:()=>tourShown($('#btnNotice')),h:'通知',b:'有換班申請，或夥伴劃假、修改時，🔔 顯示'+RED('紅點')+'；點開可審核換班申請，並查看劃假的最近異動與各夥伴的備註。'},
     {el:()=>tourShown($('#btnMore')),h:'更多 ⋯',b:'<b>複製代碼</b>：提供<b>夥伴代碼</b>給夥伴查看班表與劃假；主管代碼僅提供給共同排班的人。<br>'+
       '<b>匯出或備份</b>：匯出 PDF／列印，或存成備份檔。<br><b>載入備份</b>：由備份檔還原。<br>'+
       '<b>後台設定</b>：班段、人力規則、劃假、分段工時、發布、行事曆、更新日誌，以及換發夥伴代碼（需登入）。<br><b>已隱藏人員</b>：查看或復原已離職的人員。<br>'+
