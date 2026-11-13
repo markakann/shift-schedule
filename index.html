@@ -856,6 +856,15 @@ html.dark .split-seg .split-range{color:var(--fade2)}
 .lc-solo-row .btn{padding:3px 10px;font-size:12px}
 html.dark .lc-solo-row span{color:var(--fade2)}
 .late-lim .cfg-row{margin-top:6px}
+.lvchk-set .small-note{margin:2px 0 0}
+.lvchk-set select.txt{width:8em;flex:0 0 auto}
+#ovLvChk{z-index:95} /* 劃假視窗上面 */
+#lvChkList{max-height:50vh;overflow-y:auto;margin-top:4px}
+.lvchk-row{padding:8px 2px;border-bottom:1px dashed var(--line)}
+.lvchk-row:last-child{border-bottom:0}
+.lvchk-row b{margin-right:8px}
+.lvchk-why{font-size:13px;color:#a85c07;margin-top:2px;line-height:1.5}
+html.dark .lvchk-why{color:#f0b978}
 .late-to{display:flex;align-items:center;gap:8px;font-size:13px;color:#666;margin-top:6px;white-space:nowrap}
 .late-to input{flex:1;min-width:0}
 .late-to input:disabled{opacity:.45}
@@ -1984,8 +1993,28 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
         <label class="late-to">候補截止日<input class="txt" type="date" id="cfgLeaveLateTo"></label>
       </div>
       <div class="small-note" id="cfgLeaveHint" style="margin-top:4px"></div>
+      <div class="hr"></div>
+      <label class="cfg-row"><input type="checkbox" id="cfgLeaveChk"><span>送出前檢查可上班時段</span></label>
+      <div class="late-lim lvchk-set" id="cfgLeaveChkBox">
+        <div class="small-note">劃「只能上這段／只能上到／幾點之後才能上」時，以下情況於送出前列出，夥伴可返回修改或仍要送出：</div>
+        <div class="small-note">・時段內排不進任何班段（依「班段」設定；「時段提醒」標示的時間不算在內）</div>
+        <label class="late-to">・可上班時數未滿<select class="txt" id="cfgLeaveMinH"></select></label>
+      </div>
     </div>
     <div class="m-actions"><button class="btn primary cfg-back">完成</button></div>
+  </div>
+</div>
+
+<!-- 劃假送出前：可上班時段可能排不進班 -->
+<div class="overlay" id="ovLvChk">
+  <div class="modal" style="max-width:440px">
+    <div class="m-title">可上班時段確認</div>
+    <div class="m-sub">以下日期的可上班時段可能排不進班，排班結果可能不如預期。</div>
+    <div id="lvChkList"></div>
+    <div class="m-actions">
+      <button class="btn primary" id="btnLvChkBack">返回修改</button>
+      <button class="btn" id="btnLvChkGo">仍要送出</button>
+    </div>
   </div>
 </div>
 
@@ -2338,6 +2367,11 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
       <li class="edit-only">一次只開放一個月份。把「劃哪個月」換成別的月份時，原本的月份就不能再劃；若原本的月份還在開放或候補中，存檔前會先提醒。已劃好的資料會保留，班表上照常顯示。</li>
       <li class="edit-only">候補可選擇是否限時：不勾「候補也要限時」＝一直開放到關閉劃假或換月份為止；勾選後填<b>候補截止日</b>（含當天），過了就鎖定，夥伴僅能檢視。預設帶入劃假月份的前一天，可自行修改。</li>
     </ul>
+    <div class="hsub">送出前檢查</div>
+    <ul class="hul">
+      <li>後台開啟「送出前檢查可上班時段」時，劃「只能上這段／只能上到／幾點之後才能上」的日子，若時段內排不進任何班段，或可上班時數未滿設定（預設 4 小時），送出前會列出這些日期；可返回修改，也可仍要送出。</li>
+      <li class="edit-only">班段依後台「班段」判斷，正職只看正職班段；「時段提醒」標示的時間不算在內，例如五六晚班 22:30 下班時，週六只能上到 22:00 會被列出。</li>
+    </ul>
     <ul class="hul view-only">
       <li>補充說明僅排班人員可見。</li>
       <li>夥伴代碼僅能查看與修改本人的劃假，其他人的內容不會顯示。</li>
@@ -2500,7 +2534,7 @@ const DEFAULT_WARN_RULES = [
 /* 劃假開放設定：ym=開放劃哪個月，from/to=開放期間，lateOn=期間過後是否仍可臨時劃假，
    lateLimit=候補是否限時、lateTo=候補截止日（含當天；不限時就一直開到關閉劃假為止）
    solo=個別開放 [{sid,ym,to}]：單獨為某人開放某個月，到 to（含當天）；期間內劃的假視為準時，不受全體開放與否影響 */
-const DEFAULT_LEAVE = {on:false, ym:'', from:'', to:'', lateOn:true, lateLimit:false, lateTo:'', solo:[]};
+const DEFAULT_LEAVE = {on:false, ym:'', from:'', to:'', lateOn:true, lateLimit:false, lateTo:'', solo:[], chk:false, minH:240}; // chk=送出前檢查可上班時段、minH=時數下限（分鐘，0＝不檢查時數）
 /* 分段工時列：on=是否顯示，names=各段名稱（2～4 段），cuts=分界時間（分鐘，遞增，比段數少一個） */
 const DEFAULT_SPLIT = {on:true, names:['早班','晚班'], cuts:[960]};
 /* 發布的提醒方式：lock＝鎖定排班時 none 不詢問／ask 詢問／auto 直接發布；remind＝打開 App 時提醒未發布的班表 */
@@ -5447,6 +5481,42 @@ function applyBrushToWeekdays(){
   renderLeaveBody();
   showToast((lvBrush.m==='clear'?'已清除 ':'已套用 ')+n+' 天');
 }
+function lvWindowIssues(sid,ym,draft,orig){ // 送出前檢查可上班時段：排不進任何班段，或時數未滿下限；只看這次有改的日子
+  const L=cfg().leave;
+  if(!L.chk||!draft)return [];
+  const st=state.staff.find(x=>x.id===sid);
+  const pres=cfg().presetsCommon.concat(st&&st.type==='full'?[]:cfg().presetsPart); // 正職只看正職班段
+  if(!pres.length)return [];
+  const minH=L.minH==null?240:+L.minH||0,{y,m}=parseYm(ym),od=(orig&&orig.days)||{},out=[];
+  Object.keys(draft.days||{}).map(Number).sort((a,b)=>a-b).forEach(d=>{
+    const x=draft.days[d];
+    if(!x||x.m==='all'||lvSame(lvRule(od[d]),lvRule(x)))return; // 整天不能上、沒改的日子不檢查
+    const wd=new Date(y,m-1,d).getDay();
+    const ok=pres.filter(p=>!cfg().warnRules.some(r=>r.on&&(r.days||[]).includes(wd)&&(r.times||[]).includes(r.field==='end'?p[1]:p[0]))); // 這天被「時段提醒」標示的班段不算
+    const P=ok.length?ok:pres;
+    const lo=(x.m==='only'||x.m==='before')?x.t:Math.min(...P.map(p=>p[0]));
+    const hi=x.m==='only'?x.t2:x.m==='after'?x.t:Math.max(...P.map(p=>p[1]));
+    let why='';
+    if(minH>0&&hi-lo<minH)why='可上班 '+fmtH(Math.max(0,hi-lo)/60)+' 小時，未滿 '+fmtH(minH/60)+' 小時';
+    else if(!P.some(p=>p[0]>=lo&&p[1]<=hi)){
+      const nr=P.filter(p=>Math.min(hi,p[1])>Math.max(lo,p[0])).map(p=>({p,g:Math.abs(p[0]-lo)+Math.abs(p[1]-hi)})).sort((a,b)=>a.g-b.g); // 跟這段時間最接近的班段
+      const near=nr.filter(z=>z.g<=nr[0].g+60).slice(0,2).map(z=>fmtHM(z.p[0])+'～'+fmtHM(z.p[1]));
+      why='時段內排不進完整的班'+(near.length?'（相近的班段：'+near.join('、')+'）':'');
+    }
+    if(why)out.push({d,label:m+'/'+d+'（'+WD[wd]+'）',x,why});
+  });
+  return out;
+}
+function lvChkAsk(list){ // 列出可能排不進班的日子：返回修改 → false；仍要送出 → true
+  return new Promise(res=>{
+    const ov=document.getElementById('ovLvChk'),bk=document.getElementById('btnLvChkBack'),go=document.getElementById('btnLvChkGo');
+    document.getElementById('lvChkList').innerHTML=list.map(i=>'<div class="lvchk-row"><b>'+esc(i.label)+'</b>'+esc(leaveDayText(i.x))+
+      '<div class="lvchk-why">'+esc(i.why)+'</div></div>').join('');
+    const done=v=>{ov.classList.remove('show');bk.onclick=go.onclick=null;res(v)};
+    bk.onclick=()=>done(false);go.onclick=()=>done(true);
+    ov.classList.add('show');
+  });
+}
 document.getElementById('btnLeaveSave').addEventListener('click',async()=>{
   if(!lvWho||!lvDraft)return;
   if(lvIsDemo()){ // 練習畫面：照真的流程（跳小通知、關掉視窗）走一次，但什麼都不送出
@@ -5459,6 +5529,8 @@ document.getElementById('btnLeaveSave').addEventListener('click',async()=>{
   const ce=lvCanEdit(lvWho);
   if(!ce.ok){showToast(ce.msg);return}
   const ym=(leaveWindowFor(lvWho).L||{}).ym||ymOf(state.y,state.m);
+  const iss=lvWindowIssues(lvWho,ym,lvDraft,lvOriginal);
+  if(iss.length&&!await lvChkAsk(iss))return; // 返回修改
   lvSettle(lvOriginal,lvDraft,ce.late); // 截止後的修改：記下截止前的劃法
   lvDraft.log=buildLeaveLog(lvOriginal,lvDraft,ce.late); // 留下這次改了什麼，取消劃假也記得住
   const ok=await saveLeave(ym,lvWho,lvDraft);
@@ -6555,8 +6627,11 @@ document.getElementById('btnInstallGuide').addEventListener('click',()=>{
    更新次數自目前大版本上線起，每上傳一次 index.html 加 1（劃假上線那次為 000）。
    每次更新：APP_VERSION 改成「3.115MMDD.次數」，CHANGELOG 最上面同一天的那筆 ver 跟著改；新的一天加一筆。
    add＝新增功能，fix＝問題改善；項目寫成 [文字, 1] 表示只有主管會用到（夥伴代碼不顯示） */
-const APP_VERSION='3.1151113.094';
+const APP_VERSION='3.1151114.095';
 const CHANGELOG=[
+  {v:'2026.11.14',ver:'3.1151114.095',add:[
+    ['劃假可於後台開啟「送出前檢查可上班時段」：時段內排不進任何班段，或可上班時數未滿設定（預設 4 小時）時，送出前列出這些日期，夥伴可返回修改或仍要送出。',1]
+  ]},
   {v:'2026.11.13',ver:'3.1151113.094',fix:[
     ['🔔 劃假通知改名為「🔔 通知」，與夥伴代碼一致；說明中「🔔 僅顯示於主管代碼」的過時敘述一併更正。',1]
   ]},
@@ -8049,15 +8124,20 @@ function fillLeaveCfg(L){
   document.getElementById('cfgLeaveLate').checked=L.lateOn!==false;
   document.getElementById('cfgLeaveLateLim').checked=!!L.lateLimit;
   document.getElementById('cfgLeaveLateTo').value=L.lateTo||'';
+  document.getElementById('cfgLeaveChk').checked=!!L.chk;
+  const mh=L.minH==null?240:+L.minH;
+  document.getElementById('cfgLeaveMinH').innerHTML=[0,120,150,180,210,240,270,300,360].concat([0,120,150,180,210,240,270,300,360].includes(mh)?[]:[mh])
+    .sort((a,b)=>a-b).map(v=>'<option value="'+v+'"'+(v===mh?' selected':'')+'>'+(v?fmtH(v/60)+' 小時':'不檢查時數')+'</option>').join('');
   syncLeaveCfgBox();
 }
 function syncLeaveCfgBox(){
   const on=document.getElementById('cfgLeaveOn').checked;
   document.getElementById('cfgLeaveBox').style.display=on?'':'none';
   syncLateBox('cfgLeave');
+  document.getElementById('cfgLeaveChkBox').style.display=document.getElementById('cfgLeaveChk').checked?'':'none';
 }
 document.getElementById('cfgLeaveYm').addEventListener('change',()=>resetLateTo('cfgLeave'));
-['cfgLeaveOn','cfgLeaveLate','cfgLeaveLateLim','cfgLeaveLateTo'].forEach(id=>{
+['cfgLeaveOn','cfgLeaveLate','cfgLeaveLateLim','cfgLeaveLateTo','cfgLeaveChk','cfgLeaveMinH'].forEach(id=>{
   const el=document.getElementById(id);
   if(el)el.addEventListener('change',syncLeaveCfgBox);
 });
@@ -8198,7 +8278,7 @@ function renderCfgSummary(){ // 選單上每一項右邊顯示目前設定，不
   put('sumWarn',wOn?('啟用 '+wOn+'／'+cfgWarnRules.length):(cfgWarnRules.length?'全部關閉':'未設定'),wOn);
   const L=leaveFromFields();
   put('sumLeave',!L.on?'未開放':(L.ym?(parseYm(L.ym).m+'月　'+(fmtMd(L.from)||'?')+'–'+(fmtMd(L.to)||'?')+
-    (L.lateOn&&L.lateLimit&&L.lateTo?'　候補至 '+fmtMd(L.lateTo):'')):'開放中'),L.on);
+    (L.lateOn&&L.lateLimit&&L.lateTo?'　候補至 '+fmtMd(L.lateTo):'')+(L.chk?'　檢查時段':'')):'開放中'),L.on);
   const SP=splitFromFields();
   put('sumSplit',SP.on?(SP.names.join('／')+'　'+SP.cuts.map(fmtHM).join('／')):'不顯示',SP.on);
   const PC=pubCfgFromFields();
@@ -8275,7 +8355,9 @@ function leaveFromFields(){
     to:document.getElementById('cfgLeaveTo').value||'',
     lateOn:document.getElementById('cfgLeaveLate').checked,
     ...lateFields('cfgLeave'),
-    solo:((cfgLeaveLoaded&&cfgLeaveLoaded.solo)||[]).map(s=>Object.assign({},s)) // 個別開放在劃假的「⚙ 開放設定」編輯，這裡原樣保留
+    solo:((cfgLeaveLoaded&&cfgLeaveLoaded.solo)||[]).map(s=>Object.assign({},s)), // 個別開放在劃假的「⚙ 開放設定」編輯，這裡原樣保留
+    chk:document.getElementById('cfgLeaveChk').checked,
+    minH:+document.getElementById('cfgLeaveMinH').value||0
   };
 }
 async function saveCfgToTarget(newCfg){ // 寫入目前選定的代碼：自己的就走一般儲存，別的代碼直接寫回雲端
@@ -9061,7 +9143,7 @@ document.getElementById('sheetTitle').addEventListener('input',scheduleSave);
 /* 點空白處：純選單／說明類視窗＝按它的「關閉」鈕（走同一套流程）；其他有輸入或設定的視窗一律不關，避免誤觸放棄修改 */
 const BACKDROP_CLOSE={ovNotice:'btnCloseNotice',ovMore:'btnCloseMore',ovHelp:'btnCloseHelp',ovHidden:'btnCloseHidden',ovStaffList:'btnCloseStaffList',
   ovOT:'btnCloseOT',ovTotal:'btnCloseTotal',ovCoverage:'btnCloseCoverage',ovReport:'btnCloseReport',
-  ovExportChoice:'btnCloseExportChoice',ovCopyChoice:'btnCloseCopyChoice',ovLook:'btnCloseLook',ovUpdates:'btnCloseUpdates',ovInstall:'btnCloseInstall',ovPublish:'btnPubLater'};
+  ovExportChoice:'btnCloseExportChoice',ovCopyChoice:'btnCloseCopyChoice',ovLook:'btnCloseLook',ovUpdates:'btnCloseUpdates',ovInstall:'btnCloseInstall',ovPublish:'btnPubLater',ovLvChk:'btnLvChkBack'};
 document.querySelectorAll('.overlay').forEach(ov=>ov.addEventListener('click',ev=>{
   if(ev.target!==ov||ov.id==='ovCell')return; // 排班格子另有處理：改動即時套用，點外面直接關
   const btn=BACKDROP_CLOSE[ov.id]&&document.getElementById(BACKDROP_CLOSE[ov.id]);
