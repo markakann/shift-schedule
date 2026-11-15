@@ -366,7 +366,7 @@ body.print-sizing .btn.gold{animation:none}
 }
 .day-chip.on{background:var(--blue);color:var(--onBlue);border-color:var(--blue);font-weight:700}
 .day-chip input{display:none}
-@media print{#adminBanner,#toast{display:none!important}}
+@media print{#adminBanner,#toast,#lineBanner,.pub-bar{display:none!important}} /* 發布狀態列只給主管看，不印出 */
 /* ── 圖例（沿用於「如何使用」說明彈窗） ── */
 .legend{
   padding:2px 0 6px;font-size:13px;color:#666;
@@ -1201,7 +1201,7 @@ body.print-sizing{--printScale:1;width:281mm;--uiFS:1;--uiFont:var(--fontSys)}
 body.print-sizing .notes-sec{break-inside:avoid;page-break-inside:avoid}
 body.print-sizing .cov-warn,body.print-sizing .warn-row{display:none!important}
 body.print-sizing .day-cell.marked,body.print-sizing .day-cell.flash{box-shadow:none!important;outline:none!important;background-color:var(--cbg,transparent)!important;animation:none!important}
-body.print-sizing .toolbar,body.print-sizing .legend,body.print-sizing .overlay,body.print-sizing .save-hint,body.print-sizing #btnAddNote{display:none!important}
+body.print-sizing .toolbar,body.print-sizing .legend,body.print-sizing .overlay,body.print-sizing .save-hint,body.print-sizing #btnAddNote,body.print-sizing .pub-bar,body.print-sizing #lineBanner{display:none!important}
 body.print-sizing .lv-cell-tag{display:none!important}
 body.print-sizing .day-cell.lv-all,body.print-sizing .day-cell.lv-only,
 body.print-sizing .day-cell.lv-part,body.print-sizing .day-cell.lv-late{background-color:var(--cbg,transparent)!important}
@@ -6705,9 +6705,10 @@ document.getElementById('btnInstallGuide').addEventListener('click',()=>{
    更新次數自目前大版本上線起，每上傳一次 index.html 加 1（劃假上線那次為 000）。
    每次更新：APP_VERSION 改成「3.115MMDD.次數」，CHANGELOG 最上面同一天的那筆 ver 跟著改；新的一天加一筆。
    add＝新增功能，fix＝問題改善；項目寫成 [文字, 1] 表示只有主管會用到（夥伴代碼不顯示） */
-const APP_VERSION='3.1151115.098';
+const APP_VERSION='3.1151115.099';
 const CHANGELOG=[
-  {v:'2026.11.15',ver:'3.1151115.098',fix:[
+  {v:'2026.11.15',ver:'3.1151115.099',fix:[
+    ['匯出 PDF／列印時不再印出發布狀態列（尚未發布、已發布、預約發布等資訊）。',1],
     ['劃假開放設定：開放起日預設帶今天，選好起日後截止日自動帶往後 2 天；截止日與候補截止日不超過劃假的那個月。',1],
     ['預約開放劃假（起日在今天之後）存檔時，提示改為「劃假將於 M/D 開放」。',1]
   ]},
