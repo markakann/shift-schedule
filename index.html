@@ -2365,6 +2365,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
       <li>截止後若仍開放，所劃日期標示為<b class="c-orange">臨時</b>並列入候補。</li>
       <li>新進夥伴等，可由主管<b>個別開放</b>：期間內選擇本人姓名即可劃假，所劃日期視為準時；截止日顯示於劃假視窗上方。</li>
       <li class="edit-only">截止後的修改保留截止前的劃法：排班視窗列出「截止前：…」，「全員總覽」列出「截止後的修改」；截止後取消的劃假，班表空格標「取消」。改回截止前的樣子，就不再列為臨時。</li>
+      <li class="edit-only">開放起日預設為今天，截止日預設為起日往後 2 天；截止日與候補截止日不超過劃假的那個月。開放起日在今天之後時，到了起日才開放（預約開放）。</li>
       <li class="edit-only">一次只開放一個月份。把「劃哪個月」換成別的月份時，原本的月份就不能再劃；若原本的月份還在開放或候補中，存檔前會先提醒。已劃好的資料會保留，班表上照常顯示。</li>
       <li class="edit-only">「截止後」可選不開放、開放候補（不限時）或開放候補至指定日：不限時＝一直開放到關閉劃假或換月份為止；選「開放候補至」並填<b>候補截止日</b>（含當天），過了就鎖定，夥伴僅能檢視。預設帶入劃假月份的前一天，可自行修改。</li>
     </ul>
@@ -5273,6 +5274,7 @@ function openLeaveCfg(){
   document.getElementById('lcYm').innerHTML=leaveYmOptions(L.ym||leaveSuggestYm());
   document.getElementById('lcFrom').value=L.from||'';
   document.getElementById('lcTo').value=L.to||'';
+  if(!L.on&&(!L.to||L.to<todayStr()))leaveFreshDates('lc'); // 沒在開放、上一輪也過了：日期先帶今天起
   document.getElementById('lcLateMode').value=L.lateOn===false?'off':L.lateLimit?'until':'free';
   document.getElementById('lcLateTo').value=L.lateTo||'';
   syncLcBox();
@@ -5333,8 +5335,45 @@ function lateFields(P){ // 存檔用：候補限時的兩個值
   const lim=$('LateMode').value==='until';
   return {lateLimit:lim,lateTo:lim?($('LateTo').value||''):''};
 }
+function addDayIso(iso,n){const t=String(iso).split('-');return isoDay(new Date(+t[0],+t[1]-1,+t[2]+n))}
+function leaveMonthEnd(ym){const p=parseYm(ym||'');return p&&p.y?isoDay(new Date(p.y,p.m,0)):''} // 劃假那個月的最後一天
+function leaveToFromStart(P){ // 選完開放起日：截止日預設往後 2 天（不超過劃假的那個月）
+  const $=id=>document.getElementById(P+id),f=$('From').value;
+  if(!f)return;
+  const end=leaveMonthEnd($('Ym').value);
+  let d=addDayIso(f,2);if(end&&d>end)d=end<f?f:end;
+  $('To').value=d;
+  if($('LateMode').value==='until'&&$('LateTo').value&&$('LateTo').value<=d)$('LateTo').value=lateToDefault($('Ym').value,d);
+}
+function leaveFreshDates(P){ // 開始新的一輪：起日已經過了就帶今天，截止日往後 2 天
+  const $=id=>document.getElementById(P+id),t=todayStr();
+  if(!$('From').value||$('From').value<t)$('From').value=t;
+  leaveToFromStart(P);
+}
+function leaveDateLimits(P){ // 日期選單：截止日、候補截止日不超過劃假的那個月；截止日不早於起日
+  const $=id=>document.getElementById(P+id),end=leaveMonthEnd($('Ym').value);
+  ['From','To','LateTo'].forEach(k=>{const el=$(k);if(el)el.max=end});
+  $('To').min=$('From').value||'';
+  if($('LateTo'))$('LateTo').min=$('To').value||'';
+}
+function leaveSavedMsg(L){ // 存檔後的提示：還沒到開放日就寫幾號開放
+  if(!L.on)return '已關閉劃假';
+  const st=leaveStateOf(L).state;
+  return st==='before'?'劃假將於 '+fmtMd(L.from)+' 開放 ✓':st==='open'?'已開放劃假 ✓（'+fmtMd(L.to)+' 截止）':st==='late'?'已儲存　目前為候補期間':'已儲存　劃假已截止';
+}
+function wireLeaveDates(P){
+  const $=id=>document.getElementById(P+id);
+  $('From').addEventListener('change',()=>{leaveToFromStart(P);syncLateBox(P);leaveDateLimits(P)});
+  $('To').addEventListener('change',()=>leaveDateLimits(P));
+  $('Ym').addEventListener('change',()=>{leaveFreshDates(P);leaveDateLimits(P)}); // 換了劃哪個月＝新的一輪
+  $('On').addEventListener('change',()=>{if($('On').checked&&(!$('From').value||$('To').value<todayStr()))leaveFreshDates(P);leaveDateLimits(P)});
+}
 function lateCheck(L){ // 回傳錯誤訊息或空字串
-  if(!L.on||!L.lateOn||!L.lateLimit)return '';
+  if(!L.on)return '';
+  const end=leaveMonthEnd(L.ym),mo=end?+end.split('-')[1]:0;
+  if(end&&L.to&&L.to>end)return '截止日不能晚於劃假的月份（'+mo+' 月底）。';
+  if(!L.lateOn||!L.lateLimit)return '';
+  if(end&&L.lateTo&&L.lateTo>end)return '候補截止日不能晚於劃假的月份（'+mo+' 月底）。';
   if(!L.lateTo)return '請填候補截止日，或把「截止後」改為不限時。';
   if(L.to&&L.lateTo<=L.to)return '候補截止日要晚於劃假截止日（'+fmtMd(L.to)+'）。';
   return '';
@@ -5358,11 +5397,13 @@ function syncLcBox(){
   const on=document.getElementById('lcOn').checked;
   document.getElementById('lcBox').style.display=on?'':'none';
   syncLateBox('lc');
+  leaveDateLimits('lc');
 }
 ['lcOn','lcLateMode','lcLateTo'].forEach(id=>{const el=document.getElementById(id);if(el)el.addEventListener('change',syncLcBox)});
 document.getElementById('lcKeep').addEventListener('change',renderPurgeInfo);
 document.getElementById('lcYm').addEventListener('change',renderPurgeInfo); // 換了開放月份，保留名單也會變
 document.getElementById('lcYm').addEventListener('change',()=>resetLateTo('lc'));
+wireLeaveDates('lc');
 document.getElementById('btnPurgeLeave').addEventListener('click',async()=>{
   const all=leaveMonths();
   const keepSet=leaveKeepSet(+document.getElementById('lcKeep').value);
@@ -5389,9 +5430,11 @@ document.getElementById('btnCloseLeaveCfg').addEventListener('click',()=>{
 document.getElementById('btnLeaveCfgSave').addEventListener('click',()=>{
   if(document.getElementById('tour')&&tourRole==='lcfg'){ // 教學示範：跳通知、關視窗都跟真的一樣，但設定一律不改
     const on=document.getElementById('lcOn').checked;
-    tourOutcome={saved:1,on,missing:on&&(!document.getElementById('lcFrom').value||!document.getElementById('lcTo').value)};
+    const msg=leaveSavedMsg({on,ym:document.getElementById('lcYm').value,from:document.getElementById('lcFrom').value,to:document.getElementById('lcTo').value,
+      lateOn:document.getElementById('lcLateMode').value!=='off',...lateFields('lc')});
+    tourOutcome={saved:1,on,msg,missing:on&&(!document.getElementById('lcFrom').value||!document.getElementById('lcTo').value)};
     document.getElementById('ovLeaveCfg').classList.remove('show');
-    showToast((on?'已開放劃假 ✓':'已關閉劃假')+'（教學示範，設定未變更）',3500);
+    showToast(msg+'（教學示範，設定未變更）',3500);
     return;
   }
   const nl={
@@ -5420,7 +5463,7 @@ document.getElementById('btnLeaveCfgSave').addEventListener('click',()=>{
   if(nl.on&&srvState!=='ok')syncServerClock(); // 剛開啟時補一次校時
   renderLeaveBody();
   lcSoloSaved=JSON.stringify(nl.solo.map(lcSoloKey).sort());
-  showToast(nl.on?'已開放劃假 ✓'+(nl.solo.length?'　個別開放 '+nl.solo.length+' 位':''):nl.solo.length?'已儲存　全體未開放，個別開放 '+nl.solo.length+' 位':'已關閉劃假');
+  showToast(nl.on?leaveSavedMsg(nl)+(nl.solo.length?'　個別開放 '+nl.solo.length+' 位':''):nl.solo.length?'已儲存　全體未開放，個別開放 '+nl.solo.length+' 位':'已關閉劃假');
 });
 
 /* 事件 */
@@ -6662,8 +6705,12 @@ document.getElementById('btnInstallGuide').addEventListener('click',()=>{
    更新次數自目前大版本上線起，每上傳一次 index.html 加 1（劃假上線那次為 000）。
    每次更新：APP_VERSION 改成「3.115MMDD.次數」，CHANGELOG 最上面同一天的那筆 ver 跟著改；新的一天加一筆。
    add＝新增功能，fix＝問題改善；項目寫成 [文字, 1] 表示只有主管會用到（夥伴代碼不顯示） */
-const APP_VERSION='3.1151114.097';
+const APP_VERSION='3.1151115.098';
 const CHANGELOG=[
+  {v:'2026.11.15',ver:'3.1151115.098',fix:[
+    ['劃假開放設定：開放起日預設帶今天，選好起日後截止日自動帶往後 2 天；截止日與候補截止日不超過劃假的那個月。',1],
+    ['預約開放劃假（起日在今天之後）存檔時，提示改為「劃假將於 M/D 開放」。',1]
+  ]},
   {v:'2026.11.14',ver:'3.1151114.097',add:[
     ['發布前提醒：要發布的日期裡還有夥伴（不含支援）未排班時，列出日期與姓名，仍可選擇發布；「直接發布」模式改於發布後的通知中註明。',1],
     ['劃假可於後台開啟「送出前檢查時段」：時段內排不進任何班段，或可上班時數未滿時數下限（預設 4 小時）時，送出前列出這些日期，夥伴可返回修改或仍要送出。',1]
@@ -7606,8 +7653,8 @@ function tourEnding(){ // 劃假練習、開放設定：視窗關掉時，依按
     else tourFinish('劃假教學結束','最後一步為按<b>「送出」</b>；未送出的劃假不會儲存，主管也無法看到。<br>'+
       '練習內容<b>未儲存</b>。可於「？」的「🏖 劃假教學」再次練習。');
   }else{
-    if(o.saved)tourFinish('儲存完成','實際儲存時，畫面顯示「<b>'+(o.on?'已開放劃假 ✓':'已關閉劃假')+'</b>」並關閉設定視窗'+
-      (o.on?'，夥伴即可開始劃假。':'。')+'<br>本次為教學示範，<b>設定未變更</b>。'+
+    if(o.saved)tourFinish('儲存完成','實際儲存時，畫面顯示「<b>'+(o.msg||(o.on?'已開放劃假 ✓':'已關閉劃假'))+'</b>」並關閉設定視窗'+
+      (o.on?'，開放期間內夥伴即可劃假。':'。')+'<br>本次為教學示範，<b>設定未變更</b>。'+
       (o.missing?'<br>（實際儲存時，開放起日或截止日未填寫會先提示補上。）':'')+'<br>開放劃假教學到此結束。');
     else tourFinish('開放劃假教學結束','最後一步為按<b>「儲存」</b>，設定才會生效。<br>教學中的變更<b>皆未儲存</b>，設定維持原樣。<br>可於「？」的「⚙ 開放劃假教學」重看。');
   }
@@ -8160,6 +8207,7 @@ function fillLeaveCfg(L){
   document.getElementById('cfgLeaveYm').innerHTML=leaveYmOptions(L.ym);
   document.getElementById('cfgLeaveFrom').value=L.from||'';
   document.getElementById('cfgLeaveTo').value=L.to||'';
+  if(!L.on&&(!L.to||L.to<todayStr()))leaveFreshDates('cfgLeave'); // 沒在開放、上一輪也過了：日期先帶今天起
   document.getElementById('cfgLeaveLateMode').value=L.lateOn===false?'off':L.lateLimit?'until':'free';
   document.getElementById('cfgLeaveLateTo').value=L.lateTo||'';
   document.getElementById('cfgLeaveChk').checked=!!L.chk;
@@ -8172,9 +8220,11 @@ function syncLeaveCfgBox(){
   const on=document.getElementById('cfgLeaveOn').checked;
   document.getElementById('cfgLeaveBox').style.display=on?'':'none';
   syncLateBox('cfgLeave');
+  leaveDateLimits('cfgLeave');
   document.getElementById('cfgLeaveChkBox').style.display=document.getElementById('cfgLeaveChk').checked?'':'none';
 }
 document.getElementById('cfgLeaveYm').addEventListener('change',()=>resetLateTo('cfgLeave'));
+wireLeaveDates('cfgLeave');
 ['cfgLeaveOn','cfgLeaveLateMode','cfgLeaveLateTo','cfgLeaveChk','cfgLeaveMinH'].forEach(id=>{
   const el=document.getElementById(id);
   if(el)el.addEventListener('change',syncLeaveCfgBox);
