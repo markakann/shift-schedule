@@ -1914,6 +1914,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
     <input class="txt" id="adminEmail" type="email" placeholder="電子郵件" autocapitalize="off" autocorrect="off">
     <input class="txt" id="adminPw" type="password" placeholder="密碼" autocapitalize="off" autocorrect="off">
     <div class="small-note" id="adminLoginMsg" style="color:var(--red);display:none"></div>
+    <button class="btn" id="btnAdminGoogle" style="width:100%;margin-top:10px">以 Google 帳號登入</button>
     <div class="m-actions">
       <button class="btn primary" id="btnAdminLogin">登入</button>
       <button class="btn" id="btnCloseAdminLogin">取消</button>
@@ -1949,6 +1950,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
     <div class="sec-label cfg-group">所有主管代碼共用</div>
     <div class="cfg-menu">
       <button class="btn cfg-item" id="btnOpenCalCfg"><span>行事曆</span><small id="sumCal"></small></button>
+      <button class="btn cfg-item" id="btnOpenAdmins"><span>管理者</span><small id="sumAdmins"></small></button>
       <button class="btn cfg-item" id="btnUpdates"><span>更新日誌</span><small id="sumUpdates"></small></button>
     </div>
 
@@ -2017,6 +2019,18 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
     <label class="cfg-row"><input type="checkbox" id="cfgPubRemind"><span>打開 App 時提醒未發布的班表</span></label>
     <div class="small-note" id="cfgPubRemindNote" style="display:none;margin:-2px 0 0 28px">直接發布時，仍會提醒未完成發布的修改（例如鎖定時無網路）。</div>
     <div class="m-actions"><button class="btn primary cfg-back">完成</button></div>
+  </div>
+</div>
+
+<!-- 後台：管理者名單 -->
+<div class="overlay" id="ovCfgAdmins">
+  <div class="modal">
+    <div class="m-title">管理者</div>
+    <div class="m-sub">管理者可登入後台、審核帳號，適用所有主管代碼。只有擁有者（寫在 Firestore 規則裡的帳號）能新增或移除管理者；擁有者不列在這裡。</div>
+    <div id="admList" style="margin-top:8px"></div>
+    <div style="display:flex;gap:8px;margin-top:10px"><input class="txt" id="admEmail" type="email" placeholder="新增管理者的 email" autocapitalize="off" autocorrect="off" style="flex:1;margin:0"><button class="btn primary" id="btnAdmAdd" style="padding:6px 14px">新增</button></div>
+    <div class="small-note" style="margin-top:6px">新增後，對方以這個 email 登入後台：使用 Google 登入，或使用已完成 email 驗證的帳號（第一次登入時會寄出驗證信）。</div>
+    <div class="m-actions"><button class="btn primary" id="btnCloseAdmins">完成</button></div>
   </div>
 </div>
 
@@ -3519,7 +3533,7 @@ async function initFirebase(){
       FB.auth=authMod.getAuth(app);
       FB.signIn=authMod.signInWithEmailAndPassword;
       FB.signOutFn=authMod.signOut;
-      FB.gProvider=authMod.GoogleAuthProvider;FB.popup=authMod.signInWithPopup;FB.signUp=authMod.createUserWithEmailAndPassword;FB.resetPw=authMod.sendPasswordResetEmail;
+      FB.gProvider=authMod.GoogleAuthProvider;FB.popup=authMod.signInWithPopup;FB.signUp=authMod.createUserWithEmailAndPassword;FB.resetPw=authMod.sendPasswordResetEmail;FB.verify=authMod.sendEmailVerification;
       try{FB.auth.languageCode='zh-TW'}catch(e){}
       authMod.onAuthStateChanged(FB.auth,u=>{acctOnAuth(u)}); // 夥伴或管理者：先確認是不是管理者帳號
     }catch(e){}
@@ -6893,7 +6907,7 @@ const CHANGELOG=[
     ['帳號登入（試用）：可用 Google 或 email 登入，選擇自己的名字送出，經主管啟用後綁定；劃假時自動帶入自己的名字。夥伴代碼照常可用。'],
     ['「⋯」→「帳號」審核帳號申請：啟用、退回（可選填理由）、停用；🔔 列出待審核的申請。過了最後上班日的帳號自動停用。',1],
     ['後台新增「帳號與檢視」：檢視班表需要登入，或夥伴代碼即可檢視。現有店家維持夥伴代碼即可檢視；新建立的店家預設需要登入。',1],
-    ['後台登入僅限管理者帳號。',1]
+    ['後台登入僅限管理者帳號，並可用 Google 登入；後台新增「管理者」，可新增或移除能審核帳號的管理者。',1]
   ],fix:[
     ['紅線改為選擇幾號到幾號，並可「從 1 號」「到月底」快速帶入；畫之前會列出其中已有排班的天數。',1],
     ['預定離職：最後上班日之後（同一個月）已排的班也一併改為紅線；取消預定離職或修改日期時，恢復原本的排班。',1]
@@ -8677,10 +8691,7 @@ async function doAdminLogin(){
   if(!email||!pw){msg.textContent='請輸入帳號與密碼。';msg.style.display='';return}
   try{
     const cred=await FB.signIn(FB.auth,email,pw);
-    if(!(await acctProbeAdmin(cred.user))){ // 夥伴帳號不能進後台
-      try{await FB.signOutFn(FB.auth)}catch(x){}
-      msg.textContent='此帳號沒有後台權限。';msg.style.display='';return;
-    }
+    if(!(await acctProbeAdmin(cred.user))){await adminDenied(cred.user,msg);return} // 夥伴帳號不能進後台
     adminUser=cred.user;
     document.getElementById('ovAdminLogin').classList.remove('show');
     updateAdminBanner();
@@ -8693,6 +8704,61 @@ async function doAdminLogin(){
     msg.style.display='';
   }
 }
+async function adminDenied(u,msg){ // 不是管理者：登出；email 帳號尚未驗證時寄出驗證信（後台名單裡的管理者需驗證過 email）
+  const unver=!!(u&&u.emailVerified===false&&FB.verify);
+  if(unver)try{await FB.verify(u)}catch(e){}
+  try{await FB.signOutFn(FB.auth)}catch(x){}
+  msg.textContent=unver?'此帳號沒有後台權限。若已被加入管理者，需先完成 email 驗證：驗證信已寄出，完成後再登入。':'此帳號沒有後台權限。';
+  msg.style.display='';
+}
+document.getElementById('btnAdminGoogle').addEventListener('click',async()=>{
+  const msg=document.getElementById('adminLoginMsg');msg.style.display='none';
+  if(!FB||!FB.popup)return;
+  try{
+    const cred=await FB.popup(FB.auth,new FB.gProvider());
+    if(!(await acctProbeAdmin(cred.user))){await adminDenied(cred.user,msg);return}
+    adminUser=cred.user;
+    document.getElementById('ovAdminLogin').classList.remove('show');
+    updateAdminBanner();
+    const after=adminAfterLogin||openAdminPanel;adminAfterLogin=null;after();
+  }catch(e){
+    const c=(e&&e.code)||'';if(c.includes('popup-closed')||c.includes('cancelled-popup'))return;
+    msg.textContent=c.includes('unauthorized-domain')?'此網址尚未開放 Google 登入。':'無法開啟 Google 登入視窗，請改用 email 與密碼登入。';msg.style.display='';
+  }
+});
+/* 後台：管理者名單（admins/{email}）：只有擁有者能新增或移除 */
+var admList=[];
+async function loadAdmins(){
+  const box=document.getElementById('admList'),put=t=>{const el=document.getElementById('sumAdmins');if(el)el.textContent=t};
+  if(!FB||!FB.getDocs){box.innerHTML='';return}
+  try{
+    const qs=await FB.getDocs(FB.collection(FB.db,'admins'));
+    admList=qs.docs.map(d=>Object.assign({},d.data(),{id:d.id})).sort((a,b)=>(a.at||0)-(b.at||0));
+    put(admList.length?'另有 '+admList.length+' 位':'只有擁有者');
+    box.innerHTML=admList.length?admList.map(a=>'<div class="acct-row"><div class="r1"><b style="word-break:break-all">'+esc(a.id)+'</b>'+
+      '<span class="t"><button class="btn" data-admdel="'+esc(a.id)+'" style="padding:3px 10px">移除</button></span></div>'+
+      (a.by?'<div class="em">'+esc(a.by)+' 於 '+acctDay(a.at||0)+' 新增</div>':'')+'</div>').join(''):'<div class="acct-empty">目前只有擁有者</div>';
+  }catch(e){put('');box.innerHTML='<div class="acct-err">讀取失敗，請確認 Firestore 規則已更新。</div>'}
+}
+document.getElementById('btnOpenAdmins').addEventListener('click',()=>{
+  document.getElementById('admEmail').value='';
+  document.getElementById('ovCfgAdmins').classList.add('show');loadAdmins();
+});
+document.getElementById('btnCloseAdmins').addEventListener('click',()=>document.getElementById('ovCfgAdmins').classList.remove('show'));
+document.getElementById('btnAdmAdd').addEventListener('click',async()=>{
+  const el=document.getElementById('admEmail'),em=el.value.trim().toLowerCase();
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){alert('請輸入正確的 email。');return}
+  if(admList.some(a=>a.id===em)){alert('此 email 已在管理者名單中。');return}
+  try{await FB.setDoc(FB.doc(FB.db,'admins',em),{email:em,by:(adminUser&&adminUser.email)||'',at:Date.now()});el.value='';showToast('已新增管理者 ✓');loadAdmins()}
+  catch(e){alert(e&&e.code==='permission-denied'?'只有擁有者可以新增管理者。':'新增失敗，請確認網路連線。')}
+});
+document.getElementById('admList').addEventListener('click',async ev=>{
+  const b=ev.target.closest('[data-admdel]');if(!b)return;
+  const em=b.dataset.admdel,self=!!(adminUser&&String(adminUser.email||'').toLowerCase()===em);
+  if(!confirm('將 '+em+' 移出管理者？'+(self?'\n移除後，此帳號將無法再進後台。':'')))return;
+  try{await FB.deleteDoc(FB.doc(FB.db,'admins',em));showToast('已移除');loadAdmins()}
+  catch(e){alert(e&&e.code==='permission-denied'?'只有擁有者可以移除管理者。':'移除失敗，請確認網路連線。')}
+});
 function showToast(msg,ms,html){ // 畫面下方的短暫提示，預設2秒後消失；html：多行排版（標題／重點／說明）
   const t=document.getElementById('toast');
   if(html)t.innerHTML=msg;else t.textContent=msg;
@@ -9017,6 +9083,7 @@ function openAdminPanel(){
   renderCfgTargetOptions();
   document.getElementById('cfgTargetOther').value='';
   loadCfgTarget(storeCode);
+  loadAdmins(); // 選單上顯示管理者人數
   document.getElementById('ovAdmin').classList.add('show');
 }
 document.getElementById('cfgTarget').addEventListener('change',ev=>loadCfgTarget(ev.target.value));
@@ -9917,7 +9984,7 @@ document.getElementById('sheetTitle').addEventListener('input',scheduleSave);
 /* 點空白處：純選單／說明類視窗＝按它的「關閉」鈕（走同一套流程）；其他有輸入或設定的視窗一律不關，避免誤觸放棄修改 */
 const BACKDROP_CLOSE={ovNotice:'btnCloseNotice',ovMore:'btnCloseMore',ovHelp:'btnCloseHelp',ovHidden:'btnCloseHidden',ovStaffList:'btnCloseStaffList',
   ovOT:'btnCloseOT',ovTotal:'btnCloseTotal',ovCoverage:'btnCloseCoverage',ovReport:'btnCloseReport',
-  ovExportChoice:'btnCloseExportChoice',ovCopyChoice:'btnCloseCopyChoice',ovLook:'btnCloseLook',ovUpdates:'btnCloseUpdates',ovInstall:'btnCloseInstall',ovPublish:'btnPubLater',ovLvChk:'btnLvChkBack',ovPubChk:'btnPubChkBack',ovRedline:'btnRlCancel',ovAcctAdmin:'btnCloseAcctAdmin',ovAcctReject:'btnArCancel'};
+  ovExportChoice:'btnCloseExportChoice',ovCopyChoice:'btnCloseCopyChoice',ovLook:'btnCloseLook',ovUpdates:'btnCloseUpdates',ovInstall:'btnCloseInstall',ovPublish:'btnPubLater',ovLvChk:'btnLvChkBack',ovPubChk:'btnPubChkBack',ovRedline:'btnRlCancel',ovAcctAdmin:'btnCloseAcctAdmin',ovAcctReject:'btnArCancel',ovCfgAdmins:'btnCloseAdmins'};
 document.querySelectorAll('.overlay').forEach(ov=>ov.addEventListener('click',ev=>{
   if(ev.target!==ov||ov.id==='ovCell')return; // 排班格子另有處理：改動即時套用，點外面直接關
   const btn=BACKDROP_CLOSE[ov.id]&&document.getElementById(BACKDROP_CLOSE[ov.id]);
