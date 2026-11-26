@@ -1169,6 +1169,7 @@ html.no-anim .day-cell{transition:none}
 .c-orange{color:#a85c07}
 .c-fade{color:var(--fade)}
 .lgc.sw-all {background:#dceffa}
+.lgc.sw-hol {background:#efe1cc}
 .lgc.sw-only{background:#dcf3da}
 .lgc.sw-part{background:#f7e3f7}
 .lgc.sw-late{background:#ffe3c2}
@@ -2618,7 +2619,10 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
     <div class="hsub">日曆上的標示</div>
     <ul class="hul">
       <li>日曆上方顯示該月的月休額度（正職）、國定假日與已劃的天數。正職「整天不能上」的天數（國定假日當天不算）超過月休時，送出前提醒，仍可送出。</li>
-      <li>超過月休的天數先以國定假日抵用，抵用的國定假日當天需排班：班表上以淡咖啡色標「需上」。國定假日抵完仍超過時，班表上該人員的「休」後方以重點色標「劃 N」。點一下顯示說明；夥伴只看得到自己的。</li>
+      <li class="edit-only"><i class="lgc sw-hol"></i><b>淡咖啡色「需上」</b>：正職劃假超過月休，多出的天數以國定假日抵用，該國定假日當天需排班；國定假日比要抵的天數多時全部標出，由主管決定排哪一天。排上班後提示消失。</li>
+      <li class="edit-only"><b style="color:var(--red)">「休 0/8 · 劃N」</b>：國定假日抵完仍超過月休，N 為劃整天不能上的天數。點格子或「劃N」顯示說明；「全員總覽」標示超過的天數。</li>
+      <li class="view-only"><b>劃超過月休</b>：多出的天數先以國定假日抵用，抵用的國定假日當天需排班；國定假日抵完仍超過時，排班結果可能不如預期。</li>
+      <li class="view-only">帳號驗證開啟且已綁定名字時，班表上自己那一列：抵用的國定假日以<i class="lgc sw-hol"></i>淡咖啡色標「需上」；抵完仍超過時，「休」後方以紅字標「劃N」。點一下顯示說明。其他夥伴看不到。</li>
       <li>紅線的日子（到職前／離職後）標示「未在職」，無法劃假。</li>
       <li><b style="color:var(--red)">國</b>＝國定假日（以原日期計算）。政府公告的補假日視為一般日。</li>
     </ul>
@@ -7163,9 +7167,9 @@ document.getElementById('btnInstallGuide').addEventListener('click',()=>{
    更新次數自目前大版本上線起，每上傳一次 index.html 加 1（劃假上線那次為 000）。
    每次更新：APP_VERSION 改成「3.115MMDD.次數」，CHANGELOG 最上面同一天的那筆 ver 跟著改；新的一天加一筆。
    add＝新增功能，fix＝問題改善；項目寫成 [文字, 1] 表示只有主管會用到（夥伴代碼不顯示） */
-const APP_VERSION='4.1151126.012';
+const APP_VERSION='4.1151126.013';
 const CHANGELOG=[
-  {v:'2026.11.26',ver:'4.1151126.012',major:'4.0',note:'帳號登入、換班與代班上線。',add:[
+  {v:'2026.11.26',ver:'4.1151126.013',major:'4.0',note:'帳號登入、換班與代班上線。',add:[
     ['帳號驗證開啟時，主管代碼的「我要劃假」也自動帶入主管帳號綁定的名字，仍可改選其他人代為劃假。',1],
     ['主管於「帳號」把人設為夥伴或主管後，對方的 App 自動改用夥伴代碼或主管代碼，不另外提示。',1],
     ['主管代碼新增「🔁 換班」：幫夥伴登記已談好的換班，確認規則提醒後直接寫入班表並發布，雙方的 🔔 收到通知；也可用自己綁定的名字申請換班，不需主管核准。',1],
@@ -7184,6 +7188,8 @@ const CHANGELOG=[
     ['「⋯」→「帳號」審核帳號申請：啟用、退回（可選填理由）、停用；🔔 列出待審核的申請。過了最後上班日的帳號自動停用。',1],
     ['後台登入僅限管理者帳號，並可用 Google 登入；後台新增「管理者」，可新增或移除能審核帳號的管理者。',1]
   ],fix:[
+    ['後台更改目前使用中的主管代碼後，畫面不再被清空、跳出「雲端同步設定」。',1],
+    ['後台「主管代碼管理」列出雲端上所有的主管代碼（含其他裝置建立的），並顯示店名。',1],
     ['正職劃假：日曆上方顯示已劃天數；「整天不能上」的天數超過月休時送出前提醒，仍可送出。多出的天數先以國定假日抵用，抵用的國定假日當天需排班，班表上以淡咖啡色標「需上」；抵完仍超過時，「休」後方標「劃 N」。點一下顯示說明，夥伴只看得到自己的。'],
     ['帳號驗證開啟時，夥伴帳號綁定的名字那一列，班表上顯示自己的劃假。'],
     ['切換到其他代碼（加入現有代碼、更換代碼）時登出帳號，不帶著原本的帳號。'],
@@ -7608,7 +7614,8 @@ const LV_DEMO_KINDS=[ // 班表上的劃假（主管才看得到）
   {c:'lv-part',h:'<span class="lv-cell-tag">~18</span>',ic:'<i class="lgc sw-part">~18</i>',nm:'只能上到 18:00'},
   {c:'lv-late',h:'<span class="lv-cell-tag">假</span>',ic:'<i class="lgc sw-late">假</i>',nm:'臨時（候補）'},
   {c:'lv-late',h:'<span class="lv-cell-tag">取消</span>',ic:'<i class="lgc sw-late">取消</i>',nm:'截止後取消'},
-  {c:'filled lv-clash',h:'<span class="t-s">9</span><span class="t-e">18</span><span class="lv-cell-tag bad">!</span>',ic:'<i class="lgc sw-clash" '+R+'>!</i>',nm:'班與劃假衝突'}
+  {c:'filled lv-clash',h:'<span class="t-s">9</span><span class="t-e">18</span><span class="lv-cell-tag bad">!</span>',ic:'<i class="lgc sw-clash" '+R+'>!</i>',nm:'班與劃假衝突'},
+  {c:'lv-hol',h:'<span class="lv-cell-tag hol">需上</span>',ic:'<i class="lgc sw-hol">需上</i>',nm:'國定假日需排班'}
 ];
 const SYM_DEMO_ROWS=[ // 班表上的各種記號
   [{c:'off',h:'',ic:'<i style="color:var(--ink)">✕</i>',nm:'排休'},
@@ -7969,7 +7976,7 @@ function tourSteps(role,full){ // full：完整新手教學，走到排班、開
       el:()=>tourDemoEl($('.sheet-wrap')),h:'班表上的劃假',b:t=>
         (Array.isArray(t)?'圈起處為劃假在班表上的樣式，依序由左至右：':'夥伴的劃假直接顯示在班表上：')+
         tourGrid(LV_DEMO_KINDS)+
-        '<div class="tt-fn">「15~」為 15:00 後才能上；「臨時」為截止後劃的候補；「取消」為截止後取消的劃假。<br>截止後改過的日子，截止前的劃法列於排班視窗與劃假的「全員總覽」。<br>已排班且未衝突的格子不顯示底色。僅主管可見，夥伴無法看到他人的劃假。</div>'}),
+        '<div class="tt-fn">「15~」為 15:00 後才能上；「臨時」為截止後劃的候補；「取消」為截止後取消的劃假。<br>截止後改過的日子，截止前的劃法列於排班視窗與劃假的「全員總覽」。<br>已排班且未衝突的格子不顯示底色。僅主管可見，夥伴無法看到他人的劃假。<br>「需上」：正職劃假超過月休，以國定假日抵用，該國定假日當天需排班。抵完仍超過時，「休」後方以紅字標「劃N」。點一下顯示說明。</div>'}),
     SUMROW(true),
     {el:()=>tourShown($('#btnEdit')),h:'開始排班',b:()=>'按此<b>解鎖</b>後，點選格子即可排入班別、自訂時間或假別；完成後再按一次<b>鎖定</b>。<br>鎖定後才進行人力檢查，紅色「！」於此時顯示。'+
       (!full?'':monthStaff().length?'<br>下一步起實際操作一次排班。':'<br>本月尚無人員，下一步起以示範班表實際操作一次排班。')},
@@ -8032,6 +8039,8 @@ function tourSteps(role,full){ // full：完整新手教學，走到排班、開
     ...OT,
     {el:()=>[tourShown($('#selYear')),tourShown($('#selMonth'))].filter(Boolean),h:'切換月份',b:'於此切換查看其他月份的班表；尚未發布的月份顯示「尚未發布」。'},
     {el:()=>tourShown($('#btnLeave')),h:'劃假',b:()=>'開放期間於此標出無法上班的日子，完成後按「送出」。'+
+      '<br>正職劃「整天不能上」超過月休時，送出前提醒；多出的天數以國定假日抵用，當天需排班。'+
+      (acctVerify()?'班表上自己那一列以'+'<i class="lgc sw-hol"></i>'+'淡咖啡色標「需上」，抵完仍超過時「休」後方以紅字標「劃N」，其他夥伴看不到。':'')+
       (full?'<br>下一步起以練習畫面實際操作一次，練習內容不會送出。':'<br>操作方式可於「？」的<b>「🏖 劃假教學」</b>以練習畫面試做，練習內容不會送出。')},
     {seg:'leave',when:()=>full},
     {el:()=>tourShown($('#btnSwap')),h:'🔁 換班',b:()=>'申請由其他夥伴代班，或與其他夥伴互換班別。'+swFlowText(normSwapCfg((state.config||{}).swap))+'<br>操作方式可於「？」的「🔁 換班教學」查看。'},
@@ -10665,14 +10674,29 @@ function moveCodeKeys(oldCode,newCode){ // 換夥伴代碼：這台裝置的劃�
     });
   }catch(e){}
 }
-function renderMgrList(){
-  const hist=getCodeHistory();
+let mgrCloud=null,mgrCloudBusy=false; // 後台人員：雲端上所有的主管代碼 [{code,store}]
+async function mgrLoadCloud(){ // 列出雲端上的主管代碼（含其他裝置建立的）；年份封存（代碼_年份）不列
+  if(mgrCloudBusy||!adminUser||!FB||!FB.getDocs)return;
+  mgrCloudBusy=true;
+  try{
+    const qs=await FB.getDocs(FB.collection(FB.db,'stores'));
+    mgrCloud=qs.docs.filter(d=>!d.id.includes('_')).map(d=>{let st='';try{st=JSON.parse(d.data().data||'{}').store||''}catch(e){}return {code:d.id,store:st}});
+  }catch(e){mgrCloud=null}
+  mgrCloudBusy=false;
+  if(document.getElementById('ovMgrPanel').classList.contains('show'))renderMgrList(true);
+}
+function renderMgrList(fromCloud){
+  if(!fromCloud){mgrCloud=null;mgrLoadCloud()}
+  const hist=getCodeHistory().map(h=>({code:h.code,mine:1}));
+  (mgrCloud||[]).forEach(c=>{const h=hist.find(x=>x.code===c.code);if(h)h.store=c.store;else hist.push({code:c.code,store:c.store})});
+  if(mgrCloud)for(let i=hist.length-1;i>=0;i--)if(!mgrCloud.some(c=>c.code===hist[i].code)&&hist[i].code!==storeCode)hist.splice(i,1); // 雲端上已不存在的代碼不列
   const box=document.getElementById('mgrList');
-  if(!hist.length){box.innerHTML='<div class="small-note">這台裝置目前沒有紀錄。</div>';return}
+  if(!hist.length){box.innerHTML='<div class="small-note">'+(adminUser?'正在讀取雲端上的主管代碼…':'這台裝置目前沒有紀錄。')+'</div>';return}
   box.innerHTML=hist.map(h=>{
     const cur=h.code===storeCode;
     return '<div style="display:flex;gap:6px;align-items:center;border:1.5px solid var(--grid);border-radius:8px;padding:8px 10px;margin-bottom:6px">'+
-      '<span style="flex:1;font-weight:700;word-break:break-all">'+esc(h.code)+(cur?'　<span style="color:var(--blue);font-size:12px">（目前使用中）</span>':'')+'</span>'+
+      '<span style="flex:1;font-weight:700;word-break:break-all">'+esc(h.code)+(cur?'　<span style="color:var(--blue);font-size:12px">（目前使用中）</span>':'')+
+        (h.store||!h.mine?'<span style="display:block;font-weight:400;font-size:12px;color:var(--muted,#888)">'+esc(h.store||'')+(h.mine?'':(h.store?'・':'')+'其他裝置建立')+'</span>':'')+'</span>'+
       (cur?'':'<button class="btn" style="padding:5px 8px" data-mgr-switch="'+esc(h.code)+'">切換</button>')+
       '<button class="btn" style="padding:5px 8px" data-mgr-rename="'+esc(h.code)+'">重新命名</button>'+
       '<button class="btn danger" style="padding:5px 8px" data-mgr-del="'+esc(h.code)+'">刪除</button>'+
@@ -10702,13 +10726,21 @@ document.getElementById('mgrList').addEventListener('click',async ev=>{
       if(newSnap.exists()){alert('代碼「'+newCode+'」已經有人使用，請換一個。');return}
       const oldSnap=await FB.getDoc(oldRef);
       if(!oldSnap.exists()){alert('找不到原本的資料，可能已被刪除。');removeCodeHistory(oldCode);renderMgrList();return}
-      await FB.setDoc(newRef,oldSnap.data());
-      await FB.deleteDoc(oldRef);
-      let ys=[];try{ys=JSON.parse(oldSnap.data().data).arcYears||[]}catch(e){}
+      const isCur=storeCode===oldCode;
+      if(isCur&&unsubCloud){unsubCloud();unsubCloud=null} // 先停掉舊代碼的監聽：刪掉舊代碼時才不會當成被刪除而清空畫面
+      const od=oldSnap.data(); // 先取出內容：刪掉舊文件後不再讀它
+      try{await FB.setDoc(newRef,od);await FB.deleteDoc(oldRef)}
+      catch(e){if(isCur)await connectStore(oldCode,false,true);throw e}
+      let ys=[],vc=od.viewCode||'';try{const o=JSON.parse(od.data);ys=o.arcYears||[];vc=vc||o.viewCode||''}catch(e){}
       await arcMoveDocs('stores',oldCode,newCode,ys); // 主管那份的年份封存一起搬
-      removeCodeHistory(oldCode);
+      try{await FB.deleteDoc(FB.doc(FB.db,'gates',oldCode))}catch(e){} // 舊代碼的登入對照
+      if(vc&&FB.getDocs)try{ // 帳號裡記的主管代碼（設為主管時自動切換用）改成新的
+        const qs=await FB.getDocs(FB.collection(FB.db,'views',vc,'members'));
+        for(const d of qs.docs)if(d.data().mc===oldCode)await FB.setDoc(d.ref,{mc:newCode},{merge:true});
+      }catch(e){}
+      removeCodeHistory(oldCode);mgrCloud=null;
       recordCodeHistory(newCode);
-      if(storeCode===oldCode)await connectStore(newCode,false,true);
+      if(isCur)await connectStore(newCode,false,true);
       renderMgrList();
       alert('已將代碼改為「'+newCode+'」。');
     }catch(e){alert('操作失敗，請檢查網路連線。')}
