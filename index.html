@@ -7039,14 +7039,14 @@ document.getElementById('btnInstallGuide').addEventListener('click',()=>{
    更新次數自目前大版本上線起，每上傳一次 index.html 加 1（劃假上線那次為 000）。
    每次更新：APP_VERSION 改成「3.115MMDD.次數」，CHANGELOG 最上面同一天的那筆 ver 跟著改；新的一天加一筆。
    add＝新增功能，fix＝問題改善；項目寫成 [文字, 1] 表示只有主管會用到（夥伴代碼不顯示） */
-const APP_VERSION='4.1151126.007';
+const APP_VERSION='4.1151126.008';
 const CHANGELOG=[
-  {v:'2026.11.26',ver:'4.1151126.007',add:[
+  {v:'2026.11.26',ver:'4.1151126.008',add:[
     ['後台「帳號驗證」：關閉時照以前的方式（主管代碼＝主管、夥伴代碼＝夥伴）；開啟後以帳號綁定名字，並可設定班表保護：開啟時看班表也要登入，關閉時不登入也能看，但劃假、換班需要登入，主管代碼沒登入時只能看。',1],
     ['在「⋯」→「帳號」登出後，回到一開始的畫面，需要重新輸入代碼。'],
     ['後台人員已和這間店的名字綁定時，後台直接進出、不再顯示「正在登入後台設定」；沒有綁定的店，進後台需要驗證登入。',1],
     ['開啟班表保護時，用主管代碼開啟也需要登入已啟用、綁定名字的帳號；登入畫面可直接綁定名字，經管理者啟用後進入。',1],
-    ['管理者帳號用夥伴代碼開啟時，也可從「⋯」進入後台設定。',1],
+    ['用夥伴代碼開啟時，「⋯」也有「後台設定」，以管理者帳號登入即可進入。',1],
     ['帳號分為主管與夥伴：主管可於主管代碼的「⋯」→「帳號」審核帳號、設定每個人是主管或夥伴；用主管代碼申請、或已啟用的夥伴申請成為主管，需經主管核准。',1],
     ['換班／代班（試用）：於「🔁 換班」申請。開啟班表保護時，以帳號綁定的名字申請；關閉時，選擇自己的名字申請（已登入的帳號直接帶入）。申請中的班在班表上標示「換」，🔔 列出跟自己有關的換班申請；需要對方同意時，對方於「申請紀錄」同意或婉拒。'],
     ['後台新增「換班」：開放換班、需要對方同意、需要主管核准可分別設定（預設不開放；開放時預設需主管核准）。不需主管核准的換班，於主管的 App 開啟時自動寫入班表並發布。',1],
@@ -7398,7 +7398,7 @@ document.getElementById('btnMore').addEventListener('click',()=>{
   document.getElementById('cloudInfo').textContent=cloudStatus;
   document.getElementById('btnCopyMenu').style.display=(storeCode||viewerMode)?'':'none';
   document.getElementById('btnImport').style.display=viewerMode?'none':'';
-  document.getElementById('btnOpenAdmin').style.display=viewerMode&&!adminUser?'none':''; // 夥伴代碼：管理者帳號才看得到
+  document.getElementById('btnOpenAdmin').style.display=''; // 夥伴代碼也顯示：後台人員可從這裡登入後台
   document.getElementById('btnHiddenStaff').style.display=viewerMode?'none':'';
   acctRefresh();
   document.getElementById('ovMore').classList.add('show');
