@@ -2676,7 +2676,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
     <ul class="hul">
       <li>後台設定「換班」可開放換班，並分別設定是否<b>需要對方同意</b>、<b>需要主管核准</b>。預設不開放；開放時預設需主管核准。</li>
       <li>開放後，夥伴代碼的工具列出現「🔁 換班」：① 選擇自己要換出的班（只列出已發布、尚未開始的班）→ ② 選擇<b>代班</b>或<b>換班</b> → ③ 選擇對象 → ④ 確認內容，可留言，按「送出」。</li>
-      <li><b>代班</b>：由對方上這一班，自己當天改為排休；只列出當天沒有排班的人員。<b>換班</b>：雙方互換彼此的班，可同一天互換時段，或換對方另一天的班。</li>
+      <li>支援人員不列入換班。<b>代班</b>：由對方上這一班，自己當天改為排休；只列出當天沒有排班的人員。<b>換班</b>：雙方互換彼此的班，可同一天互換時段，或換對方另一天的班。</li>
       <li>帳號驗證開啟時，以帳號綁定的名字申請；需要對方同意時，對方也需有已啟用的帳號。關閉時，選擇自己的名字申請。</li>
       <li>申請中的班於班表上標示「換」；🔔 列出跟自己有關的換班申請。</li>
       <li>需要對方同意時，對方於「🔁 換班」的「申請紀錄」同意或婉拒；申請人可於「申請紀錄」撤回。</li>
@@ -2689,7 +2689,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
     <div class="sec-label">帳號</div>
     <ul class="hul">
       <li>後台設定「帳號驗證」決定是否使用帳號。<b>關閉</b>：主管代碼即可排班、夥伴代碼即可查看，劃假與換班時選擇自己的名字。<b>開啟</b>：以帳號綁定自己的名字，劃假與換班自動帶入，劃假只能劃自己的。</li>
-      <li>登入：「⋯」→「帳號登入」，以 Google 或 email 登入（第一次登入即建立帳號），選擇自己的名字送出，經主管啟用後綁定。</li>
+      <li>登入：「⋯」→「帳號登入」，以 Google 或 email 登入（第一次登入即建立帳號），選擇自己的名字送出，經主管啟用後綁定。正職、計時、支援人員皆可綁定。</li>
       <li><b>班表保護</b>（帳號驗證開啟時設定）：<b>關閉</b>時不登入也能看班表，登入畫面可按「先看班表」；劃假、換班、同意與核准需登入。<b>開啟</b>時看班表也需登入，換班申請只有本人、對方與主管看得到。</li>
       <li>登入後保持登入，清除瀏覽器資料後需重新登入。</li>
       <li>用主管代碼排班，需以已核准的<b>主管</b>帳號登入；未登入時只能看班表（班表保護開啟時需登入才能看）。夥伴帳號用主管代碼開啟時，可送出「申請成為主管」，由主管核准。</li>
@@ -7076,6 +7076,7 @@ document.getElementById('btnInstallGuide').addEventListener('click',()=>{
 const APP_VERSION='4.1151126.010';
 const CHANGELOG=[
   {v:'2026.11.26',ver:'4.1151126.010',add:[
+    ['支援人員也可綁定帳號：帳號驗證開啟時，可看班表與劃假；換班不含支援人員。'],
     ['「？」說明新增「換班　·　代班」與「帳號」，新手教學補上換班與帳號；新增「🔁 換班教學」，正在使用的裝置播放一次（夥伴於開放換班時）。'],
     ['後台「帳號驗證」：關閉時照以前的方式（主管代碼＝主管、夥伴代碼＝夥伴）；開啟後以帳號綁定名字，並可設定班表保護：開啟時看班表也要登入，關閉時不登入也能看，但劃假、換班需要登入，主管代碼沒登入時只能看。',1],
     ['在「⋯」→「帳號」登出後，回到一開始的畫面，需要重新輸入代碼。'],
@@ -8437,7 +8438,7 @@ var acctSoftWait=0,acctSoft=false,acctPeekCode=null,acctPeekMgr=null,acctGateSof
 var acctMode='pick',acctPick=null,acctRepick=false,acctMsg='',acctMsgOk=false,acctBusy=false,acctEmailVal='';
 var rosterAcked='',rosterDenied=false,takenAcked='',cfgAcctLoaded='code';
 const ACCT_ADMIN_KEY='paiban-admin-uid';
-const ACCT_TY={full:'正職',part:'計時'};
+const ACCT_TY={full:'正職',part:'計時',sup:'支援'};
 function normAcctCfg(a){a=a||{};const view=a.view==='login'?'login':'code';return {on:a.on!==undefined?!!a.on:view==='login',view}} // on：帳號驗證；view：班表保護（login＝看班表也要登入）
 function acctVerifyCfg(c){return normAcctCfg((c||{}).acct).on}
 function acctLockedCfg(c){const a=normAcctCfg((c||{}).acct);return a.on&&a.view==='login'}
@@ -8514,7 +8515,7 @@ function acctSeen(){ // 上次使用：一天最多記一次
   acctMember.seenDay=t;
   FB.setDoc(FB.doc(FB.db,'views',vc,'members',authUser.uid),{seen:Date.now(),seenDay:t},{merge:true}).catch(()=>{});
 }
-function acctRosterOf(staff){return (staff||[]).filter(x=>x&&x.type!=='sup').map(x=>({id:x.id,name:x.name,type:x.type,leave:x.leaveDate||'',left:x.leftYm||'',hid:x.hidden?1:0}))}
+function acctRosterOf(staff){return (staff||[]).filter(x=>x).map(x=>({id:x.id,name:x.name,type:x.type,leave:x.leaveDate||'',left:x.leftYm||'',hid:x.hidden?1:0}))}
 function acctRosterList(){return acctGateCode?((acctRosterCache&&acctRosterCache.staff)||[]):acctRosterOf(state.staff)}
 function acctTakenMap(){return (acctRosterCache&&acctRosterCache.taken)||{}}
 function acctStoreName(){return acctGateCode?((acctRosterCache&&acctRosterCache.store)||''):(state.store||'')}
@@ -9382,6 +9383,8 @@ function renderSwap(){
       '<button type="button" class="btn primary" data-swacct="1" style="width:100%;min-height:44px">'+(st==='out'?'帳號登入':'查看帳號狀態')+'</button>';
     return;
   }
+  {const ms=me&&state.staff.find(x=>x.id===me);
+   if(ms&&ms.type==='sup'){tabs.style.display='none';send.style.display='none';body.innerHTML='<div class="swp-empty" style="padding:10px 2px">支援人員不適用換班申請。</div>';return}} // 帳號綁定的是支援人員
   tabs.style.display='';
   const who=swWhoHtml();
   if(!me){ // 夥伴代碼即可檢視、沒有登入：先選自己的名字
