@@ -850,6 +850,10 @@ html.dark .split-seg .split-range{color:var(--fade2)}
 .lvset-l{flex:0 0 4.3em;color:#666;white-space:nowrap}
 .lvset-row .txt{flex:1 1 0;min-width:0}
 .lvset-sep{color:#999;flex:0 0 auto}
+.rl-quick{display:flex;gap:8px;margin:8px 0 0 calc(4.3em + 8px)}
+.rl-quick .btn{padding:4px 10px;font-size:13px}
+#rlNote .w{color:#a85c07}
+html.dark #rlNote .w{color:#f0b978}
 .lvset-chk{flex-wrap:wrap}
 .lvset-chk .lvset-min{display:inline-flex;align-items:center;gap:6px;margin-left:auto;font-size:13px;color:#666;white-space:nowrap}
 .lvset-chk .lvset-min select.txt{width:6.6em}
@@ -1524,6 +1528,21 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
       <button class="btn primary" id="btnRsOk">確定</button>
       <button class="btn" id="btnRsCancelPlan" style="display:none">取消預定離職</button>
       <button class="btn" id="btnRsClose">返回</button>
+    </div>
+  </div>
+</div>
+
+<!-- 紅線：選起訖日期 -->
+<div class="overlay" id="ovRedline">
+  <div class="modal" style="max-width:420px">
+    <div class="m-title">紅線</div>
+    <div class="m-sub" id="rlSub"></div>
+    <div class="lvset-row"><span class="lvset-l">日期</span><select class="txt" id="rlFrom"></select><span class="lvset-sep">～</span><select class="txt" id="rlTo"></select></div>
+    <div class="rl-quick"><button class="btn" id="rlFirst">從 1 號</button><button class="btn" id="rlLast">到月底</button></div>
+    <div class="small-note" id="rlNote" style="margin-top:10px;line-height:1.6"></div>
+    <div class="m-actions">
+      <button class="btn primary" id="btnRlOk">畫紅線</button>
+      <button class="btn" id="btnRlCancel">取消</button>
     </div>
   </div>
 </div>
@@ -2313,12 +2332,12 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
         <li>計入時數：特休、職災、公差算進正職的已上時數；職災、公差也算進計時人員的本月時數；事假、颱風假不算。國定假日當天的假不另計時數。</li>
         <li>只請其中一段時，請假的時段不列入人力檢查與分段工時。</li>
         <li>只請其中一段時，請假照請的時段算足，休息依<b>實際上班</b>的時間自動選（上班不超過 4 小時不休息，勞基法第 35 條：繼續工作 4 小時應休息 30 分鐘）。例：13:30～22:00 請特休 17:30～22:00，上班 4 小時不休息，記成上班 4＋特休 4.5；請 18:00～22:00，上班 4.5 小時休 0.5，記成上班 4＋特休 4。手動設定休息時照手動的扣。</li>
-        <li><b>紅線</b>　用於正職月中到職或離職。紅線天數依日期順序優先算成月休，補滿月休額度為止；國定假日照常另計；補不完的天數視為未在職，會反映在加班明細的「不足」時數。</li>
+        <li><b>紅線</b>　用於月中到職或離職，點格子選「紅線」後選擇幾號到幾號（可按「從 1 號」「到月底」快速帶入）。紅線天數依日期順序優先算成月休，補滿月休額度為止；國定假日照常另計；補不完的天數視為未在職，會反映在加班明細的「不足」時數。</li>
       </ul>
       <div class="hr"></div>
       <div class="sec-label">人員</div>
       <ul class="hul">
-        <li><b>離職</b>　點名字 →「離職」。可先填<b>最後上班日</b>：那天之後自動畫紅線（紅線同樣優先算成月休），下個月起不再出現在班表，該月戰績附上道別卡；日期可隨時修改或取消。自動畫的紅線不能直接清除，要改請回到「離職」修改日期。</li>
+        <li><b>離職</b>　點名字 →「離職」。可先填<b>最後上班日</b>：那天之後自動畫紅線，同月已排的班也一併改為紅線，取消預定離職或改日期時恢復原本的排班（紅線同樣優先算成月休），下個月起不再出現在班表，該月戰績附上道別卡；日期可隨時修改或取消。自動畫的紅線不能直接清除，要改請回到「離職」修改日期。</li>
         <li>不填日期則自操作當下所在的月份起直接離職，該月之前的班表與姓名均不受影響。</li>
         <li>離職後移出該月名單，可於「⋯」選單的「已隱藏人員」查看離職月份、復原或完全刪除。</li>
         <li><b>刪除</b>　清除所有紀錄，僅適用於輸入錯誤的情況。</li>
@@ -6001,23 +6020,42 @@ document.getElementById('alOn').addEventListener('change',ev=>{
   if(cur.alOn){cur.as=cur.s;cur.ae=cur.e} // 每次勾選都從整段班開始
   syncAl();
 });
-function applyRedline(){ // 從此格畫一段連續紅線（到職前／離職後不排班）
-  const N=daysInMonth();
-  let end=prompt('紅線從 '+state.m+'/'+cur.day+' 畫到幾號？（1～'+N+'）',cur.day);
-  if(end===null)return;
-  end=parseInt(end);
-  if(isNaN(end)||end<1||end>N){alert('請輸入 1～'+N+' 之間的日期');return}
-  const a=Math.min(cur.day,end),b=Math.max(cur.day,end);
-  const md=monthData();
-  if(!md.sched[cur.sid])md.sched[cur.sid]={};
-  let hasData=false;
-  for(let d=a;d<=b;d++){const e=md.sched[cur.sid][d];if(e&&e.t!=='redline')hasData=true}
-  if(hasData&&!confirm(state.m+'/'+a+'～'+state.m+'/'+b+' 之間已有排班或假別，要全部覆蓋為紅線嗎？'))return;
-  tourTouch(cur.sid,a,b);
-  for(let d=a;d<=b;d++)md.sched[cur.sid][d]={t:'redline'};
-  scheduleSave();renderSheet();
+let rlCur=null; // 紅線視窗：{sid}
+function applyRedline(){ // 紅線（到職前／離職後不排班）：選幾號到幾號
+  const N=daysInMonth(),st=state.staff.find(x=>x.id===cur.sid);
+  rlCur={sid:cur.sid};
+  const opts=Array.from({length:N},(_,i)=>i+1).map(d=>'<option value="'+d+'">'+state.m+'/'+d+'（'+WD[weekday(d)]+'）</option>').join('');
+  document.getElementById('rlFrom').innerHTML=opts;document.getElementById('rlTo').innerHTML=opts;
+  document.getElementById('rlFrom').value=cur.day;document.getElementById('rlTo').value=cur.day;
+  document.getElementById('rlSub').textContent=(st?st.name+'・':'')+state.m+' 月　用於月中到職或離職';
+  syncRedlineNote();
   document.getElementById('ovCell').classList.remove('show');
+  document.getElementById('ovRedline').classList.add('show');
 }
+function rlRange(){
+  const a=+document.getElementById('rlFrom').value,b=+document.getElementById('rlTo').value;
+  return [Math.min(a,b),Math.max(a,b)];
+}
+function syncRedlineNote(){
+  const [a,b]=rlRange(),row=monthData().sched[rlCur.sid]||{};
+  let has=0;for(let d=a;d<=b;d++){const e=row[d];if(e&&e.t!=='redline')has++}
+  document.getElementById('rlNote').innerHTML='共 '+(b-a+1)+' 天。正職的紅線天數依日期先補滿月休額度，補不完的算未在職。'+
+    (has?'<br><span class="w">其中 '+has+' 天已有排班或假別，會一併改為紅線。</span>':'');
+}
+['rlFrom','rlTo'].forEach(id=>document.getElementById(id).addEventListener('change',syncRedlineNote));
+document.getElementById('rlFirst').addEventListener('click',()=>{document.getElementById('rlFrom').value=1;syncRedlineNote()});
+document.getElementById('rlLast').addEventListener('click',()=>{document.getElementById('rlTo').value=daysInMonth();syncRedlineNote()});
+document.getElementById('btnRlCancel').addEventListener('click',()=>document.getElementById('ovRedline').classList.remove('show'));
+document.getElementById('btnRlOk').addEventListener('click',()=>{
+  if(!rlCur)return;
+  const [a,b]=rlRange(),md=monthData(),sid=rlCur.sid;
+  if(!md.sched[sid])md.sched[sid]={};
+  tourTouch(sid,a,b);
+  for(let d=a;d<=b;d++)md.sched[sid][d]={t:'redline'};
+  scheduleSave();renderSheet();
+  document.getElementById('ovRedline').classList.remove('show');
+  showToast('已畫紅線 '+state.m+'/'+a+(b>a?'～'+state.m+'/'+b:''),2200);
+});
 function clearCell(){ // 清除此格；若為紅線，可選擇清除整段
   const e=entryOf(cur.sid,cur.day);
   if(e&&e.auto){
@@ -6186,6 +6224,7 @@ document.getElementById('hiddenListBody').addEventListener('click',ev=>{
     if(!st)return;
     if(!confirm('將 '+st.name+' 復原至人員清單？\n離職註記將取消，並加回本月名單。'))return;
     st.hidden=false;
+    rsRestore(st); // 預定離職時改成紅線的排班一併放回
     delete st.leftYm;delete st.leaveDate;
     st.name=st.name.replace(/（離\d*）$/,''); // 舊資料是直接寫進姓名的，一併清掉
     const md=monthData();
@@ -6559,7 +6598,7 @@ function syncResignHint(){
   let t;
   if(v){
     const p=v.split('-').map(Number),nm=p[1]===12?1:p[1]+1;
-    t='<b>'+fmtMd(v)+'</b> 是最後上班日：之後的日子<b>自動畫紅線</b>（照樣優先算成月休），'+nm+' 月起不再出現在班表；'+p[1]+' 月的戰績會附上道別卡。<br>'+
+    t='<b>'+fmtMd(v)+'</b> 是最後上班日：之後的日子<b>自動畫紅線</b>，'+p[1]+' 月已排的班也一併改為紅線（取消預定離職時恢復；照樣優先算成月休），'+nm+' 月起不再出現在班表；'+p[1]+' 月的戰績會附上道別卡。<br>'+
       fmtMd(v)+' 之前照常排班，日期之後也可以再改或取消。';
   }else{
     t='沒填日期：從目前看的這個月（'+m+' 月）起<b>直接離職</b>，移出 '+m+' 月名單、姓名加註「（離）」；'+m+' 月之前的班表不受影響。';
@@ -6579,26 +6618,45 @@ document.getElementById('btnRemoveMonth').addEventListener('click',()=>{
 document.getElementById('btnRsClose').addEventListener('click',()=>document.getElementById('ovResign').classList.remove('show'));
 document.getElementById('btnRsCancelPlan').addEventListener('click',()=>{
   const st=state.staff.find(s=>s.id===curStaffId);if(!st)return;
+  const back=rsRestore(st);
   delete st.leaveDate;delete st.leftYm;
   scheduleSave();renderSheet();
   document.getElementById('ovResign').classList.remove('show');
   document.getElementById('ovStaff').classList.remove('show');
-  showToast('已取消 '+st.name+' 的預定離職',2600);
+  showToast('已取消 '+st.name+' 的預定離職'+(back?'，原本的 '+back+' 天排班已恢復':''),3000);
 });
 document.getElementById('btnRsOk').addEventListener('click',()=>{
   const st=state.staff.find(s=>s.id===curStaffId);if(!st)return;
   const v=document.getElementById('rsDate').value;
   if(v){ // 預定離職：記最後上班日；下個月起算離職（姓名註記、道別卡都照這個月份）
     const p=v.split('-').map(Number);let ny=p[0],nm=p[1]+1;if(nm>12){nm=1;ny++}
+    rsRestore(st); // 改日期：先放回上次改掉的，再依新的日期重算
+    const wiped=rsWipe(st,v);
     st.leaveDate=v;st.leftYm=ny+'-'+nm;st.hidden=false;
     scheduleSave();renderSheet();
     document.getElementById('ovResign').classList.remove('show');
     document.getElementById('ovStaff').classList.remove('show');
-    showToast(st.name+' 預定 '+fmtMd(v)+' 離職，之後自動畫紅線 ✓',3000);
+    showToast(st.name+' 預定 '+fmtMd(v)+' 離職，之後自動畫紅線 ✓'+(wiped.length?'<br>'+p[1]+'/'+wiped.slice(0,3).join('、'+p[1]+'/')+(wiped.length>3?' 等 '+wiped.length+' 天':'')+'原本的排班已改為紅線，取消預定離職時恢復。':''),4000,true);
     return;
   }
   if(resignNow(st)){document.getElementById('ovResign').classList.remove('show');document.getElementById('ovStaff').classList.remove('show')}
 });
+function rsKeyOf(v){const p=String(v||'').split('-').map(Number);return p.length===3&&p[0]?{k:p[0]+'-'+p[1],y:p[0],m:p[1],d:p[2]}:null}
+function rsRestore(st){ // 取消或改日期：把當初改成紅線的排班放回去；只放回目前還空著的格子（之後手動排的以手動為準）
+  const o=rsKeyOf(st.leaveDate);if(!o)return 0;
+  const m=state.months[o.k],bak=m&&m.rsBak&&m.rsBak[st.id];if(!bak)return 0;
+  m.sched=m.sched||{};const row=m.sched[st.id]=m.sched[st.id]||{};let n=0;
+  Object.keys(bak).forEach(d=>{if(row[d]===undefined||row[d]===null){row[d]=bak[d];n++}});
+  delete m.rsBak[st.id];if(!Object.keys(m.rsBak).length)delete m.rsBak;
+  return n;
+}
+function rsWipe(st,v){ // 預定離職：最後上班日之後（同一個月）已排的內容一律清掉，改由自動紅線顯示；原本的內容記在該月，取消時放回。跨月不處理
+  const o=rsKeyOf(v),m=o&&state.months[o.k];if(!m||!m.sched||!m.sched[st.id])return [];
+  const row=m.sched[st.id],N=new Date(o.y,o.m,0).getDate(),bak={},days=[];
+  for(let d=o.d+1;d<=N;d++){const e=row[d];if(e!==undefined&&e!==null&&e.t!=='redline'){bak[d]=e;delete row[d];days.push(d)}}
+  if(days.length){m.rsBak=m.rsBak||{};m.rsBak[st.id]=bak}
+  return days;
+}
 function resignNow(st){ // 沒填日期：從目前這個月起直接離職（原本的做法）
   if(!confirm('將 '+st.name+' 從 '+state.y+' 年 '+state.m+' 月起設為離職？\n\n'+
       '· '+state.m+' 月之前的班表與姓名均不受影響\n'+
@@ -6727,8 +6785,12 @@ document.getElementById('btnInstallGuide').addEventListener('click',()=>{
    更新次數自目前大版本上線起，每上傳一次 index.html 加 1（劃假上線那次為 000）。
    每次更新：APP_VERSION 改成「3.115MMDD.次數」，CHANGELOG 最上面同一天的那筆 ver 跟著改；新的一天加一筆。
    add＝新增功能，fix＝問題改善；項目寫成 [文字, 1] 表示只有主管會用到（夥伴代碼不顯示） */
-const APP_VERSION='3.1151120.100';
+const APP_VERSION='3.1151126.101';
 const CHANGELOG=[
+  {v:'2026.11.26',ver:'3.1151126.101',fix:[
+    ['紅線改為選擇幾號到幾號，並可「從 1 號」「到月底」快速帶入；畫之前會列出其中已有排班的天數。',1],
+    ['預定離職：最後上班日之後（同一個月）已排的班也一併改為紅線；取消預定離職或修改日期時，恢復原本的排班。',1]
+  ]},
   {v:'2026.11.20',ver:'3.1151120.100',add:[
     ['後台設定「發布」新增「發布時通知夥伴代碼」：詢問是否傳送通知、直接傳送（預設）、一律不傳送。不傳送時夥伴端只更新班表，不跳通知，🔔 也不列出。',1]
   ]},
@@ -7352,7 +7414,7 @@ function tourSteps(role,full){ // full：完整新手教學，走到排班、開
         b:'依班段長度自動帶入：超過 8.5 小時休 1 小時，超過 4 小時休 0.5 小時，也可手動改；只請一段假時，依實際上班的時間判斷。<br>休息 1 小時，或與預設不同時，格子右側標註「休○」。'},
       {enter:()=>{cmOpen();if(cur.leaveTag){cur.leaveTag=null;syncLeaveTag();syncAl()}},cm:cmOpen,
         el:()=>chips(['desig','rest']),act:1,need:()=>{const e=ent();return !cellOpen()&&!!e&&(e.t==='rest'||e.t==='desig')},auto:1,h:'⑥ 排休、指定休息',
-        b:'<b>△ 指定休息</b>、<b>╲ 排休</b>為整天不上班：點選後<b>直接排入</b>並關閉視窗，不需按「套用」。<br>請點選其中一個。<br>另有「紅線」用於到職前、離職後，可一次畫到指定日期。'},
+        b:'<b>△ 指定休息</b>、<b>╲ 排休</b>為整天不上班：點選後<b>直接排入</b>並關閉視窗，不需按「套用」。<br>請點選其中一個。<br>另有「紅線」用於到職前、離職後，可選擇幾號到幾號一次畫好。'},
       {enter:closeCell,el:()=>cellOpen()?null:tourShown(pick()),act:1,need:cellOpen,auto:1,h:'⑦ 已排入',
         b:()=>{const e=ent();return (e&&e.t==='desig'?'已排入 <b>△ 指定休息</b>。':e&&e.t==='rest'?'已排入 <b>排休</b>，格子顯示 ✕。':'已回到班表。')+
           '<br>請再點選此格，繼續介紹其他假別。'}},
@@ -9265,7 +9327,7 @@ document.getElementById('sheetTitle').addEventListener('input',scheduleSave);
 /* 點空白處：純選單／說明類視窗＝按它的「關閉」鈕（走同一套流程）；其他有輸入或設定的視窗一律不關，避免誤觸放棄修改 */
 const BACKDROP_CLOSE={ovNotice:'btnCloseNotice',ovMore:'btnCloseMore',ovHelp:'btnCloseHelp',ovHidden:'btnCloseHidden',ovStaffList:'btnCloseStaffList',
   ovOT:'btnCloseOT',ovTotal:'btnCloseTotal',ovCoverage:'btnCloseCoverage',ovReport:'btnCloseReport',
-  ovExportChoice:'btnCloseExportChoice',ovCopyChoice:'btnCloseCopyChoice',ovLook:'btnCloseLook',ovUpdates:'btnCloseUpdates',ovInstall:'btnCloseInstall',ovPublish:'btnPubLater',ovLvChk:'btnLvChkBack',ovPubChk:'btnPubChkBack'};
+  ovExportChoice:'btnCloseExportChoice',ovCopyChoice:'btnCloseCopyChoice',ovLook:'btnCloseLook',ovUpdates:'btnCloseUpdates',ovInstall:'btnCloseInstall',ovPublish:'btnPubLater',ovLvChk:'btnLvChkBack',ovPubChk:'btnPubChkBack',ovRedline:'btnRlCancel'};
 document.querySelectorAll('.overlay').forEach(ov=>ov.addEventListener('click',ev=>{
   if(ev.target!==ov||ov.id==='ovCell')return; // 排班格子另有處理：改動即時套用，點外面直接關
   const btn=BACKDROP_CLOSE[ov.id]&&document.getElementById(BACKDROP_CLOSE[ov.id]);
