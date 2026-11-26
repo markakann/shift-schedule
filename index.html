@@ -738,7 +738,6 @@ html.dark .ins-status{color:var(--fade2)}
 #ovHelp .hsub{font-size:11.5px;font-weight:700;color:#8a7a4a;margin:8px 0 1px}
 .lv-hint{font-size:11px;color:#777;line-height:1.5;margin:-2px 0 6px}
 /* 換班／代班 */
-html:not(.viewer-boot) #btnSwap{display:none!important} /* 只有夥伴代碼會看到；主管於 🔔 核准 */
 #ovSwapRv{z-index:95} /* 從 🔔 打開，疊在通知上面 */
 /* 分頁樣式同劃假（另用自己的 class：劃假的程式以 .lv-tabs／.lv-tab 抓元素） */
 .swp-tabs{display:flex;gap:6px;margin:8px 0 10px}
@@ -2680,6 +2679,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
       <li>帳號驗證開啟時，以帳號綁定的名字申請；需要對方同意時，對方也需有已啟用的帳號。關閉時，選擇自己的名字申請。</li>
       <li>申請中的班於班表上標示「換」；🔔 列出跟自己有關的換班申請。</li>
       <li>需要對方同意時，對方於「🔁 換班」的「申請紀錄」同意或婉拒；申請人可於「申請紀錄」撤回。</li>
+      <li class="edit-only">主管代碼的「🔁 換班」：<b>幫夥伴登記</b>夥伴已談好的換班，確認規則提醒後直接寫入班表並發布，雙方的 🔔 收到通知；<b>我要換班</b>以自己綁定的名字申請，不需主管核准，需要對方同意時，對方同意後直接更新。排班中無法登記。</li>
       <li class="edit-only">需要主管核准的申請列於主管代碼的 🔔，查看規則提醒後核准或退回（可填理由）；核准後只更新並發布換班的那幾格，其他未發布的修改不受影響。</li>
       <li>不需主管核准的換班，成立後於主管的 App 開啟時寫入班表並發布。</li>
       <li>申請後那幾格的班表有異動，或已過了換班的日期，申請即失效，不會寫入班表。</li>
@@ -7076,6 +7076,7 @@ document.getElementById('btnInstallGuide').addEventListener('click',()=>{
 const APP_VERSION='4.1151126.010';
 const CHANGELOG=[
   {v:'2026.11.26',ver:'4.1151126.010',add:[
+    ['主管代碼新增「🔁 換班」：幫夥伴登記已談好的換班，確認規則提醒後直接寫入班表並發布，雙方的 🔔 收到通知；也可用自己綁定的名字申請換班，不需主管核准。',1],
     ['支援人員也可綁定帳號：帳號驗證開啟時，可看班表與劃假；換班不含支援人員。'],
     ['「？」說明新增「換班　·　代班」與「帳號」，新手教學補上換班與帳號；新增「🔁 換班教學」，正在使用的裝置播放一次（夥伴於開放換班時）。'],
     ['後台「帳號驗證」：關閉時照以前的方式（主管代碼＝主管、夥伴代碼＝夥伴）；開啟後以帳號綁定名字，並可設定班表保護：開啟時看班表也要登入，關閉時不登入也能看，但劃假、換班需要登入，主管代碼沒登入時只能看。',1],
@@ -7790,6 +7791,7 @@ function tourSteps(role,full){ // full：完整新手教學，走到排班、開
       {h:'換班、代班',b:(tourSwapAuto?'此次更新換班、代班功能：':'')+'夥伴可於 App 申請由其他夥伴代班，或與其他夥伴互換班別；依設定經對方同意、主管核准後，寫入班表並發布。以下簡單介紹，約 30 秒。'},
       {el:()=>tourShown($('#btnMore')),h:'後台設定「換班」',b:()=>'於「⋯」→「後台設定」→<b>「換班」</b>設定：開放換班、需要對方同意、需要主管核准，可分別勾選。<br>'+
         (S.on?'目前：已開放。'+swFlowText(S):'目前：尚未開放。開放後，夥伴代碼的工具列出現「🔁 換班」。')},
+      {el:()=>tourShown($('#btnSwap')),h:'🔁 換班',b:'主管也可使用：<br><b>幫夥伴登記</b>：夥伴已談好的換班，選擇人員與班，確認規則提醒後直接寫入班表並發布，雙方的 🔔 收到通知。<br><b>我要換班</b>：以自己綁定的名字申請，不需主管核准。'},
       {el:()=>tourShown($('#btnNotice')),h:'🔔 審核',b:'需要主管核准的換班申請列於 🔔，點選後查看規則提醒，再<b>核准</b>或<b>退回</b>（可填理由）。<br>核准後只更新並發布換班的那幾格，其他未發布的修改不受影響。'},
       {el:()=>tourShown($('.sheet-wrap')),h:'班表上的標示',b:'申請中的班，班表上標示「換」。<br>不需主管核准的換班，成立後於主管的 App 開啟時自動寫入班表並發布。<br>申請後那幾格的班表有異動，申請即失效，不會寫入。'},
       {el:()=>tourShown($('#btnHelp')),h:'說明',b:'詳細規則列於「？」的「換班　·　代班」，也可從「🔁 換班教學」重看。<br>換班教學到此結束。'}
@@ -7899,6 +7901,7 @@ function tourSteps(role,full){ // full：完整新手教學，走到排班、開
       (full?'<br>下一步起依序介紹開放設定，以及夥伴的劃假畫面。':'<br>夥伴的劃假方式可於「？」的「🏖 劃假教學」以練習畫面查看；開放設定另有「⚙ 開放劃假教學」。')},
     {seg:'lcfg',when:()=>full},
     {seg:'leave',when:()=>full},
+    {el:()=>tourShown($('#btnSwap')),h:'🔁 換班',b:'<b>幫夥伴登記</b>：夥伴已談好的換班，直接寫入班表並發布，雙方的 🔔 收到通知。<br><b>我要換班</b>：以自己綁定的名字申請。<br>夥伴的換班申請與開放設定，可於「？」的「🔁 換班教學」查看。'},
     {el:()=>tourShown($('#btnFilter')),h:'篩選日期',b:'僅顯示指定的日期範圍，例如 1～15 號；也可將該範圍存成<b>圖片</b>。'},
     {el:()=>tourShown($('#btnNotice')),h:'通知',b:()=>'有夥伴劃假或修改時，🔔 顯示'+RED('紅點')+'；點開可查看最近異動與各夥伴的備註。<br>換班申請'+(acctVerify()?'、帳號申請':'')+'也列於此，點選即可審核。'},
     {el:()=>tourShown($('#btnMore')),h:'更多 ⋯',b:'<b>複製代碼</b>：提供<b>夥伴代碼</b>給夥伴查看班表與劃假；主管代碼僅提供給共同排班的人。<br>'+
@@ -9087,7 +9090,7 @@ document.querySelectorAll('input[name="cfgAcctView"],#cfgAcctOn').forEach(r=>r.a
          no 對方婉拒、rej 主管退回、cancel 撤回。過期（exp）與失效（void：申請後班表有異動）不寫入，顯示時判斷。
    申請人需以已啟用的帳號登入；需要對方同意時，對方也要有已啟用的帳號。夥伴只看得到跟自己有關的申請。
    寫入班表一律由主管的裝置進行：只改申請裡的那幾格，並直接發布這幾格（其他未發布的修改不受影響）。 */
-var swapData={},swTab='new',swForm={pick:null,kind:'cover',b:null,opt:null,msg:''},swFocus=null,swRvId=null,swPruned=false,swSending=false,swAutoBusy=false,swPendSet=new Map();
+var swMode='proxy',swapData={},swTab='new',swForm={a:null,pick:null,kind:'cover',b:null,opt:null,msg:''},swFocus=null,swRvId=null,swPruned=false,swSending=false,swAutoBusy=false,swPendSet=new Map();
 var SW_ACTIVE=['wb','wait','ok'];
 function normSwapCfg(s){s=s||{};return {on:!!s.on,peer:!!s.peer,mgr:s.mgr!==false}}
 function swFlowText(S){
@@ -9119,6 +9122,12 @@ function swCell(k,sid,d){ // 讀格子：不經過 monthData，不會誤建月�
   const m=state.months[k],row=m&&m.sched&&m.sched[sid],e=row?row[d]:undefined;
   if(e!==undefined&&e!==null)return e;
   return withMonth(k,()=>autoRedline(sid,d))?AUTO_RED:undefined;
+}
+function swPubOk(k,sid,d){
+  if(viewerMode)return true;
+  const b=pubBase(k);if(!b)return true;
+  const m=state.months[k],cur=m&&m.sched&&m.sched[sid]?m.sched[sid][d]:undefined,pe=b.sched&&b.sched[sid]?b.sched[sid][d]:undefined;
+  return pubSame(pe||null,cur||null);
 }
 function swShift(e){return !!(e&&e.t==='shift'&&!alRange(e)&&e.s!=null&&e.e!=null)} // 部分請假的班不開放申請
 function swFree(e){return !e||e.t==='rest'||e.t==='desig'}
@@ -9179,7 +9188,7 @@ function swMyShifts(sid){
     if(!swOnRoster(k,sid))return;
     for(let d=1,N=swDim(k);d<=N;d++){
       const e=swCell(k,sid,d);
-      if(swShift(e)&&swUpcoming(k,d,e))out.push({k,d,e,busy:busy.has(k+'|'+sid+'|'+d)});
+      if(swShift(e)&&swUpcoming(k,d,e)&&swPubOk(k,sid,d))out.push({k,d,e,busy:busy.has(k+'|'+sid+'|'+d)});
     }
   });
   return out;
@@ -9187,7 +9196,7 @@ function swMyShifts(sid){
 function swCoverCands(a,k,d){ // 代班：當天沒有排班的人
   const busy=swBusy();
   return state.staff.filter(st=>st.id!==a&&st.type!=='sup'&&swOnRoster(k,st.id)&&!busy.has(k+'|'+st.id+'|'+d))
-    .map(st=>({sid:st.id,e:swCell(k,st.id,d)})).filter(x=>swFree(x.e));
+    .map(st=>({sid:st.id,e:swCell(k,st.id,d)})).filter(x=>swFree(x.e)&&swPubOk(k,x.sid,d));
 }
 function swSwapCands(a,k,d){ // 換班：同一天互換時段，或換對方另一天的班（對方這天沒班、自己那天沒班）
   const busy=swBusy(),out=[],ks=swMonths(),eA=swCell(k,a,d);
@@ -9195,6 +9204,7 @@ function swSwapCands(a,k,d){ // 換班：同一天互換時段，或換對方另
     const b=st.id;
     if(b===a||st.type==='sup'||!swOnRoster(k,b)||busy.has(k+'|'+b+'|'+d))return;
     const eBX=swCell(k,b,d);
+    if(!swPubOk(k,b,d))return;
     if(swShift(eBX)){if(!(eBX.s===eA.s&&eBX.e===eA.e)&&swUpcoming(k,d,eBX))out.push({sid:b,k,d,e:eBX,same:1});return}
     if(!swFree(eBX))return;
     ks.forEach(k2=>{
@@ -9204,7 +9214,7 @@ function swSwapCands(a,k,d){ // 換班：同一天互換時段，或換對方另
         const eB=swCell(k2,b,y);
         if(!swShift(eB)||!swUpcoming(k2,y,eB))continue;
         if(busy.has(k2+'|'+b+'|'+y)||busy.has(k2+'|'+a+'|'+y))continue;
-        if(!swFree(swCell(k2,a,y)))continue;
+        if(!swFree(swCell(k2,a,y))||!swPubOk(k2,b,y)||!swPubOk(k2,a,y))continue;
         out.push({sid:b,k:k2,d:y,e:eB});
       }
     });
@@ -9236,6 +9246,7 @@ function swLinesHtml(r){
 function swStText(r){return {wb:'等待對方同意',wait:'等待主管核准',ok:'已成立，待寫入班表',done:'已更新班表',no:'對方婉拒',rej:'主管退回',cancel:'已撤回',exp:'已過期',void:'已失效'}[swState(r)]||''}
 function swStCls(s){return s==='wb'?'wait':s==='ok'?'agree':s}
 function swMetaText(r){
+  if(r.by)return '主管登記 '+fmtMdHm(r.atM||r.at);
   const p=['申請 '+fmtMdHm(r.at)];
   if(r.atB)p.push((r.st==='no'?'對方婉拒 ':'對方同意 ')+fmtMdHm(r.atB));
   if(r.atM)p.push((r.st==='rej'?'退回 ':r.auto?'寫入 ':'核准 ')+fmtMdHm(r.atM));
@@ -9243,6 +9254,7 @@ function swMetaText(r){
   return p.join('・');
 }
 function swEventText(r){
+  if(r.by&&r.st==='done')return '主管登記：'+swPair(r)+' 的'+swKind(r)+'，已更新班表（'+swDates(r)+'）';
   const kd=swKind(r),ds='（'+swDates(r)+'）',ask=r.an+' 申請'+(r.k==='cover'?'由 '+r.bn+' 代班':'與 '+r.bn+' 換班')+ds;
   return {wb:ask+'，等待 '+r.bn+' 同意',wait:ask+'，等待主管核准',
     ok:swPair(r)+' 的'+kd+'已成立'+ds+'，班表於主管的 App 開啟時更新',
@@ -9267,7 +9279,7 @@ function swapMarkSeen(){
   const m=swapList().reduce((x,r)=>Math.max(x,evAt(r)),0);
   try{if(m>swSeenAt())localStorage.setItem(swSeenKey(),String(m))}catch(e){}
 }
-function swapPendingCount(){return viewerMode?0:swapAll().filter(r=>swState(r)==='wait').length} // 主管：待核准
+function swapPendingCount(){return viewerMode?0:swapAll().filter(r=>swState(r)==='wait').length+swWaitMe().length} // 主管：待核准＋等自己同意的
 function swWaitMe(){const me=swMe();return me?swapList().filter(r=>r.b===me&&swState(r)==='wb'):[]} // 夥伴：等我同意
 async function swapWrite(id,obj){ // 只寫這一筆
   const code=leaveDocCode();
@@ -9288,7 +9300,7 @@ function swPendMark(sid,d){
   const s=swPendSet&&swPendSet.get(state.y+'-'+state.m+'|'+sid+'|'+d);
   return s?'<span class="sw-pend" title="'+({wb:'換班：等待對方同意',wait:'換班：等待主管核准',ok:'換班已成立，待寫入班表'}[s]||'')+'">換</span>':'';
 }
-function swBtnSync(){const b=document.getElementById('btnSwap');if(b)b.style.display=viewerMode&&normSwapCfg((state.config||{}).swap).on?'':'none'}
+function swBtnSync(){const b=document.getElementById('btnSwap');if(b)b.style.display=(viewerMode?normSwapCfg((state.config||{}).swap).on:!!storeCode)?'':'none'} // 主管：幫夥伴登記、自己申請
 function swapOnData(){ // 劃假文件更新時（含換班申請）
   if(ovShown('ovSwap'))renderSwap();
   if(ovShown('ovSwapRv'))renderSwapReview();
@@ -9314,7 +9326,7 @@ function swapToast(){
     if(maxAt>(+t||0))try{localStorage.setItem(key,String(maxAt))}catch(e){}
     if(!fresh.length||ovShown('ovNotice')||ovShown('ovSwap'))return;
     const r0=fresh[0],me=swMe(),askMe=r0.st==='wb'&&r0.b===me;
-    swToastLater('<div class="ts-h">🔁 '+(askMe?'換班申請待你回覆':'換班申請')+'</div><div class="ts-k">'+esc(swEventText(r0))+'</div>'+
+    swToastLater('<div class="ts-h">🔁 '+(askMe?'換班申請待你回覆':r0.by?'換班':'換班申請')+'</div><div class="ts-k">'+esc(swEventText(r0))+'</div>'+
       '<div class="ts-n">'+(fresh.length>1?'另有 '+(fresh.length-1)+' 筆更新。':'')+(askMe?'請至「🔁 換班」→「申請紀錄」同意或婉拒。':'詳細內容列於 🔔 通知。')+'</div>');
   }else{ // 主管：新送來、等待核准的申請
     const pend=list.filter(r=>swState(r)==='wait'),maxB=pend.reduce((x,r)=>Math.max(x,r.atB||r.at||0),0);
@@ -9340,11 +9352,17 @@ function acctHas(sid){return !!acctTakenMap()[sid]} // 這個名字有已啟用�
 function swWhoKey(){return 'paiban-swap-who-'+(storeCode||'')}
 function swWhoList(){const ks=swMonths();return state.staff.filter(st=>st.type!=='sup'&&ks.some(k=>swOnRoster(k,st.id)))}
 function swMe(){
+  if(!viewerMode){
+    if(acctVerify())return acctState()==='active'&&acctMember&&acctMember.sid&&state.staff.some(x=>x.id===acctMember.sid)?acctMember.sid:null;
+    let w=null;try{w=localStorage.getItem(swWhoKey())}catch(e){}
+    return w&&state.staff.some(x=>x.id===w)?w:null;
+  }
   const a=acctSelfSid();if(a)return a;
   if(!viewerMode||acctVerify())return null;
   let w=null;try{w=localStorage.getItem(swWhoKey())}catch(e){}
   return w&&state.staff.some(x=>x.id===w)?w:null;
 }
+function swApplicant(){return !viewerMode&&swMode==='proxy'?swForm.a:swMe()} // 表單上換出班的人：主管登記時＝選擇的人員
 function swWhoHtml(){
   if(acctSelfSid()||acctVerify())return '';
   const me=swMe();
@@ -9352,8 +9370,8 @@ function swWhoHtml(){
     swWhoList().map(st=>'<option value="'+esc(st.id)+'"'+(st.id===me?' selected':'')+'>'+esc(st.name)+'</option>').join('')+'</select>';
 }
 function openSwap(focusId){
-  if(!viewerMode)return;
   if(!FB||!storeCode){alert('連線後才能申請換班。');return}
+  if(!viewerMode&&editMode&&!focusId){alert('排班中無法登記換班，請先鎖定排班。');return}
   swFocus=focusId||null;document.getElementById('toast').classList.remove('show');
   swTab=focusId||swWaitMe().length?'list':(swTab||'new');
   renderSwap();
@@ -9362,16 +9380,63 @@ function openSwap(focusId){
 }
 function swComplete(){
   const f=swForm;
-  return !!(swMe()&&f.pick&&f.b&&(f.kind==='cover'||f.opt));
+  return !!(swApplicant()&&f.pick&&f.b&&(f.kind==='cover'||f.opt));
 }
 function swPickParts(){const p=String(swForm.pick||'').split(':');return {k:p[0],d:+p[1]}}
 function swCurCh(){
   const f=swForm;if(!swComplete())return null;
   const {k,d}=swPickParts();
   let opt=null;if(f.kind==='swap'){const p=f.opt.split(':');opt={k:p[0],d:+p[1]}}
-  return swBuild(f.kind,swMe(),k,d,f.b,opt);
+  return swBuild(f.kind,swApplicant(),k,d,f.b,opt);
+}
+function swMgrFlowText(S){return S.peer?'送出後需對方同意，同意後直接更新班表並發布。':'送出後直接更新班表並發布。'} // 主管自己申請：不需主管核准
+function renderSwapMgr(){ // 主管：幫夥伴登記／自己申請
+  const S=normSwapCfg((state.config||{}).swap),me=swMe();
+  const tabs=document.getElementById('swTabs'),body=document.getElementById('swBody'),send=document.getElementById('btnSwapSend');
+  document.getElementById('swSub').innerHTML=swMode==='proxy'?'夥伴已談好的換班，由主管直接登記：寫入班表並發布這幾天，雙方的 🔔 收到通知。'
+    :'<b class="swp-key">申請前請先與對方確認</b><br>'+esc(swMgrFlowText(S));
+  tabs.style.display='';
+  const wm=swWaitMe().length,act=swapList().filter(r=>SW_ACTIVE.includes(swState(r))).length;
+  document.querySelectorAll('#swTabs [data-swtab]').forEach(b=>{
+    b.classList.toggle('on',b.dataset.swtab===swTab);
+    if(b.dataset.swtab==='new')b.textContent='登記／申請';
+    if(b.dataset.swtab==='list')b.textContent='紀錄'+(wm?'（'+wm+' 筆待你回覆）':act?'（'+act+'）':'');
+  });
+  send.textContent=swMode==='proxy'?'寫入並發布':'送出';
+  const keep=body.scrollTop;
+  if(swTab==='list'){
+    send.style.display='none';
+    body.innerHTML=swListHtml();body.scrollTop=keep;
+    if(swFocus){const el=body.querySelector('[data-swcard="'+swFocus+'"]');if(el){el.scrollIntoView({block:'nearest'});el.classList.remove('focus');void el.offsetWidth;el.classList.add('focus')}swFocus=null}
+    return;
+  }
+  let h='<div class="pub-mode" style="margin-bottom:10px"><button type="button" data-swmode="proxy" class="'+(swMode==='proxy'?'on':'')+'">幫夥伴登記</button>'+
+    '<button type="button" data-swmode="self" class="'+(swMode==='self'?'on':'')+'">我要換班</button></div>';
+  let ready=true;
+  if(swMode==='proxy'){
+    const ks=swMonths(),ppl=state.staff.filter(st=>st.type!=='sup'&&ks.some(k=>swOnRoster(k,st.id)));
+    if(swForm.a&&!ppl.some(x=>x.id===swForm.a))Object.assign(swForm,{a:null,pick:null,b:null,opt:null});
+    h+='<div class="swp-sec" style="margin-top:2px">換出班的人員</div>';
+    if(!ppl.length){h+='<div class="swp-empty">已發布的月份還沒有可登記的人員。</div>';ready=false}
+    else h+='<div class="swp-chips">'+ppl.map(st=>'<button type="button" class="swp-chip'+(st.id===swForm.a?' on':'')+'" data-swa="'+esc(st.id)+'">'+esc(st.name)+'</button>').join('')+'</div>';
+    if(ready&&!swForm.a){h+='<div class="swp-empty">選擇人員後，列出可登記的班。</div>';ready=false}
+    if(ready)h+='<div style="height:10px"></div>'+swNewHtml(swForm.a,true);
+  }else if(!me&&acctVerify()){
+    h+='<div class="swp-empty" style="padding:10px 2px">以帳號綁定自己的名字後，即可申請自己的換班（「⋯」→「帳號」→「我的帳號」）。</div>'+
+      '<button type="button" class="btn primary" data-swacctadm="1" style="width:100%;min-height:44px">前往帳號</button>';ready=false;
+  }else if(!me){
+    h+=swWhoHtml()+'<div class="swp-empty">選擇自己的名字後，列出可申請的班。</div>';ready=false;
+  }else{
+    const ms=state.staff.find(x=>x.id===me);
+    if(ms&&ms.type==='sup'){h+='<div class="swp-empty" style="padding:10px 2px">支援人員不適用換班申請。</div>';ready=false}
+    else h+=swWhoHtml()+swNewHtml(me,false);
+  }
+  body.innerHTML=h;body.scrollTop=keep;
+  send.style.display=ready?'':'none';
+  send.disabled=!swComplete()||swSending;
 }
 function renderSwap(){
+  if(!viewerMode)return renderSwapMgr();
   const me=swMe(),S=normSwapCfg((state.config||{}).swap);
   document.getElementById('swSub').innerHTML='<b class="swp-key">申請前請先與對方確認</b><br>'+esc(swFlowText(S));
   const tabs=document.getElementById('swTabs'),body=document.getElementById('swBody'),send=document.getElementById('btnSwapSend');
@@ -9412,9 +9477,9 @@ function renderSwap(){
     swapMarkSeen();updatePubBadge();
   }
 }
-function swNewHtml(){
-  const me=swMe(),f=swForm,S=normSwapCfg((state.config||{}).swap);
-  if(!S.on)return '<div class="swp-empty">目前未開放換班申請。</div>';
+function swNewHtml(who,proxy){
+  const me=who!==undefined?who:swMe(),f=swForm,S0=normSwapCfg((state.config||{}).swap),S=proxy?{on:true,peer:false,mgr:false}:S0;
+  if(!S.on&&viewerMode)return '<div class="swp-empty">目前未開放換班申請。</div>';
   const mine=swMyShifts(me);
   let h='<div class="swp-sec" style="margin-top:2px">① 要換出的班</div>';
   const cur=f.pick&&mine.find(x=>x.k+':'+x.d===f.pick&&!x.busy);
@@ -9429,7 +9494,7 @@ function swNewHtml(){
   h+='<div class="swp-sec">② 方式</div><div class="pub-mode">'+
     '<button type="button" data-swkind="cover" class="'+(f.kind==='cover'?'on':'')+'">代班</button>'+
     '<button type="button" data-swkind="swap" class="'+(f.kind==='swap'?'on':'')+'">換班</button></div>'+
-    '<div class="swp-note" style="margin-top:-2px">'+(f.kind==='cover'?'由對方上這一班，自己當天改為排休。':'雙方互換彼此的班：同一天互換時段，或換對方另一天的班。')+'</div>';
+    '<div class="swp-note" style="margin-top:-2px">'+(f.kind==='cover'?'由對方上這一班，'+(proxy?esc(swName(me))+' ':'自己')+'當天改為排休。':'雙方互換彼此的班：同一天互換時段，或換對方另一天的班。')+'</div>';
   if(f.kind==='cover'){
     const cs=swCoverCands(me,k,d);
     h+='<div class="swp-sec">③ 代班人員</div>';
@@ -9456,7 +9521,13 @@ function swNewHtml(){
   const ch=swCurCh(),r={ch,a:me,b:swForm.b,an:swName(me),bn:swName(swForm.b)};
   h+='<div class="swp-sec">④ 確認內容</div><div class="swp-prev">'+swLinesHtml(r)+'</div>'+
     '<input class="txt swp-msgin" id="swMsg" maxlength="60" placeholder="留言（選填）" value="'+esc(f.msg||'')+'">'+
-    '<div class="swp-note">送出前請先與 '+esc(r.bn)+' 確認。'+esc(swFlowText(S))+'</div>';
+    (viewerMode?'<div class="swp-note">送出前請先與 '+esc(r.bn)+' 確認。'+esc(swFlowText(S))+'</div>':'');
+  if(!viewerMode){ // 主管：送出前先看規則提醒
+    const ck=swChecks(Object.assign({},r,{ch}));
+    h+='<div class="swp-sec">規則提醒</div><div class="swp-chk">'+(ck.warn.length?ck.warn.map(t=>'<div class="w">⚠ '+esc(t)+'</div>').join(''):'<div class="ok">✓ 沒有新增的規則提醒</div>')+'</div>';
+    if(ck.info.length)h+='<div class="swp-sec">時數與月休</div><div class="swp-chk">'+ck.info.map(t=>'<div>'+esc(t)+'</div>').join('')+'</div>';
+    h+='<div class="swp-note">'+(proxy?'寫入後直接更新班表並發布這幾天；'+esc(r.an)+'、'+esc(r.bn)+' 的 🔔 收到通知。':'送出前請先與 '+esc(r.bn)+' 確認。'+esc(swMgrFlowText(S0)))+'</div>';
+  }
   return h;
 }
 function swCardHtml(r){
@@ -9478,6 +9549,7 @@ function swCardHtml(r){
     acts.push('<button type="button" class="btn" data-swact="cancel" data-swid="'+esc(r.id)+'">撤回申請</button>');
     acts.push('<button type="button" class="btn" data-swshare="'+esc(r.id)+'">傳送通知</button>');
   }
+  if(!viewerMode&&['wb','wait','void'].includes(s)&&r.b!==me&&r.a!==me)acts.push('<button type="button" class="btn" data-swrvopen="'+esc(r.id)+'">'+(s==='wait'?'審核':'查看')+'</button>');
   if(acts.length)h+='<div class="swp-acts">'+acts.join('')+'</div>';
   return h+'</div>';
 }
@@ -9491,7 +9563,38 @@ function swListHtml(){
   if(done.length)h+='<div class="swp-sec">已結束（30 天內）</div>'+done.slice(0,20).map(swCardHtml).join('');
   return h;
 }
+async function swSendMgr(){ // 主管：幫夥伴登記（直接寫入並發布）、自己申請（不需主管核准）
+  const S=normSwapCfg((state.config||{}).swap),proxy=swMode==='proxy',a=swApplicant();
+  if(!a||!swComplete()||swSending)return;
+  if(editMode){alert('排班中無法登記換班，請先鎖定排班。');return}
+  if(!pubEnabled()){alert('雲端連線後才能登記換班。');return}
+  const f=swForm,ch=swCurCh(),busy=swBusy();
+  if(ch.some(c=>busy.has(c.k+'|'+c.sid+'|'+c.d))){alert('其中有班已在其他申請中，請重新選擇。');renderSwap();return}
+  if(ch.some(c=>isArcYear(swYm(c.k).y))){alert('封存的年份無法修改。');return}
+  const peer=!proxy&&S.peer;
+  if(peer&&acctVerify()&&!acctHas(f.b)){alert(swName(f.b)+' 尚未建立帳號，無法在 App 中同意換班。');renderSwap();return}
+  const o={k:f.kind,a,b:f.b,an:swName(a),bn:swName(f.b),ch,msg:String(f.msg||'').trim().slice(0,60),nb:peer?1:0,nm:0};
+  if(proxy)o.by=1;
+  const ck=swChecks(o);
+  if(!confirm((proxy?'登記這筆':'送出這筆')+swKind(o)+'？\n（'+swPair(o)+'　'+swDates(o)+'）\n'+(ck.warn.length?'有 '+ck.warn.length+' 項規則提醒：\n'+ck.warn.slice(0,5).join('\n')+'\n':'')+
+    (peer?'對方同意後直接更新班表並發布。':'寫入後直接更新班表並發布。')))return;
+  const id='w'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+  const st=peer?'wb':'ok',rec={j:JSON.stringify(o),st,at:nowMs()};
+  swSending=true;swAutoBusy=true;document.getElementById('btnSwapSend').disabled=true;
+  let ok=false,applied=false;
+  try{
+    ok=await swapWrite(id,rec);
+    if(ok){swLocal(id,rec);swAddMine(id+':'+st);if(st==='ok'){applied=await swApplyRec(swParse(id,swapData[id]),false)}}
+  }finally{swSending=false;swAutoBusy=false}
+  if(!ok){alert('寫入失敗，請檢查網路連線。');renderSwap();return}
+  swForm={a:proxy?null:f.a,pick:null,kind:f.kind,b:null,opt:null,msg:''};
+  swTab='list';swFocus=id;renderAll();renderSwap();updateLeaveBadge();
+  showToast(st==='wb'?'<div class="ts-h">已送出申請</div><div class="ts-n">等待 '+esc(o.bn)+' 在 App 中同意，同意後直接更新班表並發布。</div>'
+    :applied?'<div class="ts-h">'+(proxy?'已登記 ✓':'已更新 ✓')+'</div><div class="ts-n">班表已更新並發布 '+esc(swDates(o))+'，'+esc(o.an)+'、'+esc(o.bn)+' 開啟 App 時收到通知。</div>'
+    :'<div class="ts-h">已登記，但雲端寫入失敗</div><div class="ts-n">連線恢復後會自動寫入。</div>',5000,true);
+}
 async function swSend(){
+  if(!viewerMode)return swSendMgr();
   const me=swMe(),S=normSwapCfg((state.config||{}).swap);
   if(!me||!swComplete()||swSending)return;
   if(!S.on){alert('目前未開放換班申請。');return}
@@ -9507,7 +9610,7 @@ async function swSend(){
   swSending=false;
   if(!ok){alert('送出失敗，請檢查網路連線。');renderSwap();return}
   swLocal(id,rec);swAddMine(id+':'+st);
-  swForm={pick:null,kind:f.kind,b:null,opt:null,msg:''};
+  swForm={a:null,pick:null,kind:f.kind,b:null,opt:null,msg:''};
   swTab='list';swFocus=id;renderSwap();swPendSet=swPendCompute();renderSheet();
   showToast({wb:'<div class="ts-h">已送出申請</div><div class="ts-n">等待 '+esc(o.bn)+' 在 App 中同意。可按「傳送通知」以 LINE 等方式告知。</div>',
     wait:'<div class="ts-h">已送出申請</div><div class="ts-n">等待主管核准。可按「傳送通知」以 LINE 等方式告知。</div>',
@@ -9534,6 +9637,7 @@ async function swAct(id,act){
   }else return;
   if(!await swapWrite(id,obj)){alert('寫入失敗，請檢查網路連線。');return}
   swLocal(id,obj);swAddMine(id+':'+obj.st);renderSwap();swPendSet=swPendCompute();renderSheet();
+  if(!viewerMode){updateLeaveBadge();if(obj.st==='ok')swAutoApply()} // 主管自己同意：直接寫入
   showToast({cancel:'已撤回',wait:'已同意，等待主管核准',ok:'已同意，'+swKind(r)+'成立',no:'已婉拒'}[obj.st]||'已更新');
 }
 function swGive(r){return r.ch.filter(c=>swShift(c.from)&&!pubSame(c.from,c.to))}
@@ -9569,6 +9673,10 @@ document.getElementById('swBody').addEventListener('change',ev=>{
 document.getElementById('swBody').addEventListener('click',ev=>{
   const t=ev.target;let el;
   if((el=t.closest('[data-swacct]'))){document.getElementById('ovSwap').classList.remove('show');acctMsg='';acctShow(false);return}
+  if((el=t.closest('[data-swacctadm]'))){document.getElementById('ovSwap').classList.remove('show');openAcctAdmin();return}
+  if((el=t.closest('[data-swmode]'))){if(swMode!==el.dataset.swmode){swMode=el.dataset.swmode;swForm={a:null,pick:null,kind:swForm.kind,b:null,opt:null,msg:''}}renderSwap();return}
+  if((el=t.closest('[data-swa]'))){Object.assign(swForm,{a:el.dataset.swa,pick:null,b:null,opt:null});renderSwap();return}
+  if((el=t.closest('[data-swrvopen]'))){document.getElementById('ovSwap').classList.remove('show');openSwapReview(el.dataset.swrvopen);return}
   if((el=t.closest('[data-swpick]'))){Object.assign(swForm,{pick:el.dataset.swpick,b:null,opt:null});renderSwap();return}
   if((el=t.closest('[data-swreset]'))){const w=el.dataset.swreset;if(w==='pick')Object.assign(swForm,{pick:null,b:null,opt:null});else if(w==='b')swForm.b=null;else swForm.opt=null;renderSwap();return}
   if((el=t.closest('[data-swkind]'))){if(swForm.kind!==el.dataset.swkind)Object.assign(swForm,{kind:el.dataset.swkind,b:null,opt:null});renderSwap();return}
@@ -9585,8 +9693,8 @@ function swNoticeHtml(){
   const pend=all.filter(r=>swState(r)==='wait').length,seen=swSeenAt(),me=swMe();
   let h='<div class="nt-head"><b>換班申請</b>'+(!viewerMode&&pend?'<span class="lv-chg-n">'+pend+' 筆待核准</span>':'')+'</div>';
   h+=list.slice(0,10).map(r=>{
-    const s=swState(r),nw=viewerMode?((evAt(r)>seen&&!swIsMine(r))||(s==='wb'&&r.b===me)):s==='wait';
-    return '<button type="button" class="pub-nt'+(nw?' new':'')+'" '+(viewerMode?'data-swopen':'data-swrv')+'="'+esc(r.id)+'">'+
+    const s=swState(r),nw=viewerMode?((evAt(r)>seen&&!swIsMine(r))||(s==='wb'&&r.b===me)):(s==='wait'||(s==='wb'&&r.b===me));
+    return '<button type="button" class="pub-nt'+(nw?' new':'')+'" '+(viewerMode||(s==='wb'&&r.b===me)?'data-swopen':'data-swrv')+'="'+esc(r.id)+'">'+
       '<span class="pub-at">'+fmtMdHm(evAt(r))+'</span><b>'+esc(swTitle(r))+'</b>'+(nw&&viewerMode?'<span class="pub-new">新</span>':'')+
       '<span class="pub-days"><em class="sw-'+swStCls(s)+'">'+esc(s==='wb'&&r.b===me?'待你回覆':swStText(r))+'</em>'+esc(swDates(r))+'</span></button>';
   }).join('');
