@@ -3657,6 +3657,7 @@ async function initFirebase(){
     cloudStatus='雲端已連線';
     watchCalShared();
     let saved=null;try{saved=localStorage.getItem('paiban-store-code')}catch(e){}
+    try{if(FB.auth&&FB.auth.authStateReady)await Promise.race([FB.auth.authStateReady(),new Promise(r=>setTimeout(r,2500))])}catch(e){} // 先等登入狀態恢復，需要登入的班表才不會先被擋下
     const inv=acctInviteParam(saved); // 帳號邀請連結：網址帶夥伴代碼
     if(inv&&await connectStore(inv.code,false,true)){if(inv.acct)acctAfterInvite()}
     else if(saved)await connectStore(saved,false,true);
@@ -7022,9 +7023,9 @@ document.getElementById('btnInstallGuide').addEventListener('click',()=>{
    更新次數自目前大版本上線起，每上傳一次 index.html 加 1（劃假上線那次為 000）。
    每次更新：APP_VERSION 改成「3.115MMDD.次數」，CHANGELOG 最上面同一天的那筆 ver 跟著改；新的一天加一筆。
    add＝新增功能，fix＝問題改善；項目寫成 [文字, 1] 表示只有主管會用到（夥伴代碼不顯示） */
-const APP_VERSION='4.1151126.002';
+const APP_VERSION='4.1151126.003';
 const CHANGELOG=[
-  {v:'2026.11.26',ver:'4.1151126.002',add:[
+  {v:'2026.11.26',ver:'4.1151126.003',add:[
     ['換班／代班（試用）：以已啟用的帳號登入後，可於「🔁 換班」申請；申請中的班在班表上標示「換」，🔔 列出跟自己有關的換班申請。需要對方同意時，對方於「🔁 換班」→「申請紀錄」同意或婉拒。'],
     ['後台新增「換班」：開放換班、需要對方同意、需要主管核准可分別設定（預設不開放；開放時預設需主管核准）。不需主管核准的換班，於主管的 App 開啟時自動寫入班表並發布。',1],
     ['🔔 列出換班申請，查看規則提醒後核准或退回；核准後只更新並發布換班的那幾格。',1],
@@ -7033,6 +7034,7 @@ const CHANGELOG=[
     ['後台新增「帳號與檢視」：檢視班表需要登入，或夥伴代碼即可檢視。現有店家維持夥伴代碼即可檢視；新建立的店家預設需要登入。',1],
     ['後台登入僅限管理者帳號，並可用 Google 登入；後台新增「管理者」，可新增或移除能審核帳號的管理者。',1]
   ],fix:[
+    ['需要登入時：重新整理頁面，已登入的帳號不會先跳到登入畫面；管理者帳號可直接檢視班表。'],
     ['紅線改為選擇幾號到幾號，並可「從 1 號」「到月底」快速帶入；畫之前會列出其中已有排班的天數。',1],
     ['預定離職：最後上班日之後（同一個月）已排的班也一併改為紅線；取消預定離職或修改日期時，恢復原本的排班。',1]
   ]},
@@ -8361,6 +8363,7 @@ async function acctOnAuth(u){
   updateAdminBanner();
   if(!u){acctMode='pick';acctPick=null;acctRepick=false}
   acctWatchMember();acctWatchList();
+  if(acctGateCode&&ok){acctGateTried='admin|'+acctGateCode;acctGateRetry(acctGateCode)} // 管理者讀得到需要登入的班表
   if(document.getElementById('ovAcct').classList.contains('show'))acctRender();
   acctRefresh();
 }
@@ -8494,8 +8497,8 @@ function acctRender(){
     }
     h+=close;
   }else if(st==='admin'){
-    sub='目前登入的是管理者帳號（'+em+'）。';
-    h='<div class="acct-col">'+out+'</div>'+close;
+    sub='目前登入的是管理者帳號（'+em+'）。'+(gate?'管理者帳號可直接檢視班表。':'');
+    h='<div class="acct-col">'+(gate?'<button class="btn primary" data-acct="retry">重新讀取班表</button>':'')+out+'</div>'+close;
   }else if(st==='loading'){
     h='<div class="lv-none">讀取中…</div><div class="acct-col">'+out+'</div>'+close;
   }else if(st==='none'||acctRepick&&(st==='pending'||st==='rejected')){
@@ -8553,7 +8556,7 @@ document.getElementById('acctBody').addEventListener('click',ev=>{
   if(a==='submit'){acctSubmit();return}
   if(a==='repick'){acctRepick=true;acctPick=acctMember&&acctMember.status==='pending'?acctMember.sid:null;acctRender();return}
   if(a==='unrepick'){acctRepick=false;acctRender();return}
-  if(a==='retry'){acctGateTried='';acctOnMember();return}
+  if(a==='retry'){acctGateTried='';if(adminUser&&acctGateCode)acctGateRetry(acctGateCode);else acctOnMember();return}
   if(a==='other'){acctLeaveGate();return}
 });
 document.getElementById('acctBody').addEventListener('keydown',ev=>{if(ev.key==='Enter'&&ev.target.id==='acctPw'){ev.preventDefault();acctEmail(false)}});
