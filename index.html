@@ -7172,8 +7172,12 @@ document.getElementById('btnInstallGuide').addEventListener('click',()=>{
    更新次數自目前大版本上線起，每上傳一次 index.html 加 1（劃假上線那次為 000）。
    每次更新：APP_VERSION 改成「3.115MMDD.次數」，CHANGELOG 最上面同一天的那筆 ver 跟著改；新的一天加一筆。
    add＝新增功能，fix＝問題改善；項目寫成 [文字, 1] 表示只有主管會用到（夥伴代碼不顯示） */
-const APP_VERSION='4.1151126.014';
+const APP_VERSION='4.1151127.001';
 const CHANGELOG=[
+  {v:'2026.11.27',ver:'4.1151127.001',add:[
+  ],fix:[
+    ['新裝置輸入代碼後，新手教學不再蓋住登入畫面。'],
+  ]},
   {v:'2026.11.26',ver:'4.1151126.014',major:'4.0',note:'帳號登入、換班與代班上線。',add:[
     ['帳號驗證開啟時，主管代碼的「我要劃假」也自動帶入主管帳號綁定的名字，仍可改選其他人代為劃假。',1],
     ['主管於「帳號」把人設為夥伴或主管後，對方的 App 自動改用夥伴代碼或主管代碼，不另外提示。',1],
@@ -8367,7 +8371,7 @@ function maybeStartTour(){ // 等開啟動畫結束、其他視窗（例如剛�
   let tries=0;
   const tick=()=>{
     if((viewerMode?'view':'edit')!==role||document.getElementById('tour'))return; // 中途換了代碼就不開
-    if(Date.now()<acctSoftWait){if(++tries<240)setTimeout(tick,500);return} // 先看要不要出現登入畫面
+    if(Date.now()<acctSoftWait||acctGateCode){if(++tries<240)setTimeout(tick,500);return} // 先看要不要出現登入畫面；停在登入畫面時不播 // 先看要不要出現登入畫面
     if(tourSeen(role)){
       if(!swapTourDue())return;
       if(document.getElementById('splash')||document.querySelector('.overlay.show')){if(++tries<240)setTimeout(tick,500);return}
@@ -8709,7 +8713,8 @@ async function acctCanEnter(vc,mgr){ // 這台登入的帳號能不能進（mgr�
   if(adminUser&&adminUser.uid===u.uid)return true;
   return await acctProbeAdmin(u);
 }
-async function acctEnterGate(code,mgr,hint){ // 開啟班表保護：先登入、綁定名字、等管理者啟用（mgr：用主管代碼開的；hint：已知的夥伴代碼與是否可先看班表）
+async function acctEnterGate(code,mgr,hint){
+  if(document.getElementById('tour')&&tourRole!=='sched'){tourStack=[];tourTeardown()} // 登入畫面優先：剛好在播的教學先收起來，不記為看過（下次開啟再播） // 開啟班表保護：先登入、綁定名字、等管理者啟用（mgr：用主管代碼開的；hint：已知的夥伴代碼與是否可先看班表）
   if(storeCode||viewerMode)acctClearScreen();
   mgr=!!mgr;
   const same=acctGateCode===code&&acctGateMgr===mgr;
