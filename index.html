@@ -968,6 +968,11 @@ html.dark .split-seg .split-range{color:var(--fade2)}
 .lvset-l{flex:0 0 4.3em;color:#666;white-space:nowrap}
 .lvset-row .txt{flex:1 1 0;min-width:0}
 .lvset-sep{color:#999;flex:0 0 auto}
+.lvset-row input[type=date].txt{padding-left:8px;padding-right:4px}
+@media (max-width:520px){ /* 手機：日期欄位放不下完整日期時，標題自成一行，兩個欄位各占一半 */
+  #lcRangeRow,#lcLateRow{flex-wrap:wrap;row-gap:4px}
+  #lcRangeRow .lvset-l,#lcLateRow .lvset-l{flex:0 0 100%}
+}
 .rl-quick{display:flex;gap:8px;margin:8px 0 0 calc(4.3em + 8px)}
 .rl-quick .btn{padding:4px 10px;font-size:13px}
 #rlNote .w{color:#a85c07}
@@ -7167,9 +7172,9 @@ document.getElementById('btnInstallGuide').addEventListener('click',()=>{
    更新次數自目前大版本上線起，每上傳一次 index.html 加 1（劃假上線那次為 000）。
    每次更新：APP_VERSION 改成「3.115MMDD.次數」，CHANGELOG 最上面同一天的那筆 ver 跟著改；新的一天加一筆。
    add＝新增功能，fix＝問題改善；項目寫成 [文字, 1] 表示只有主管會用到（夥伴代碼不顯示） */
-const APP_VERSION='4.1151126.013';
+const APP_VERSION='4.1151126.014';
 const CHANGELOG=[
-  {v:'2026.11.26',ver:'4.1151126.013',major:'4.0',note:'帳號登入、換班與代班上線。',add:[
+  {v:'2026.11.26',ver:'4.1151126.014',major:'4.0',note:'帳號登入、換班與代班上線。',add:[
     ['帳號驗證開啟時，主管代碼的「我要劃假」也自動帶入主管帳號綁定的名字，仍可改選其他人代為劃假。',1],
     ['主管於「帳號」把人設為夥伴或主管後，對方的 App 自動改用夥伴代碼或主管代碼，不另外提示。',1],
     ['主管代碼新增「🔁 換班」：幫夥伴登記已談好的換班，確認規則提醒後直接寫入班表並發布，雙方的 🔔 收到通知；也可用自己綁定的名字申請換班，不需主管核准。',1],
@@ -7188,6 +7193,8 @@ const CHANGELOG=[
     ['「⋯」→「帳號」審核帳號申請：啟用、退回（可選填理由）、停用；🔔 列出待審核的申請。過了最後上班日的帳號自動停用。',1],
     ['後台登入僅限管理者帳號，並可用 Google 登入；後台新增「管理者」，可新增或移除能審核帳號的管理者。',1]
   ],fix:[
+    ['手機上「劃假開放設定」的日期欄位太窄，日期顯示不完整：改為標題自成一行，兩個日期欄位各占一半。',1],
+    ['新手教學的示範格依螢幕寬度分排：一排放不下時往下一排放，小螢幕也看得到每一種樣式。'],
     ['後台更改目前使用中的主管代碼後，畫面不再被清空、跳出「雲端同步設定」。',1],
     ['後台「主管代碼管理」列出雲端上所有的主管代碼（含其他裝置建立的），並顯示店名。',1],
     ['正職劃假：日曆上方顯示已劃天數；「整天不能上」的天數超過月休時送出前提醒，仍可送出。多出的天數先以國定假日抵用，抵用的國定假日當天需排班，班表上以淡咖啡色標「需上」；抵完仍超過時，「休」後方標「劃 N」。點一下顯示說明，夥伴只看得到自己的。'],
@@ -7633,22 +7640,28 @@ const SYM_DEMO_ROWS=[ // 班表上的各種記號
 ];
 let tourDemo=null;
 function tourGrid(ks){return '<div class="tt-grid">'+ks.map(k=>'<span>'+k.ic+'<span>'+k.nm+'</span></span>').join('')+'</div>'} // 教學裡的圖例：圖示＋名稱，兩欄排列
-function tourDemoPick(nRows,perRow){ // 一列一列找：整排看得到的人，從最左邊看得到的那天開始取
+function tourDemoRows(max){ // 一列一列找：整排看得到的人，取這排畫面上看得到的每一格（至少 3 格）
   const out=[];
   for(const tr of document.querySelectorAll('#sheet tbody tr')){
     if(!tr.querySelector('td.name-cell[data-sid]'))continue;
     const cells=[...tr.querySelectorAll('td.day-cell[data-sid]')].filter(td=>tourInView(td));
-    if(cells.length>=3)out.push(cells.slice(0,perRow));
-    if(out.length>=nRows)break;
+    if(cells.length>=3)out.push(cells);
+    if(out.length>=max)break;
   }
-  return out.length?out:null;
+  return out;
 }
-function tourDemoApply(rows){ // rows：[[{c,h,lg},…],…]
+const TOUR_ROWN=['第一排','第二排','第三排','第四排','第五排','第六排'];
+function tourDemoApply(rows){ // rows：[[{c,h,lg},…],…]；依畫面寬度重新分排：一排放不下就往下一排放，各排平均分配
   tourDemoRestore();
-  const picked=tourDemoPick(rows.length,Math.max(...rows.map(r=>r.length)));if(!picked)return false;
+  const flat=rows.flat(),vis=tourDemoRows(6);if(!vis.length)return false;
+  const cap=n=>vis.slice(0,n).reduce((a,c)=>a+c.length,0);
+  let n=Math.min(Math.max(rows.length,1),vis.length);
+  while(n<vis.length&&cap(n)<flat.length)n++;
+  const per=Math.ceil(flat.length/n),picked=[],groups=[];let at=0;
+  vis.slice(0,n).forEach(tds=>{const ks=flat.slice(at,at+Math.min(per,tds.length));at+=ks.length;if(ks.length){picked.push(tds);groups.push(ks)}});
   const cells=[],shown=[];
   picked.forEach((tds,ri)=>{
-    const kinds=rows[ri].slice(0,tds.length);shown.push(kinds);
+    const kinds=groups[ri];shown.push(kinds);
     tds.slice(0,kinds.length).forEach((td,i)=>{
       const k=kinds[i],saved={cls:td.className,html:td.innerHTML,st:td.getAttribute('style')||null};
       td.style.transition='none'; // 不要慢慢變色，一進來就看得到
@@ -7924,7 +7937,7 @@ function tourSteps(role,full){ // full：完整新手教學，走到排班、開
       const inShown=new Set(shown.flat()),rest=all.filter(k=>!inShown.has(k));
       const label=shown.length>1||rest.length;
       return '圈起處為各種記號的示範，依序由左至右：'+
-        shown.map((ks,i)=>(label?'<div class="tt-gh">'+(shown.length>1?(i?'第二排':'第一排'):'圈起處')+'</div>':'')+tourGrid(ks)).join('')+
+        shown.map((ks,i)=>(label?'<div class="tt-gh">'+(shown.length>1?TOUR_ROWN[i]:'圈起處')+'</div>':'')+tourGrid(ks)).join('')+
         (rest.length?'<div class="tt-gh">其他</div>'+tourGrid(rest):'')+FN;
     }};
   const otOpen=()=>document.getElementById('ovOT').classList.contains('show');
@@ -7973,10 +7986,14 @@ function tourSteps(role,full){ // full：完整新手教學，走到排班、開
     blank({el:()=>tourShown($('.sheet-wrap')),h:'班表',b:()=>BLNOTE()+SHEET()+'<br>表頭「！」：'+RED('紅色')+'為當日人力不符規則，<b class="c-amber">黃色</b>為出勤天數超標，點選可查看原因。'}),
     blank(SYM),
     blank({enter:()=>tourDemoApply([LV_DEMO_KINDS]),leave:()=>tourDemoRestore(),
-      el:()=>tourDemoEl($('.sheet-wrap')),h:'班表上的劃假',b:t=>
-        (Array.isArray(t)?'圈起處為劃假在班表上的樣式，依序由左至右：':'夥伴的劃假直接顯示在班表上：')+
-        tourGrid(LV_DEMO_KINDS)+
-        '<div class="tt-fn">「15~」為 15:00 後才能上；「臨時」為截止後劃的候補；「取消」為截止後取消的劃假。<br>截止後改過的日子，截止前的劃法列於排班視窗與劃假的「全員總覽」。<br>已排班且未衝突的格子不顯示底色。僅主管可見，夥伴無法看到他人的劃假。<br>「需上」：正職劃假超過月休，以國定假日抵用，該國定假日當天需排班。抵完仍超過時，「休」後方以紅字標「劃N」。點一下顯示說明。</div>'}),
+      el:()=>tourDemoEl($('.sheet-wrap')),h:'班表上的劃假',b:t=>{
+        const shown=(Array.isArray(t)&&tourDemo)?tourDemo.shown:null; // 畫面窄時分成好幾排
+        const inShown=new Set(shown?shown.flat():[]),rest=shown?LV_DEMO_KINDS.filter(k=>!inShown.has(k)):[],label=shown&&(shown.length>1||rest.length);
+        return (shown?'圈起處為劃假在班表上的樣式，依序由左至右：'+
+          shown.map((ks,i)=>(label?'<div class="tt-gh">'+(shown.length>1?TOUR_ROWN[i]:'圈起處')+'</div>':'')+tourGrid(ks)).join('')+
+          (rest.length?'<div class="tt-gh">其他</div>'+tourGrid(rest):'')
+          :'夥伴的劃假直接顯示在班表上：'+tourGrid(LV_DEMO_KINDS))+
+        '<div class="tt-fn">「15~」為 15:00 後才能上；「臨時」為截止後劃的候補；「取消」為截止後取消的劃假。<br>截止後改過的日子，截止前的劃法列於排班視窗與劃假的「全員總覽」。<br>已排班且未衝突的格子不顯示底色。僅主管可見，夥伴無法看到他人的劃假。<br>「需上」：正職劃假超過月休，以國定假日抵用，該國定假日當天需排班。抵完仍超過時，「休」後方以紅字標「劃N」。點一下顯示說明。</div>'}}),
     SUMROW(true),
     {el:()=>tourShown($('#btnEdit')),h:'開始排班',b:()=>'按此<b>解鎖</b>後，點選格子即可排入班別、自訂時間或假別；完成後再按一次<b>鎖定</b>。<br>鎖定後才進行人力檢查，紅色「！」於此時顯示。'+
       (!full?'':monthStaff().length?'<br>下一步起實際操作一次排班。':'<br>本月尚無人員，下一步起以示範班表實際操作一次排班。')},
