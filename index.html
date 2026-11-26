@@ -2692,7 +2692,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
       <li>登入：「⋯」→「帳號登入」，以 Google 或 email 登入（第一次登入即建立帳號），選擇自己的名字送出，經主管啟用後綁定。正職、計時、支援人員皆可綁定。</li>
       <li><b>班表保護</b>（帳號驗證開啟時設定）：<b>關閉</b>時不登入也能看班表，登入畫面可按「先看班表」；劃假、換班、同意與核准需登入。<b>開啟</b>時看班表也需登入，換班申請只有本人、對方與主管看得到。</li>
       <li>登入後保持登入，清除瀏覽器資料後需重新登入。</li>
-      <li>用主管代碼排班，需以已核准的<b>主管</b>帳號登入；未登入時只能看班表（班表保護開啟時需登入才能看）。夥伴帳號用主管代碼開啟時，可送出「申請成為主管」，由主管核准。</li>
+      <li>用主管代碼排班，需以已核准的<b>主管</b>帳號登入；未登入時只能看班表（班表保護開啟時需登入才能看）。夥伴帳號用主管代碼開啟時，可送出「申請成為主管」，由主管核准。主管把人設為夥伴或主管後，對方的 App 自動改用夥伴代碼或主管代碼。</li>
       <li class="edit-only">主管於主管代碼的「⋯」→「帳號」審核帳號：啟用、退回（可填理由）、停用，並設定每個人是主管或夥伴；🔔 列出待審核的申請。過了最後上班日的帳號自動停用。</li>
       <li>登出：「⋯」→「帳號」→「登出」，回到一開始的畫面，需重新輸入代碼。</li>
     </ul>
@@ -5809,7 +5809,7 @@ document.getElementById('btnCloseLeave').addEventListener('click',()=>{
   document.getElementById('ovLeave').classList.remove('show');
   if(demo){lvDemo=false;lvWho=null;lvDraft=null;lvOriginal=null;updateLeaveBadge()} // 練習畫面關掉就清空
 });
-document.querySelectorAll('.lv-tab').forEach(t=>t.addEventListener('click',()=>{lvTab=t.dataset.lvtab;renderLeaveBody()}));
+document.querySelectorAll('.lv-tab').forEach(t=>t.addEventListener('click',()=>{lvTab=t.dataset.lvtab;if(lvTab==='mine'&&!lvWho)acctLeaveSelf();renderLeaveBody()})); // 主管切到「我要劃假」：帶入自己綁定的名字
 document.getElementById('lvBody').addEventListener('change',ev=>{
   if(ev.target.id==='lvWhoSel'){
     if(lvUnsent()&&!confirm('目前的劃假還沒送出，切換姓名會放棄這次的修改。確定要切換嗎？')){ev.target.value=lvWho||'';return}
@@ -7076,6 +7076,8 @@ document.getElementById('btnInstallGuide').addEventListener('click',()=>{
 const APP_VERSION='4.1151126.010';
 const CHANGELOG=[
   {v:'2026.11.26',ver:'4.1151126.010',add:[
+    ['帳號驗證開啟時，主管代碼的「我要劃假」也自動帶入主管帳號綁定的名字，仍可改選其他人代為劃假。',1],
+    ['主管於「帳號」把人設為夥伴或主管後，對方的 App 自動改用夥伴代碼或主管代碼，不另外提示。',1],
     ['主管代碼新增「🔁 換班」：幫夥伴登記已談好的換班，確認規則提醒後直接寫入班表並發布，雙方的 🔔 收到通知；也可用自己綁定的名字申請換班，不需主管核准。',1],
     ['支援人員也可綁定帳號：帳號驗證開啟時，可看班表與劃假；換班不含支援人員。'],
     ['「？」說明新增「換班　·　代班」與「帳號」，新手教學補上換班與帳號；新增「🔁 換班教學」，正在使用的裝置播放一次（夥伴於開放換班時）。'],
@@ -8491,9 +8493,30 @@ async function acctLoadRoster(){
   catch(e){if(!acctRosterCache)acctRosterCache=null}
   if(document.getElementById('ovAcct').classList.contains('show'))acctRender();
 }
+function acctRoleKey(){return 'paiban-role-seen-'+(authUser?authUser.uid:'')}
+function acctFollowRole(){ // 主管調整身分後，代碼自動跟著換，不另外提示（roleBy：主管決定身分的時間；mc：主管代碼）
+  const m=acctMember;if(!m||m.status!=='active'||adminUser||!authUser||acctBusy)return false;
+  const decided=!!m.roleBy&&m.roleBy>=(m.roleAt||0);
+  if(m.role!=='mgr'&&decided){ // 設為夥伴：用主管代碼開的改用夥伴代碼
+    if(acctPeekMgr&&viewerMode){acctPeekMgr=null;try{localStorage.setItem('paiban-store-code',storeCode);localStorage.setItem('paiban-mode','view')}catch(e){}return false}
+    const vc=acctGateCode&&acctGateMgr?acctGateVc:(!viewerMode&&storeCode&&acctVerify()?state.viewCode:null);
+    if(!vc)return false;
+    acctGateCode=null;acctGateMgr=false;acctGateVc=null;acctPeekMgr=null;acctSoft=false;
+    document.getElementById('ovAcct').classList.remove('show','gate');
+    connectViewer(vc,true);return true;
+  }
+  if(m.role==='mgr'&&m.mc&&m.roleBy&&viewerMode&&storeCode&&!acctGateCode){ // 設為主管：改用主管代碼（每次調整一次）
+    let seen=0;try{seen=+localStorage.getItem(acctRoleKey())||0}catch(e){}
+    if(!(m.roleBy>seen))return false;
+    try{localStorage.setItem(acctRoleKey(),String(m.roleBy))}catch(e){}
+    acctPeekMgr=null;connectStore(m.mc,false,true);return true;
+  }
+  return false;
+}
 function acctOnMember(){
   const st=acctState();
   if(st==='active')acctSeen();
+  if(acctFollowRole())return;
   if(acctPeekToMgr())return;
   if(acctSoft&&(st==='active'||st==='admin')){acctSoft=false;document.getElementById('ovAcct').classList.remove('show','gate')}
   updateAdminBanner();
@@ -8538,8 +8561,12 @@ function acctState(){ // out 未登入／admin 管理者／loading／none 還沒
   return ['pending','active','rejected','disabled'].includes(m.status)?m.status:'none';
 }
 function acctSelfSid(){return viewerMode&&!acctGateCode&&acctVerify()&&acctState()==='active'&&acctMember?acctMember.sid:null}
+function acctLeaveMe(){ // 劃假的「自己」：夥伴＝已啟用帳號綁定的名字；主管代碼＝主管帳號綁定的名字（帳號驗證開）
+  if(viewerMode)return acctSelfSid();
+  return !acctGateCode&&acctVerify()&&acctState()==='active'&&acctMember&&state.staff.some(x=>x.id===acctMember.sid)?acctMember.sid:null;
+}
 function acctLeaveSelf(){ // 劃假：已啟用的帳號直接帶入自己的名字
-  const me=acctSelfSid();if(!me||lvDemo)return;
+  const me=acctLeaveMe();if(!me||lvDemo)return;
   const ym=(leaveWindowFor(me).L||{}).ym||ymOf(state.y,state.m);
   if(!lvRoster(ym).some(x=>x.id===me))return;
   lvWho=me;
@@ -8547,7 +8574,7 @@ function acctLeaveSelf(){ // 劃假：已啟用的帳號直接帶入自己的名
   lvOriginal=o?JSON.parse(JSON.stringify(o)):{days:{},note:'',log:[]};
   lvDraft=JSON.parse(JSON.stringify(lvOriginal));
 }
-function acctWhoLock(){const me=acctSelfSid();return me&&lvWho===me&&!lvIsDemo()?' disabled title="已登入的帳號只能劃自己的假"':''}
+function acctWhoLock(){const me=viewerMode?acctSelfSid():null;return me&&lvWho===me&&!lvIsDemo()?' disabled title="已登入的帳號只能劃自己的假"':''} // 主管代碼：帶入自己的名字，仍可改選其他人代劃
 function acctFixLock(ref,sd){ // 主管代碼、夥伴代碼兩份文件的 lock／verify 跟後台設定不一致時補上（舊版寫入的文件）
   const on=acctVerify(),lk=acctLocked(),vc=state.viewCode;
   if(!!(sd&&sd.lock)!==on||(vc&&(sd&&sd.viewCode)!==vc))FB.setDoc(ref,vc?{lock:on,viewCode:vc}:{lock:on},{merge:true}).catch(()=>{}); // viewCode：雲端規則用來確認主管身分
@@ -8856,6 +8883,9 @@ function acctListChanged(){
   if(document.getElementById('ovCfgAcct').classList.contains('show'))syncAcctCfgUI();
   acctRefresh();
 }
+function acctRoleSet(toM){ // 主管調整身分：記下時間與主管代碼，對方的裝置據此自動換代碼
+  return {roleBy:Date.now(),mc:toM&&!viewerMode&&storeCode?storeCode:FB.deleteField()};
+}
 async function acctSet(vc,uid,data,quiet){
   try{await FB.setDoc(FB.doc(FB.db,'views',vc,'members',uid),data,{merge:true});return true}
   catch(e){if(!quiet)alert('寫入失敗，請確認網路連線。');return false}
@@ -9003,19 +9033,19 @@ document.getElementById('aaBody').addEventListener('click',async ev=>{
     if(dup.length&&!confirm('「'+st.name+'」已有啟用中的帳號（'+dup.map(x=>x.email).join('、')+'）。\n啟用此帳號後，原帳號將停用。確定要啟用嗎？'))return;
     for(const x of dup)await acctSet(vc,x.uid,{status:'disabled',auto:0,reason:'已改由其他帳號使用',decidedAt:Date.now()});
     const role=a==='ok'&&m.roleReq==='mgr'?'mgr':(m.role||'staff');
-    if(await acctSet(vc,m.uid,{status:'active',role,roleReq:FB.deleteField(),auto:0,reason:'',sname:st.name,by:me.email||'',decidedAt:Date.now()}))showToast('已啟用 '+st.name+(role==='mgr'?'（主管）':'')+' ✓');
+    if(await acctSet(vc,m.uid,Object.assign({status:'active',role,roleReq:FB.deleteField(),auto:0,reason:'',sname:st.name,by:me.email||'',decidedAt:Date.now()},role==='mgr'&&m.roleReq==='mgr'?acctRoleSet(true):{})))showToast('已啟用 '+st.name+(role==='mgr'?'（主管）':'')+' ✓');
     return;
   }
   if(a==='mgrok'){
     if(!confirm('將 '+m.sname+' 設為主管？\n主管可用主管代碼排班、發布，並審核帳號。'))return;
-    if(await acctSet(vc,m.uid,{role:'mgr',roleReq:FB.deleteField(),decidedAt:Date.now()}))showToast(m.sname+' 已設為主管 ✓');
+    if(await acctSet(vc,m.uid,Object.assign({role:'mgr',roleReq:FB.deleteField(),decidedAt:Date.now()},acctRoleSet(true))))showToast(m.sname+' 已設為主管 ✓');
     return;
   }
-  if(a==='mgrno'){if(await acctSet(vc,m.uid,{roleReq:FB.deleteField()}))showToast('已婉拒');return}
+  if(a==='mgrno'){if(await acctSet(vc,m.uid,Object.assign({roleReq:FB.deleteField()},acctRoleSet(false))))showToast('已婉拒');return}
   if(a==='role'){
     const toM=m.role!=='mgr';
-    if(!confirm(toM?'將 '+m.sname+' 設為主管？\n主管可用主管代碼排班、發布，並審核帳號。':'將 '+m.sname+' 設為夥伴？\n開啟班表保護時，夥伴無法用主管代碼開啟班表。'))return;
-    if(await acctSet(vc,m.uid,toM?{role:'mgr',roleReq:FB.deleteField(),decidedAt:Date.now()}:{role:'staff',decidedAt:Date.now()}))showToast(m.sname+' 已設為'+(toM?'主管':'夥伴'));
+    if(!confirm(toM?'將 '+m.sname+' 設為主管？\n主管可用主管代碼排班、發布，並審核帳號。':'將 '+m.sname+' 設為夥伴？\n對方用主管代碼開啟時，會自動改用夥伴代碼。'))return;
+    if(await acctSet(vc,m.uid,Object.assign(toM?{role:'mgr',roleReq:FB.deleteField(),decidedAt:Date.now()}:{role:'staff',decidedAt:Date.now()},acctRoleSet(toM))))showToast(m.sname+' 已設為'+(toM?'主管':'夥伴'));
     return;
   }
   if(a==='no'){openAcctReject(m);return}
