@@ -2477,6 +2477,7 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
       <button class="btn edit-only" id="btnTourSched" style="flex:1 1 40%">📝 排班教學</button>
       <button class="btn edit-only" id="btnTourLcfg" style="flex:1 1 40%">⚙ 開放劃假教學</button>
       <button class="btn" id="btnTourLeave" style="flex:1 1 40%">🏖 劃假教學</button>
+      <button class="btn" id="btnTourSwap" style="flex:1 1 40%">🔁 換班教學</button>
       <button class="btn" id="btnInstallGuide" style="flex:1 1 40%">📲 安裝到手機</button>
     </div>
     <div class="sec-label">表格符號</div>
@@ -2671,6 +2672,32 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
     </div>
 
     <div class="hr"></div>
+    <div class="sec-label">換班　·　代班</div>
+    <ul class="hul">
+      <li>後台設定「換班」可開放換班，並分別設定是否<b>需要對方同意</b>、<b>需要主管核准</b>。預設不開放；開放時預設需主管核准。</li>
+      <li>開放後，夥伴代碼的工具列出現「🔁 換班」：① 選擇自己要換出的班（只列出已發布、尚未開始的班）→ ② 選擇<b>代班</b>或<b>換班</b> → ③ 選擇對象 → ④ 確認內容，可留言，按「送出」。</li>
+      <li><b>代班</b>：由對方上這一班，自己當天改為排休；只列出當天沒有排班的人員。<b>換班</b>：雙方互換彼此的班，可同一天互換時段，或換對方另一天的班。</li>
+      <li>帳號驗證開啟時，以帳號綁定的名字申請；需要對方同意時，對方也需有已啟用的帳號。關閉時，選擇自己的名字申請。</li>
+      <li>申請中的班於班表上標示「換」；🔔 列出跟自己有關的換班申請。</li>
+      <li>需要對方同意時，對方於「🔁 換班」的「申請紀錄」同意或婉拒；申請人可於「申請紀錄」撤回。</li>
+      <li class="edit-only">需要主管核准的申請列於主管代碼的 🔔，查看規則提醒後核准或退回（可填理由）；核准後只更新並發布換班的那幾格，其他未發布的修改不受影響。</li>
+      <li>不需主管核准的換班，成立後於主管的 App 開啟時寫入班表並發布。</li>
+      <li>申請後那幾格的班表有異動，或已過了換班的日期，申請即失效，不會寫入班表。</li>
+    </ul>
+
+    <div class="hr"></div>
+    <div class="sec-label">帳號</div>
+    <ul class="hul">
+      <li>後台設定「帳號驗證」決定是否使用帳號。<b>關閉</b>：主管代碼即可排班、夥伴代碼即可查看，劃假與換班時選擇自己的名字。<b>開啟</b>：以帳號綁定自己的名字，劃假與換班自動帶入，劃假只能劃自己的。</li>
+      <li>登入：「⋯」→「帳號登入」，以 Google 或 email 登入（第一次登入即建立帳號），選擇自己的名字送出，經主管啟用後綁定。</li>
+      <li><b>班表保護</b>（帳號驗證開啟時設定）：<b>關閉</b>時不登入也能看班表，登入畫面可按「先看班表」；劃假、換班、同意與核准需登入。<b>開啟</b>時看班表也需登入，換班申請只有本人、對方與主管看得到。</li>
+      <li>登入後保持登入，清除瀏覽器資料後需重新登入。</li>
+      <li>用主管代碼排班，需以已核准的<b>主管</b>帳號登入；未登入時只能看班表（班表保護開啟時需登入才能看）。夥伴帳號用主管代碼開啟時，可送出「申請成為主管」，由主管核准。</li>
+      <li class="edit-only">主管於主管代碼的「⋯」→「帳號」審核帳號：啟用、退回（可填理由）、停用，並設定每個人是主管或夥伴；🔔 列出待審核的申請。過了最後上班日的帳號自動停用。</li>
+      <li>登出：「⋯」→「帳號」→「登出」，回到一開始的畫面，需重新輸入代碼。</li>
+    </ul>
+
+    <div class="hr"></div>
     <div class="sec-label">戰績</div>
     <ul class="hul">
       <li>每月的戰績，於<b>當月倒數第二天起至下個月第三天</b>（共五天）顯示。例：10 月戰績於 10/30 至 11/3 出現。</li>
@@ -2747,8 +2774,8 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
       <div class="hr"></div>
       <div class="sec-label">後台設定</div>
       <ul class="hul">
-        <li>需管理者帳號登入。</li>
-        <li>採選單形式，各項分別設定，右側顯示目前內容。分兩組：上方是所選主管代碼的設定（班段、覆蓋檢查規則、時段提醒、劃假、分段工時、發布），只套用到該代碼；下方「所有主管代碼共用」為行事曆與更新日誌。</li>
+        <li>需管理者帳號登入；後台人員已和這間店的名字綁定時直接進入。主管代碼、夥伴代碼的「⋯」都有「後台設定」。</li>
+        <li>採選單形式，各項分別設定，右側顯示目前內容。分兩組：上方是所選主管代碼的設定（班段、覆蓋檢查規則、時段提醒、劃假、分段工時、發布、帳號驗證、換班），只套用到該代碼；下方「所有主管代碼共用」為行事曆與更新日誌。</li>
         <li>「更新日誌」逐日列出各版本的新增功能與問題改善；目前版本號另顯示於「⋯ 更多」最下方。</li>
         <li>修改後需按「儲存設定」。右側摘要平常為灰色；改過還沒儲存的項目，摘要與外框改為重點色，按鈕顯示 ●。未儲存即關閉將出現確認提示。</li>
         <li>每組主管代碼各有獨立設定，亦可於此設定其他主管代碼。行事曆例外：所有主管代碼共用，儲存後套用到全部主管代碼。</li>
@@ -3712,6 +3739,9 @@ async function connectStore(code,isNew,silent){
       let keepLocal=false,base=null;
       try{keepLocal=!isNew&&localStorage.getItem(UNSYNCED_KEY)===code&&localStorage.getItem('paiban-store-code')===code&&!storeCode;base=JSON.parse(localStorage.getItem(UNSYNCED_BASE)||'null')}catch(e){}
       const sm=splitMeta(snap.data().data);
+      {let pc={};try{pc=JSON.parse(sm.content)||{}}catch(e){}
+       if(acctVerifyCfg(pc.config)&&!(await acctCanEnter(pc.viewCode,true))){ // 帳號驗證開：App 這邊也把關，不只靠雲端規則
+         acctClearScreen();acctEnterGate(code,true,{vc:pc.viewCode||null,soft:!acctLockedCfg(pc.config)});return true}}
       lastWritten=cloudAcked=sm.content;cloudVer=sm.v;rememberVer(sm.v,sm.content);viewAcked='';
       if(keepLocal){ // 上次寫入雲端失敗：這台的修改跟雲端逐格合併後重新寫入（雲端在這之後有其他裝置的修改也保得住）
         let conf=[];
@@ -3721,6 +3751,7 @@ async function connectStore(code,isNew,silent){
         setTimeout(()=>{showToast('<div class="ts-h">重新寫入雲端</div><div class="ts-n">這台裝置有上次沒寫進雲端的修改，已與雲端合併並重新寫入。</div>',4500,true);mergeNotice(conf,state.staff);pushCloud()},800);
       }else applyPayload(lastWritten);
       renderAll();
+      acctFixLock(ref,snap.data()); // 雲端的鎖跟帳號驗證設定不一致：補上，讓雲端規則也把關
     }else if(isNew){
       // 建立全新店家前，先清空目前畫面資料，避免把原本店家的人員／班表複製過去
       state.store='';state.title='排班表';state.corner='';state.viewCode='';
@@ -3805,6 +3836,7 @@ async function connectStore(code,isNew,silent){
         cloudStatus='雲端已連線｜主管代碼：'+code+'｜夥伴代碼：'+state.viewCode;
       }
       renderAll();
+      if(acctVerify()&&!((FB.auth&&FB.auth.currentUser)||authUser)){const vc=state.viewCode,soft=!acctLocked();acctClearScreen();acctEnterGate(code,true,{vc,soft});return} // 改成帳號驗證開：沒登入的裝置改到登入畫面
       mergeNotice(conf,state.staff);
       if(differs&&!cloudFail)scheduleSave(); // 合併後含這台的修改：寫回雲端（寫入失敗中則等重試）
       if(keptLocal)setHint(cloudFail?'⚠ 已合併其他裝置的更新，這台的修改尚未寫入雲端':'已合併其他裝置的更新 ✓');
@@ -3843,6 +3875,8 @@ async function connectViewer(code,silent){ // 以夥伴代碼連線：唯讀，�
       if(!silent)alert('查無此代碼，請確認輸入是否正確。');
       return false;
     }
+    {let pc={};try{pc=JSON.parse(vsnap.data().data)||{}}catch(e){}
+     if(acctLockedCfg(pc.config)&&!(await acctCanEnter(code,false))){acctClearScreen();acctEnterGate(code);return true}} // 班表保護開：App 這邊也把關
     if(code!==storeCode)arcReset(); // 換了代碼：別家的封存快取不能用
     lastWritten=vsnap.data().data;
     applyPayload(lastWritten);
@@ -7039,22 +7073,24 @@ document.getElementById('btnInstallGuide').addEventListener('click',()=>{
    更新次數自目前大版本上線起，每上傳一次 index.html 加 1（劃假上線那次為 000）。
    每次更新：APP_VERSION 改成「3.115MMDD.次數」，CHANGELOG 最上面同一天的那筆 ver 跟著改；新的一天加一筆。
    add＝新增功能，fix＝問題改善；項目寫成 [文字, 1] 表示只有主管會用到（夥伴代碼不顯示） */
-const APP_VERSION='4.1151126.008';
+const APP_VERSION='4.1151126.010';
 const CHANGELOG=[
-  {v:'2026.11.26',ver:'4.1151126.008',add:[
+  {v:'2026.11.26',ver:'4.1151126.010',add:[
+    ['「？」說明新增「換班　·　代班」與「帳號」，新手教學補上換班與帳號；新增「🔁 換班教學」，每台裝置播放一次（夥伴於開放換班時）。'],
     ['後台「帳號驗證」：關閉時照以前的方式（主管代碼＝主管、夥伴代碼＝夥伴）；開啟後以帳號綁定名字，並可設定班表保護：開啟時看班表也要登入，關閉時不登入也能看，但劃假、換班需要登入，主管代碼沒登入時只能看。',1],
     ['在「⋯」→「帳號」登出後，回到一開始的畫面，需要重新輸入代碼。'],
     ['後台人員已和這間店的名字綁定時，後台直接進出、不再顯示「正在登入後台設定」；沒有綁定的店，進後台需要驗證登入。',1],
     ['開啟班表保護時，用主管代碼開啟也需要登入已啟用、綁定名字的帳號；登入畫面可直接綁定名字，經管理者啟用後進入。',1],
     ['用夥伴代碼開啟時，「⋯」也有「後台設定」，以管理者帳號登入即可進入。',1],
     ['帳號分為主管與夥伴：主管可於主管代碼的「⋯」→「帳號」審核帳號、設定每個人是主管或夥伴；用主管代碼申請、或已啟用的夥伴申請成為主管，需經主管核准。',1],
-    ['換班／代班（試用）：於「🔁 換班」申請。開啟班表保護時，以帳號綁定的名字申請；關閉時，選擇自己的名字申請（已登入的帳號直接帶入）。申請中的班在班表上標示「換」，🔔 列出跟自己有關的換班申請；需要對方同意時，對方於「申請紀錄」同意或婉拒。'],
+    ['換班／代班（試用）：於「🔁 換班」申請。帳號驗證開啟時，以帳號綁定的名字申請；關閉時，選擇自己的名字申請。申請中的班在班表上標示「換」，🔔 列出跟自己有關的換班申請；需要對方同意時，對方於「申請紀錄」同意或婉拒。'],
     ['後台新增「換班」：開放換班、需要對方同意、需要主管核准可分別設定（預設不開放；開放時預設需主管核准）。不需主管核准的換班，於主管的 App 開啟時自動寫入班表並發布。',1],
     ['🔔 列出換班申請，查看規則提醒後核准或退回；核准後只更新並發布換班的那幾格。',1],
     ['帳號登入（試用）：可用 Google 或 email 登入，選擇自己的名字送出，經主管啟用後綁定；劃假時自動帶入自己的名字。夥伴代碼照常可用。'],
     ['「⋯」→「帳號」審核帳號申請：啟用、退回（可選填理由）、停用；🔔 列出待審核的申請。過了最後上班日的帳號自動停用。',1],
     ['後台登入僅限管理者帳號，並可用 Google 登入；後台新增「管理者」，可新增或移除能審核帳號的管理者。',1]
   ],fix:[
+    ['帳號驗證開啟時，用主管代碼開啟需登入已核准的主管帳號，否則先出現登入畫面（班表保護關閉時可「先看班表」）；班表保護開啟時，用夥伴代碼開啟也一律先登入。主管開啟時，雲端的保護設定與後台不一致會自動補上。',1],
     ['需要登入時：重新整理頁面，已登入的帳號不會先跳到登入畫面；管理者帳號可直接檢視班表。'],
     ['需要登入的畫面顯示目前的代碼，並可直接輸入其他代碼；切換時不再留下前一個代碼的 🔔 紅點，也清除裝置上暫存的班表。'],
     ['管理者帳號可綁定自己的名字（「⋯」→「帳號」→「我的帳號」），綁定後直接啟用，劃假自動帶入、也可換班。',1],
@@ -7406,7 +7442,7 @@ document.getElementById('btnMore').addEventListener('click',()=>{
 /* ────────── 新手教學（聚光燈）：夥伴版、主管版各一套 ──────────
    用夥伴代碼／主管代碼打開、而且這支手機還沒看過那一版就會出現（這次更新前就在用的手機也會看到一次）。
    看完或略過就記在這支手機上；想重看從「？」。版本號改掉，大家就會再看到一次。 */
-const TOUR_KEYS={view:'paiban-tour-v1',edit:'paiban-tour-mgr-v1',leave:'paiban-tour-leave-v1',sched:'paiban-tour-sched-v1',lcfg:'paiban-tour-lcfg-v1'};
+const TOUR_KEYS={view:'paiban-tour-v1',edit:'paiban-tour-mgr-v1',leave:'paiban-tour-leave-v1',sched:'paiban-tour-sched-v1',lcfg:'paiban-tour-lcfg-v1',swapv:'paiban-tour-swap-v1',swapm:'paiban-tour-swap-mgr-v1'};
 function tourSeen(role){try{return !!localStorage.getItem(TOUR_KEYS[role])}catch(e){return true}} // 讀不到就當看過，免得每次都跳
 function tourMark(role){try{localStorage.setItem(TOUR_KEYS[role],String(Date.now()))}catch(e){}}
 function tourShown(el){return el&&el.getClientRects().length&&el.getBoundingClientRect().width>0?el:null}
@@ -7737,6 +7773,27 @@ function tourSteps(role,full){ // full：完整新手教學，走到排班、開
           (demo()?'<br>請按「送出」查看送出後的畫面，練習內容不會實際送出。':'')}
     ];
   }
+  if(role==='swap'){ // 換班教學：每台裝置播放一次（夥伴版於開放換班時；主管版開啟 App 時）
+    const S=normSwapCfg((state.config||{}).swap),ver=acctVerify();
+    if(viewerMode)return [
+      {h:'換班、代班',b:'此次更新換班、代班功能：可於 App 申請由其他夥伴代班，或與其他夥伴互換班別。以下簡單介紹，約 30 秒。'+(S.on?'':'<br><b>目前此班表尚未開放換班。</b>')},
+      {el:()=>tourShown($('#btnSwap')),h:'🔁 換班',b:()=>'於此申請：<br>① 選擇自己要換出的班<br>② 選擇<b>代班</b>（由對方上這一班，自己改為排休）或<b>換班</b>（雙方互換彼此的班）<br>③ 選擇對象<br>④ 確認內容，可留言，按「送出」。<br>'+
+        swFlowText(S)+(ver?'':'<br>申請時選擇自己的名字。')},
+      {el:()=>tourShown($('#btnSwap')),h:'申請紀錄',b:()=>'「🔁 換班」的<b>「申請紀錄」</b>列出跟自己有關的申請與進度，可撤回自己的申請。'+
+        (S.peer?'<br>有人申請由你代班、或與你換班時，於此<b>同意或婉拒</b>。':'')+'<br>申請中的班，班表上標示「換」。'},
+      ...(ver?[{el:()=>tourShown($('#btnMore')),h:'帳號登入',b:()=>'此班表使用帳號：換班需先於「⋯」→<b>「帳號登入」</b>登入，選擇自己的名字，經主管啟用後即可申請，名字自動帶入。'+(acctState()==='active'?'<br>這台裝置已登入。':'')}]:[]),
+      {el:()=>tourShown($('#btnNotice')),h:'🔔 通知',b:'跟自己有關的換班申請也列於 🔔'+(S.peer?'；需要你回覆時出現'+RED('紅點'):'')+'。'},
+      {el:()=>tourShown($('#btnHelp')),h:'說明',b:'詳細規則列於「？」的「換班　·　代班」，也可從「🔁 換班教學」重看。<br>換班教學到此結束。'}
+    ];
+    return [
+      {h:'換班、代班',b:'此次更新換班、代班功能：夥伴可於 App 申請由其他夥伴代班，或與其他夥伴互換班別；依設定經對方同意、主管核准後，寫入班表並發布。以下簡單介紹，約 30 秒。'},
+      {el:()=>tourShown($('#btnMore')),h:'後台設定「換班」',b:()=>'於「⋯」→「後台設定」→<b>「換班」</b>設定：開放換班、需要對方同意、需要主管核准，可分別勾選。<br>'+
+        (S.on?'目前：已開放。'+swFlowText(S):'目前：尚未開放。開放後，夥伴代碼的工具列出現「🔁 換班」。')},
+      {el:()=>tourShown($('#btnNotice')),h:'🔔 審核',b:'需要主管核准的換班申請列於 🔔，點選後查看規則提醒，再<b>核准</b>或<b>退回</b>（可填理由）。<br>核准後只更新並發布換班的那幾格，其他未發布的修改不受影響。'},
+      {el:()=>tourShown($('.sheet-wrap')),h:'班表上的標示',b:'申請中的班，班表上標示「換」。<br>不需主管核准的換班，成立後於主管的 App 開啟時自動寫入班表並發布。<br>申請後那幾格的班表有異動，申請即失效，不會寫入。'},
+      {el:()=>tourShown($('#btnHelp')),h:'說明',b:'詳細規則列於「？」的「換班　·　代班」，也可從「🔁 換班教學」重看。<br>換班教學到此結束。'}
+    ];
+  }
   // 夥伴版、主管版共用的幾步
   const INSTALL=(!isStandaloneApp()&&devicePlatform())?[{ // 手機上、還不是從主畫面開啟時才介紹
     enter:()=>{openInstall();document.getElementById('ovInstall').classList.add('in-tour')},
@@ -7842,10 +7899,11 @@ function tourSteps(role,full){ // full：完整新手教學，走到排班、開
     {seg:'lcfg',when:()=>full},
     {seg:'leave',when:()=>full},
     {el:()=>tourShown($('#btnFilter')),h:'篩選日期',b:'僅顯示指定的日期範圍，例如 1～15 號；也可將該範圍存成<b>圖片</b>。'},
-    {el:()=>tourShown($('#btnNotice')),h:'通知',b:'有夥伴劃假或修改時，🔔 顯示'+RED('紅點')+'；點開可查看最近異動與各夥伴的備註。'},
+    {el:()=>tourShown($('#btnNotice')),h:'通知',b:()=>'有夥伴劃假或修改時，🔔 顯示'+RED('紅點')+'；點開可查看最近異動與各夥伴的備註。<br>換班申請'+(acctVerify()?'、帳號申請':'')+'也列於此，點選即可審核。'},
     {el:()=>tourShown($('#btnMore')),h:'更多 ⋯',b:'<b>複製代碼</b>：提供<b>夥伴代碼</b>給夥伴查看班表與劃假；主管代碼僅提供給共同排班的人。<br>'+
       '<b>匯出或備份</b>：匯出 PDF／列印，或存成備份檔。<br><b>載入備份</b>：由備份檔還原。<br>'+
-      '<b>後台設定</b>：班段、人力規則、劃假、分段工時、發布、行事曆、更新日誌，以及換發夥伴代碼（需登入）。<br><b>已隱藏人員</b>：查看或復原已離職的人員。<br>'+
+      '<b>後台設定</b>：班段、人力規則、劃假、分段工時、發布、帳號驗證、換班、行事曆、更新日誌，以及換發夥伴代碼（需管理者帳號）。<br><b>已隱藏人員</b>：查看或復原已離職的人員。<br>'+
+      (acctVerify()?'<b>帳號</b>：審核夥伴的帳號，並設定每個人是主管或夥伴；登出也在這裡。<br>':'')+
       '<b>加入現有代碼</b>、<b>建立新店家</b>：切換門市或建立新的班表。<br>最下方顯示目前版本號。'},
     ...OT,
     {opt:1,el:()=>tourShown($('#btnReportTop')),h:'🏆 每月戰績',b:t=>(t?'<b>目前正在顯示。</b>':'')+
@@ -7874,9 +7932,10 @@ function tourSteps(role,full){ // full：完整新手教學，走到排班、開
     {el:()=>tourShown($('#btnLeave')),h:'劃假',b:()=>'開放期間於此標出無法上班的日子，完成後按「送出」。'+
       (full?'<br>下一步起以練習畫面實際操作一次，練習內容不會送出。':'<br>操作方式可於「？」的<b>「🏖 劃假教學」</b>以練習畫面試做，練習內容不會送出。')},
     {seg:'leave',when:()=>full},
+    {el:()=>tourShown($('#btnSwap')),h:'🔁 換班',b:()=>'申請由其他夥伴代班，或與其他夥伴互換班別。'+swFlowText(normSwapCfg((state.config||{}).swap))+'<br>操作方式可於「？」的「🔁 換班教學」查看。'},
     {el:()=>tourShown($('#btnLook')),h:'外觀設定',b:'可調整字級、顏色與深色模式，僅影響本裝置。'},
-    {el:()=>tourShown($('#btnNotice')),h:'🔔 通知',b:'主管發布或更新班表時，這裡出現紅點，開啟 App 時也會跳出通知。<br>點開可查看發布的日期，更新時分「新排」（原本未排的格子排上了）與「異動」（已排的格子有更改）列出，點選即切換到該月份。'},
-    {el:()=>tourShown($('#btnMore')),h:'更多 ⋯',b:'<b>匯出或備份</b>：將班表存成 PDF 或列印。<br><b>複製代碼</b>：複製夥伴代碼，提供給新進同事。<br><b>加入現有代碼</b>：切換至其他代碼，例如支援其他門市。<br>最下方顯示目前版本號。'},
+    {el:()=>tourShown($('#btnNotice')),h:'🔔 通知',b:()=>'主管發布或更新班表時，這裡出現紅點，開啟 App 時也會跳出通知。<br>點開可查看發布的日期，更新時分「新排」（原本未排的格子排上了）與「異動」（已排的格子有更改）列出，點選即切換到該月份。'+(normSwapCfg((state.config||{}).swap).on?'<br>跟自己有關的換班申請也列於此。':'')},
+    {el:()=>tourShown($('#btnMore')),h:'更多 ⋯',b:()=>(acctVerify()?'<b>帳號登入</b>：登入並綁定自己的名字，劃假、換班自動帶入；登出也在這裡。<br>':'')+'<b>匯出或備份</b>：將班表存成 PDF 或列印。<br><b>複製代碼</b>：複製夥伴代碼，提供給新進同事。<br><b>加入現有代碼</b>：切換至其他代碼，例如支援其他門市。<br><b>後台設定</b>：限管理者帳號。<br>最下方顯示目前版本號。'},
     {opt:1,el:()=>tourShown($('#btnReportTop')),h:'🏆 每月戰績',b:t=>(t?'<b>目前正在顯示。</b>':'')+
       '每月<b>倒數第二天至下月 3 號</b>，工具列出現金色「🏆 ○月戰績」按鈕，其餘時間不顯示。<br>'+
       '內容為當月的小統計，例如開店與收班次數、最常同班的組合、人數最多的一天；期間首次開啟 App 時會詢問是否查看。'},
@@ -8162,18 +8221,30 @@ function endTour(skipped){
   if(skipped===true)showToast('已略過教學，可於「？」重看',2800);
 }
 function tourMarkRole(){ // 只記「本人身分」看過的那一版；主管預覽夥伴版、劃假教學，不算夥伴看過
-  if(tourRole==='view'&&viewerMode)tourMark('view');
-  else if(tourRole==='edit'&&!viewerMode)tourMark('edit');
+  if(tourRole==='view'&&viewerMode){tourMark('view');if(normSwapCfg((state.config||{}).swap).on)tourMark('swapv')} // 完整教學已介紹換班：不再另播換班教學
+  else if(tourRole==='edit'&&!viewerMode){tourMark('edit');tourMark('swapm')}
+  else if(tourRole==='swap')tourMark(viewerMode?'swapv':'swapm');
   else if(tourRole==='leave'&&viewerMode)tourMark('leave');
   else if(tourRole==='sched'&&!viewerMode)tourMark('sched');
   else if(tourRole==='lcfg'&&!viewerMode)tourMark('lcfg');
 }
+function swapTourDue(){ // 換班教學：看過完整教學、還沒看過換班教學（夥伴：開放換班時；主管：有主管代碼時）
+  if(viewerMode)return tourSeen('view')&&!tourSeen('swapv')&&normSwapCfg((state.config||{}).swap).on;
+  return tourSeen('edit')&&!tourSeen('swapm')&&!!storeCode;
+}
 function maybeStartTour(){ // 等開啟動畫結束、其他視窗（例如剛建立代碼的說明）都關掉，再開始
   const role=viewerMode?'view':'edit';
-  if(tourSeen(role))return; // 僅存本機（沒有代碼）的主管也一樣：空白班表也能看完整教學
+  if(tourSeen(role)&&!swapTourDue())return; // 僅存本機（沒有代碼）的主管也一樣：空白班表也能看完整教學
   let tries=0;
   const tick=()=>{
-    if((viewerMode?'view':'edit')!==role||tourSeen(role)||document.getElementById('tour'))return; // 中途換了代碼就不開
+    if((viewerMode?'view':'edit')!==role||document.getElementById('tour'))return; // 中途換了代碼就不開
+    if(Date.now()<acctSoftWait){if(++tries<240)setTimeout(tick,500);return} // 先看要不要出現登入畫面
+    if(tourSeen(role)){
+      if(!swapTourDue())return;
+      if(document.getElementById('splash')||document.querySelector('.overlay.show')){if(++tries<240)setTimeout(tick,500);return}
+      setTimeout(()=>{if(document.getElementById('splash')||document.querySelector('.overlay.show')){tick();return}if(!swapTourDue()||document.getElementById('tour'))return;tourStack=[];startTour('swap')},400);
+      return;
+    }
     if(document.getElementById('splash')||document.querySelector('.overlay.show')){if(++tries<240)setTimeout(tick,500);return}
     setTimeout(()=>{
       if(document.getElementById('splash')||document.querySelector('.overlay.show')){tick();return}
@@ -8184,7 +8255,7 @@ function maybeStartTour(){ // 等開啟動畫結束、其他視窗（例如剛�
   tick();
 }
 // 「？」裡的教學：完整新手教學，或直接看其中一段
-[['btnTourReplay','main',{full:true}],['btnTourMain','main',{}],['btnTourSched','sched'],['btnTourLcfg','lcfg'],['btnTourLeave','leave']].forEach(([id,r,o])=>
+[['btnTourReplay','main',{full:true}],['btnTourMain','main',{}],['btnTourSched','sched'],['btnTourLcfg','lcfg'],['btnTourLeave','leave'],['btnTourSwap','swap']].forEach(([id,r,o])=>
   document.getElementById(id).addEventListener('click',()=>{
     if(document.getElementById('tour'))return;
     tourStack=[];
@@ -8361,7 +8432,7 @@ var acctMember=null,acctMemberReady=false,unsubMember=null; // 夥伴：自己�
 var acctList=[],acctListReady=false,unsubAcctList=null,acctListVc='',acctPendSeen=null; // 管理者：這間店的帳號
 var acctGateCode=null,acctGateTried='';             // 需要登入的夥伴代碼：登入並啟用後才進得去
 var acctRosterCache=null;                            // rosters 文件（名單、已有帳號的名字）
-var acctSoft=false,acctPeekCode=null,acctPeekMgr=null,acctGateSoft=false,adminSession=null,acctReopenAdmin=false,acctCodeEdit=false,acctCodeVal='',acctGateMgr=false,acctGateVc=null,acctGateNoVc=false,gatesAcked='',linkAcked='';
+var acctSoftWait=0,acctSoft=false,acctPeekCode=null,acctPeekMgr=null,acctGateSoft=false,adminSession=null,acctReopenAdmin=false,acctCodeEdit=false,acctCodeVal='',acctGateMgr=false,acctGateVc=null,acctGateNoVc=false,gatesAcked='',linkAcked='';
 var acctMode='pick',acctPick=null,acctRepick=false,acctMsg='',acctMsgOk=false,acctBusy=false,acctEmailVal='';
 var rosterAcked='',rosterDenied=false,takenAcked='',cfgAcctLoaded='code';
 const ACCT_ADMIN_KEY='paiban-admin-uid';
@@ -8472,7 +8543,19 @@ function acctLeaveSelf(){ // 劃假：已啟用的帳號直接帶入自己的名
   lvDraft=JSON.parse(JSON.stringify(lvOriginal));
 }
 function acctWhoLock(){const me=acctSelfSid();return me&&lvWho===me&&!lvIsDemo()?' disabled title="已登入的帳號只能劃自己的假"':''}
-async function acctEnterGate(code,mgr){ // 開啟班表保護：先登入、綁定名字、等管理者啟用（mgr：用主管代碼開的）
+function acctFixLock(ref,sd){ // 主管代碼、夥伴代碼兩份文件的 lock／verify 跟後台設定不一致時補上（舊版寫入的文件）
+  const on=acctVerify(),lk=acctLocked(),vc=state.viewCode;
+  if(!!(sd&&sd.lock)!==on||(vc&&(sd&&sd.viewCode)!==vc))FB.setDoc(ref,vc?{lock:on,viewCode:vc}:{lock:on},{merge:true}).catch(()=>{}); // viewCode：雲端規則用來確認主管身分
+  if(vc)FB.getDoc(FB.doc(FB.db,'views',vc)).then(v=>{if(!v.exists())return;const d=v.data()||{};
+    if(!!d.lock!==lk||!!d.verify!==on)FB.setDoc(FB.doc(FB.db,'views',vc),{lock:lk,verify:on},{merge:true}).catch(()=>{})}).catch(()=>{});
+}
+async function acctCanEnter(vc,mgr){ // 這台登入的帳號能不能進（mgr：用主管代碼排班，要是已核准的主管；後台人員都可以）
+  const u=(FB&&FB.auth&&FB.auth.currentUser)||authUser;if(!u)return false;
+  if(vc)try{const m=await FB.getDoc(FB.doc(FB.db,'views',vc,'members',u.uid));const d=m.exists()?m.data():null;if(d&&d.status==='active'&&(!mgr||d.role==='mgr'))return true}catch(e){}
+  if(adminUser&&adminUser.uid===u.uid)return true;
+  return await acctProbeAdmin(u);
+}
+async function acctEnterGate(code,mgr,hint){ // 開啟班表保護：先登入、綁定名字、等管理者啟用（mgr：用主管代碼開的；hint：已知的夥伴代碼與是否可先看班表）
   if(storeCode||viewerMode)acctClearScreen();
   mgr=!!mgr;
   const same=acctGateCode===code&&acctGateMgr===mgr;
@@ -8480,7 +8563,9 @@ async function acctEnterGate(code,mgr){ // 開啟班表保護：先登入、綁�
   try{localStorage.setItem('paiban-store-code',code);localStorage.setItem('paiban-mode',mgr?'edit':'view')}catch(e){}
   cloudStatus=(mgr?'主管代碼：':'夥伴代碼：')+code+'（需要登入）';setHint('需要登入');
   if(!same){acctGateVc=mgr?null:code;acctGateNoVc=false;acctRosterCache=null;acctGateTried=''}
+  if(mgr&&hint&&hint.vc){acctGateVc=hint.vc;acctGateNoVc=false;acctGateSoft=!!hint.soft}
   acctShow(true);
+  if(mgr&&hint&&hint.vc){acctWatchMember();acctRender();return}
   if(mgr&&!acctGateVc){ // 主管代碼：先查出對應的夥伴代碼（帳號掛在夥伴代碼底下）
     try{const g=await FB.getDoc(FB.doc(FB.db,'gates',code));if(acctGateCode!==code)return;acctGateVc=(g.exists()&&g.data().vc)||null}catch(e){}
     acctGateNoVc=!acctGateVc;
@@ -8517,7 +8602,7 @@ function acctAfterConnect(){ // 連上代碼之後（主管代碼或夥伴代碼
 }
 function acctMaybeSoft(){ // 帳號驗證開、班表保護關：沒登入先跳登入畫面，可以「先看班表」
   if(!viewerMode||!acctVerify()||acctLocked()||!FB||!FB.auth||acctPeekCode===storeCode)return;
-  const code=storeCode;
+  const code=storeCode;acctSoftWait=Date.now()+1700; // 教學等登入畫面決定要不要出現，再開始
   setTimeout(()=>{
     if(!viewerMode||storeCode!==code||acctPeekCode===code||acctGateCode)return;
     const st=acctState();if(st==='active'||st==='admin')return;
@@ -8537,7 +8622,7 @@ async function acctPeek(){ // 先看班表
 }
 function acctPeekToMgr(){ // 先看班表期間登入了主管帳號：改用主管代碼進入
   if(!acctPeekMgr||!viewerMode||!(adminUser||acctIsMgrSelf()))return false;
-  const c=acctPeekMgr;acctPeekMgr=null;connectStore(c,false,true);return true;
+  const c=acctPeekMgr;acctPeekMgr=null;document.getElementById('ovAcct').classList.remove('show','gate');connectStore(c,false,true);return true;
 }
 function acctResetToStart(){ // 登出：回到一開始的畫面，代碼一併清掉
   acctGateCode=null;acctGateMgr=false;acctGateVc=null;acctSoft=false;acctPeekCode=null;acctPeekMgr=null;adminSession=null;
