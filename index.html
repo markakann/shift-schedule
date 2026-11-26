@@ -563,9 +563,9 @@ html.ov-open,html.ov-open body{overflow:hidden;overscroll-behavior:none}
 .lv-warn.late{border-color:#e0a05a;background:#fff4e6;color:#a85c07}
 .lv-warn .lv-pre{font-weight:500;font-size:12.5px;margin-top:3px;opacity:.9}
 /* 班表上的劃假提示（排班用，夥伴代碼看不到別人劃了哪天） */
-.viewer-boot .day-cell.lv-all,.viewer-boot .day-cell.lv-only,
-.viewer-boot .day-cell.lv-part,.viewer-boot .day-cell.lv-late{background-color:var(--cbg,transparent)!important}
-.viewer-boot .lv-cell-tag{display:none!important}
+.viewer-boot .day-cell.lv-all:not(.lv-me),.viewer-boot .day-cell.lv-only:not(.lv-me),
+.viewer-boot .day-cell.lv-part:not(.lv-me),.viewer-boot .day-cell.lv-late:not(.lv-me){background-color:var(--cbg,transparent)!important}
+.viewer-boot .day-cell:not(.lv-me) .lv-cell-tag,.viewer-boot .lv-cell-tag.bad{display:none!important} /* 帳號綁定的本人：看得到自己那一列的劃假 */
 .viewer-boot .day-cell.lv-clash{box-shadow:none!important}
 .day-cell.lv-all {background-color:#dceffa;--lvink:#245f80}
 .day-cell.lv-only{background-color:#dcf3da;--lvink:#2b6b30}
@@ -3758,7 +3758,7 @@ async function connectStore(code,isNew,silent){
       state.staff=[];state.months={};state.calCache={};state.config={};
       state.viewCode='view-'+genCodeSuffix();
       state.pubV=1;state.pubLog=[]; // 新店家一開始就用發布機制
-      state.config={acct:{on:true,view:'login'}}; // 新店家：預設開啟帳號驗證與班表保護
+      state.config={acct:adminUser?{on:true,view:'login'}:{on:false,view:'code'}}; // 新店家：後台人員建立時預設開啟帳號驗證與班表保護；其他人建立時關閉，否則建立的人自己讀不到
       state.arcYears=[];state.arcHold={};
       document.getElementById('storeName').value='';
       document.getElementById('sheetTitle').value='排班表';
@@ -3945,6 +3945,7 @@ function applyViewerUI(){ // 檢視模式下隱藏所有可編輯入口；回到
   document.getElementById('storeName').readOnly=viewerMode;
   document.getElementById('sheetTitle').readOnly=viewerMode;
   if(viewerMode&&editMode){editMode=false;document.body.classList.remove('editing')}
+  {const be=document.getElementById('btnEdit');if(be&&!editMode&&be.classList.contains('editing')){be.textContent='🔒 排班';be.classList.remove('editing')}} // 切換代碼時排班鈕回到鎖定
 }
 async function pushCloud(){
   if(!FB||!storeCode||viewerMode)return false;
@@ -4665,6 +4666,7 @@ function scrollSheetToToday(){
   ['pointerdown','touchstart','wheel'].forEach(ev=>w.addEventListener(ev,stop,{passive:true}));})();
 function renderSheet(){
   swPendSet=swPendCompute(); // 換班申請中的格子
+  lvMeSid=viewerMode?acctSelfSid():null; // 夥伴：帳號綁定的名字，班表上顯示自己的劃假
   if(otDemo&&state!==otDemo.st){otDemoWith(renderSheet);return} // 加班時數的示範中：別的地方觸發重畫，也畫示範班表
   if(viewerMode&&viewerMonthHidden()){ // 夥伴端：還沒發布的月份
     const sh=document.getElementById('sheet');sh.classList.add('unpub-sheet');
@@ -4766,6 +4768,7 @@ function renderSheet(){
         if(prevLabel)inner+='<span class="prev-value">'+esc(prevLabel)+'</span>';
       }
       const lvx=leaveDayOf(st.id,state.y,state.m,d); // 這天有沒有劃假
+      if(lvx&&viewerMode&&st.id===lvMeSid)cls+=' lv-me';
       const lvCut=(!lvx&&!e&&!viewerMode)?lvLateCutOf(ymOf(state.y,state.m),st.id,d):null; // 截止後取消的劃假
       if(lvCut){
         cls+=' lv-late';
@@ -7117,6 +7120,10 @@ const CHANGELOG=[
     ['「⋯」→「帳號」審核帳號申請：啟用、退回（可選填理由）、停用；🔔 列出待審核的申請。過了最後上班日的帳號自動停用。',1],
     ['後台登入僅限管理者帳號，並可用 Google 登入；後台新增「管理者」，可新增或移除能審核帳號的管理者。',1]
   ],fix:[
+    ['帳號驗證開啟時，夥伴帳號綁定的名字那一列，班表上顯示自己的劃假。'],
+    ['切換到其他代碼（加入現有代碼、更換代碼）時登出帳號，不帶著原本的帳號。'],
+    ['未登入後台人員帳號時建立的新店家，帳號驗證預設關閉，建立的人才讀得到自己的班表。',1],
+    ['排班中切換代碼（例如被設為夥伴）後，「排班」按鈕回到鎖定狀態。',1],
     ['後台「發布」設為直接發布時，新增或修改人員、備註，關閉視窗後也直接發布；原本只有人員、還沒排班的月份不會發布，夥伴端顯示尚未發布。',1],
     ['帳號驗證開啟時，用主管代碼開啟需登入已核准的主管帳號，否則先出現登入畫面（班表保護關閉時可「先看班表」）；班表保護開啟時，用夥伴代碼開啟也一律先登入。主管開啟時，雲端的保護設定與後台不一致會自動補上。',1],
     ['需要登入時：重新整理頁面，已登入的帳號不會先跳到登入畫面；管理者帳號可直接檢視班表。'],
@@ -8645,6 +8652,7 @@ function acctClearScreen(){ // 讀不到班表了：清掉畫面上的資料
   applyViewerUI();renderAll();
 }
 function acctLeaveGate(){ // 改用其他代碼
+  acctSignOutForSwitch();
   acctGateCode=null;acctRosterCache=null;acctWatchMember();
   try{localStorage.removeItem('paiban-store-code');localStorage.removeItem('paiban-mode')}catch(e){}
   const ov=document.getElementById('ovAcct');ov.classList.remove('show','gate');
@@ -8804,6 +8812,7 @@ async function acctCodeGo(){ // 需要登入的畫面：直接換成其他代碼
   const el=document.getElementById('acctCodeIn'),code=(el?el.value:'').trim();acctCodeVal=code;
   if(!code){if(el)el.focus();return}
   if(code===acctGateCode){acctCodeEdit=false;acctRender();return}
+  await acctSignOutForSwitch(code);
   if(await connectStore(code,false,false)){acctCodeEdit=false;acctCodeVal='';if(acctGateCode)acctRender()}
 }
 function acctFail(t,ok){acctMsg=t;acctMsgOk=!!ok;acctRender()}
@@ -8839,6 +8848,23 @@ async function acctResetPw(){
   if(!em){acctFail('請先輸入 email，再按「忘記密碼」。');return}
   try{await FB.resetPw(FB.auth,em);acctFail('已寄出重設密碼的信件，請至信箱查看。',true)}
   catch(e){acctFail(acctErrText(e))}
+}
+async function acctCodeExists(code){ // 主管代碼或夥伴代碼是否存在（讀不到＝有開保護，也算存在）
+  if(!code)return false;
+  for(const c of ['stores','views']){
+    try{const sn=await FB.getDoc(FB.doc(FB.db,c,code));if(sn.exists())return true}
+    catch(e){if(e&&e.code==='permission-denied')return true}
+  }
+  return false;
+}
+async function acctSignOutForSwitch(code){ // 切換到其他代碼：先登出帳號，不帶著原本的帳號
+  const cur=acctGateCode||storeCode||'';
+  if(!FB||!FB.auth||!((FB.auth.currentUser)||authUser))return;
+  if(code!==undefined&&String(code||'').trim()===cur)return;
+  if(code!==undefined&&!(await acctCodeExists(String(code).trim())))return; // 代碼打錯：不登出
+  acctMode='pick';acctPick=null;acctRepick=false;adminSession=null;acctPeekCode=null;acctPeekMgr=null;
+  try{await FB.signOutFn(FB.auth)}catch(e){}
+  await acctOnAuth(null);
 }
 async function acctLogout(){ // 登出帳號：回到一開始的畫面
   acctMode='pick';acctPick=null;acctRepick=false;
@@ -9144,7 +9170,7 @@ document.querySelectorAll('input[name="cfgAcctView"],#cfgAcctOn').forEach(r=>r.a
          no 對方婉拒、rej 主管退回、cancel 撤回。過期（exp）與失效（void：申請後班表有異動）不寫入，顯示時判斷。
    申請人需以已啟用的帳號登入；需要對方同意時，對方也要有已啟用的帳號。夥伴只看得到跟自己有關的申請。
    寫入班表一律由主管的裝置進行：只改申請裡的那幾格，並直接發布這幾格（其他未發布的修改不受影響）。 */
-var swMode='proxy',swapData={},swTab='new',swForm={a:null,pick:null,kind:'cover',b:null,opt:null,msg:''},swFocus=null,swRvId=null,swPruned=false,swSending=false,swAutoBusy=false,swPendSet=new Map();
+var lvMeSid=null,swMode='proxy',swapData={},swTab='new',swForm={a:null,pick:null,kind:'cover',b:null,opt:null,msg:''},swFocus=null,swRvId=null,swPruned=false,swSending=false,swAutoBusy=false,swPendSet=new Map();
 var SW_ACTIVE=['wb','wait','ok'];
 function normSwapCfg(s){s=s||{};return {on:!!s.on,peer:!!s.peer,mgr:s.mgr!==false}}
 function swFlowText(S){
@@ -10736,6 +10762,7 @@ document.getElementById('btnNewStore').addEventListener('click',async()=>{
       const snap=await FB.getDoc(FB.doc(FB.db,'stores',code));
       if(snap.exists()){
         if(!confirm('代碼「'+code+'」已存在資料。\n\n按「確定」＝加入該店家（載入雲端上既有的班表）\n按「取消」＝換一組代碼'))return;
+        await acctSignOutForSwitch(code);
         if(await connectStore(code,false,false))document.getElementById('ovSetup').classList.remove('show');
         return;
       }
@@ -10751,6 +10778,7 @@ document.getElementById('btnNewStore').addEventListener('click',async()=>{
 document.getElementById('btnJoinStore').addEventListener('click',async()=>{
   const code=document.getElementById('joinCode').value;
   if(!code.trim()){alert('請輸入主管代碼');return}
+  await acctSignOutForSwitch(code);
   if(await connectStore(code,false,false)){
     document.getElementById('ovJoinStore').classList.remove('show');
   }
