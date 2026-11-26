@@ -568,6 +568,12 @@ html.ov-open,html.ov-open body{overflow:hidden;overscroll-behavior:none}
 .viewer-boot .day-cell:not(.lv-me) .lv-cell-tag,.viewer-boot .lv-cell-tag.bad{display:none!important} /* 帳號綁定的本人：看得到自己那一列的劃假 */
 .viewer-boot .day-cell.lv-clash{box-shadow:none!important}
 .day-cell.lv-all {background-color:#dceffa;--lvink:#245f80}
+.day-cell.lv-hol {background-color:#efe1cc;--lvink:#7a5530} /* 國定假日抵用月休：這天需排班 */
+.rest-count .lv-over{color:var(--red);font-weight:700;font-size:.92em;letter-spacing:-.2px;margin-left:2px;cursor:pointer;white-space:nowrap}
+.lv-acc{color:var(--red);font-weight:700}
+.lv-off-tag.acc{color:var(--red);border-color:var(--red)}
+.lv-off-tag.hol{color:#7a5530;border-color:#c9a77c}
+.lv-warn.hol{border-color:#c9a77c;background:#f7efe3;color:#6b4a26}
 .day-cell.lv-only{background-color:#dcf3da;--lvink:#2b6b30}
 .day-cell.lv-part{background-color:#f7e3f7;--lvink:#7d3f7d}
 .day-cell.lv-late{background-color:#ffe3c2;--lvink:#a85c07}
@@ -1282,6 +1288,8 @@ html.dark .lv-op.del{background:#1f3327;color:#8fd0a0}
 html.dark .lv-op.mod{background:#22303f;color:#9cc4e8}
 /* 劃假底色：深色模式改成同色系的深底淺字，保留四種顏色的分辨度 */
 html.dark .day-cell.lv-all {background-color:#1e3646;--lvink:#8fc8e8}
+html.dark .day-cell.lv-hol {background-color:#3a2f22;--lvink:#dcb98a}
+html.dark .lv-warn.hol{background:#33291d;border-color:#7d6342;color:#e6c79c}
 html.dark .day-cell.lv-only{background-color:#1f3a24;--lvink:#96d69b}
 html.dark .day-cell.lv-part{background-color:#3a2439;--lvink:#e0a6e0}
 html.dark .day-cell.lv-late{background-color:#42301a;--lvink:#f0b978}
@@ -1320,7 +1328,8 @@ body.print-sizing .day-cell.marked,body.print-sizing .day-cell.flash{box-shadow:
 body.print-sizing .toolbar,body.print-sizing .legend,body.print-sizing .overlay,body.print-sizing .save-hint,body.print-sizing #btnAddNote,body.print-sizing .pub-bar,body.print-sizing #lineBanner{display:none!important}
 body.print-sizing .lv-cell-tag{display:none!important}
 body.print-sizing .day-cell.lv-all,body.print-sizing .day-cell.lv-only,
-body.print-sizing .day-cell.lv-part,body.print-sizing .day-cell.lv-late{background-color:var(--cbg,transparent)!important}
+body.print-sizing .day-cell.lv-part,body.print-sizing .day-cell.lv-late,body.print-sizing .day-cell.lv-hol{background-color:var(--cbg,transparent)!important}
+body.print-sizing .rest-count .lv-over{display:none!important}
 body.print-sizing .day-cell.lv-clash{box-shadow:none!important}
 body.print-sizing .topbar{position:static;box-shadow:none;border-bottom:2px solid var(--grid);padding:4px 0 6px}
 body.print-sizing .store-name,body.print-sizing .ym-sel,body.print-sizing .sheet-title-input,body.print-sizing .corner-input{border:none;appearance:none;-webkit-appearance:none}
@@ -2608,7 +2617,8 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
     </dl>
     <div class="hsub">日曆上的標示</div>
     <ul class="hul">
-      <li>日曆上方顯示該月的月休額度（正職）與國定假日。</li>
+      <li>日曆上方顯示該月的月休額度（正職）、國定假日與已劃的天數。正職「整天不能上」的天數（國定假日當天不算）超過月休時，送出前提醒，仍可送出。</li>
+      <li>超過月休的天數先以國定假日抵用，抵用的國定假日當天需排班：班表上以淡咖啡色標「需上」。國定假日抵完仍超過時，班表上該人員的「休」後方以重點色標「劃 N」。點一下顯示說明；夥伴只看得到自己的。</li>
       <li>紅線的日子（到職前／離職後）標示「未在職」，無法劃假。</li>
       <li><b style="color:var(--red)">國</b>＝國定假日（以原日期計算）。政府公告的補假日視為一般日。</li>
     </ul>
@@ -4717,6 +4727,8 @@ function renderSheet(){
     }
     prevType=st.type;
     const tally=st.type==='full'?restTally(st.id):null;
+    const lr=st.type==='full'&&(!viewerMode||st.id===lvMeSid)?lvRestOver(st.id,ymOf(state.y,state.m)):null; // 主管看全部；夥伴只看自己
+    const lrTxt=lr&&lr.over?esc(staffName(st)+'：'+lvRestText(lr)):'';
     const hoursLine=st.type==='full'
       ?'<span class="hours-line">應上'+fmtH(reqHours(st.id))+'h</span>'
       :'<span class="hours-line">本月'+fmtH(partHours(st.id))+'h</span>';
@@ -4724,7 +4736,8 @@ function renderSheet(){
        '<span class="name-sub"><span class="badge '+st.type+'">'+TYPE_LABEL[st.type][0]+'</span>'+
        (st.type==='full'?'<span class="rest-count'+(tally.count>q?' over':'')+'">休 '+tally.count+'/'+q+
          (tally.offUsed?'<span class="off-note">含紅線 '+tally.offUsed+' 天</span>':'')+
-         (tally.typhoonUsed?'<span class="typhoon-note">（含颱'+tally.typhoonUsed+'）</span>':'')+'</span>':'')+
+         (tally.typhoonUsed?'<span class="typhoon-note">（含颱'+tally.typhoonUsed+'）</span>':'')+
+         (lrTxt?'<span class="lv-over" data-lvover="'+lrTxt+'">· 劃'+lr.A+'</span>':'')+'</span>':'')+
        '</span>'+hoursLine+'</td>';
     for(let d=1;d<=N;d++){
       const e=entryOf(st.id,d);
@@ -4769,6 +4782,7 @@ function renderSheet(){
       }
       const lvx=leaveDayOf(st.id,state.y,state.m,d); // 這天有沒有劃假
       if(lvx&&viewerMode&&st.id===lvMeSid)cls+=' lv-me';
+      if(lr&&lr.use&&!e&&!lvx&&lr.cand.includes(d)){cls+=' lv-hol'+(viewerMode?' lv-me':'');inner+='<span class="lv-cell-tag hol">需上</span>'} // 國定假日抵用月休：這天需排班
       const lvCut=(!lvx&&!e&&!viewerMode)?lvLateCutOf(ymOf(state.y,state.m),st.id,d):null; // 截止後取消的劃假
       if(lvCut){
         cls+=' lv-late';
@@ -5471,6 +5485,11 @@ function lvMonthNote(ym){ // 行事曆上方提示：正職看月休額度，計
   else t+='國定假日 '+info.nat.length+' 天';
   if(info.nat.length)t+='（'+info.nat.map(d=>info.m+'/'+d).join('、')+'）';
   let h='<div class="lv-mnote">'+esc(t);
+  const r=st.type==='full'?lvRestOver(st.id,ym,(lvDraft&&lvDraft.days)||{}):null;
+  if(r){
+    h+='<span class="'+(r.A>r.Q?'lv-acc':'')+'">　已劃 '+r.A+' 天</span>';
+    if(r.use||r.over)h+='<div class="lv-acc" style="font-size:12px;margin-top:2px">'+esc(lvRestText(r))+'</div>';
+  }
   return h+'</div>';
 }
 function timeOptions(sel){ // 自己做選單，不用 type="time"：平板上的原生選擇器沒有確定鈕，而且會跟著系統變成 12 小時制
@@ -5537,7 +5556,10 @@ function lvAllHtml(ym){ // 全員總覽，臨時劃的另外標；不在該月�
   h+='<div class="sec-label">目前的劃假</div>';
   rows.forEach(({st,o})=>{
     const lines=summarizeLeave(ym,o);
-    h+='<div class="lv-sum"><div class="who">'+esc(st.name)+(ros&&!ros.includes(st.id)?'<span class="lv-off-tag">未在 '+p.m+' 月班表</span>':'')+'</div>'+
+    const lr=lvRestOver(st.id,ym,o.days||{});
+    h+='<div class="lv-sum"><div class="who">'+esc(st.name)+(ros&&!ros.includes(st.id)?'<span class="lv-off-tag">未在 '+p.m+' 月班表</span>':'')+
+      (lr&&lr.over?'<span class="lv-off-tag acc">超過 '+lr.over+' 天</span>':lr&&lr.use?'<span class="lv-off-tag hol">國定假日抵用 '+lr.use+' 天</span>':'')+'</div>'+
+      (lr&&(lr.use||lr.over)?'<div class="lv-line"><span class="lv-acc">'+esc(lvRestText(lr))+'</span></div>':'')+
       (lines.length?'':'<div class="lv-line"><span class="c-fade">沒有劃日期</span></div>')+
       lines.map(l=>'<div class="lv-line">'+(l.late?'<span class="lv-late-tag">臨時·候補</span>':'')+'<span>'+esc(l.text)+'</span></div>').join('')+
       lvLateHtml(ym,o)+
@@ -5915,10 +5937,41 @@ function lvWindowIssues(sid,ym,draft,orig){ // 送出前檢查可上班時段：
   });
   return out;
 }
-function lvChkAsk(list){ // 列出可能排不進班的日子：返回修改 → false；仍要送出 → true
+function lvRestOver(sid,ym,days){ // 正職：整天不能上的天數（國定假日當天不算；補假日視為一般日）對照可休天數＝月休＋國定假日
+  const st=state.staff.find(x=>x.id===sid);if(!st||st.type!=='full')return null;
+  if(!days){const o=leaveOf(ym,sid);if(!o)return null;days=o.days||{}}
+  const info=monthInfo(ym),nat=(info.nat||[]).map(Number);
+  const isAll=d=>days[d]&&days[d].m==='all';
+  const A=Object.keys(days).map(Number).filter(d=>isAll(d)&&!nat.includes(d)).length;
+  const cand=nat.filter(d=>!isAll(d)); // 可抵用的國定假日：當天沒有劃整天不能上
+  const E=A-info.quota;
+  return {m:info.m,A,Q:info.quota,H:nat.length,cand,use:E>0?Math.min(E,cand.length):0,over:Math.max(0,E-cand.length)};
+}
+function lvRestText(r){ // 超過月休的說明
+  if(!r||!(r.use||r.over))return '';
+  const hol=r.cand.map(d=>r.m+'/'+d).join('、');
+  if(r.over)return '月休 '+r.Q+' 天'+(r.cand.length?'＋國定假日 '+r.cand.length+' 天':'')+'，劃整天 '+r.A+' 天，超過 '+r.over+' 天'+(r.cand.length?'（國定假日 '+hol+' 也需排班）':'');
+  return '整天不能上 '+r.A+' 天，超過月休 '+r.Q+' 天；多出的 '+r.use+' 天以國定假日抵用，'+(r.use<r.cand.length?hol+' 其中 '+r.use+' 天需排班':hol+' 當天需排班');
+}
+function lvHolText(r){ // 班表上淡咖啡色格子的說明
+  const hol=r.cand.map(d=>r.m+'/'+d).join('、');
+  return '國定假日抵用月休：'+(r.use<r.cand.length?hol+' 其中 '+r.use+' 天需排班':'這天需排班');
+}
+function lvQuotaIssue(sid,ym,draft,orig){ // 送出前：整天不能上的天數超過月休（以國定假日抵用，或抵完仍超過）
+  if(!draft)return null;
+  const r=lvRestOver(sid,ym,draft.days||{});
+  if(!r||!(r.use||r.over))return null;
+  const o=lvRestOver(sid,ym,(orig&&orig.days)||{});
+  if(o&&r.A<=o.A)return null; // 這次沒有多劃
+  return {label:'月休',text:'整天不能上 '+r.A+' 天（'+r.m+' 月月休 '+r.Q+' 天'+(r.H?'、國定假日 '+r.H+' 天':'')+'）',why:lvRestText(r)};
+}
+function lvChkAsk(list){ // 列出可能排不進班的日子、超過月休：返回修改 → false；仍要送出 → true
   return new Promise(res=>{
     const ov=document.getElementById('ovLvChk'),bk=document.getElementById('btnLvChkBack'),go=document.getElementById('btnLvChkGo');
-    document.getElementById('lvChkList').innerHTML=list.map(i=>'<div class="lvchk-row"><b>'+esc(i.label)+'</b>'+esc(leaveDayText(i.x))+
+    const hasQ=list.some(i=>!i.x),hasT=list.some(i=>i.x);
+    ov.querySelector('.m-title').textContent=hasQ&&hasT?'送出前確認':hasQ?'月休天數確認':'可上班時段確認';
+    ov.querySelector('.m-sub').textContent=hasQ&&hasT?'以下項目可能讓排班結果不如預期。':hasQ?'整天不能上的天數超過本月月休，排班結果可能不如預期。':'以下日期的可上班時段可能排不進班，排班結果可能不如預期。';
+    document.getElementById('lvChkList').innerHTML=list.map(i=>'<div class="lvchk-row"><b>'+esc(i.label)+'</b>'+esc(i.x?leaveDayText(i.x):i.text)+
       '<div class="lvchk-why">'+esc(i.why)+'</div></div>').join('');
     const done=v=>{ov.classList.remove('show');bk.onclick=go.onclick=null;res(v)};
     bk.onclick=()=>done(false);go.onclick=()=>done(true);
@@ -5937,7 +5990,8 @@ document.getElementById('btnLeaveSave').addEventListener('click',async()=>{
   const ce=lvCanEdit(lvWho);
   if(!ce.ok){showToast(ce.msg);return}
   const ym=(leaveWindowFor(lvWho).L||{}).ym||ymOf(state.y,state.m);
-  const iss=lvWindowIssues(lvWho,ym,lvDraft,lvOriginal);
+  const iss=lvWindowIssues(lvWho,ym,lvDraft,lvOriginal),qi=lvQuotaIssue(lvWho,ym,lvDraft,lvOriginal);
+  if(qi)iss.unshift(qi); // 超過月休：一起提醒，仍可送出
   if(iss.length&&!await lvChkAsk(iss))return; // 返回修改
   lvSettle(lvOriginal,lvDraft,ce.late); // 截止後的修改：記下截止前的劃法
   lvDraft.log=buildLeaveLog(lvOriginal,lvDraft,ce.late); // 留下這次改了什麼，取消劃假也記得住
@@ -5984,13 +6038,18 @@ function openCell(sid,day){
   const lvx=leaveDayOf(sid,state.y,state.m,day); // 這天本人有劃假就先提醒，避免不小心排上去
   const lvBox=document.getElementById('cmLeave');
   const lvLate=lvLateList(leaveOf(ymOf(state.y,state.m),sid)).find(x=>x.d===day); // 截止後改過：一併列出截止前的劃法
+  const lrc=lvRestOver(sid,ymOf(state.y,state.m)),holUse=!!(lrc&&lrc.use&&lrc.cand.includes(day));
   if(lvx||(lvLate&&lvLate.pre)){
     lvBox.style.display='';
     lvBox.className='lv-warn'+((lvx&&lvx.late)||lvLate?' late':'');
     lvBox.innerHTML=(lvx
         ?(lvx.late?'⚑ 臨時劃假（候補）：':'🏖 這天有劃假：')+esc(leaveDayText(lvx))
         :'⚑ 臨時取消劃假（候補）：改為可以上班')+
-      (lvLate?'<div class="lv-pre">截止前：'+esc(lvPreText(lvLate.pre))+'</div>':'');
+      (lvLate?'<div class="lv-pre">截止前：'+esc(lvPreText(lvLate.pre))+'</div>':'')+
+      (holUse?'<div class="lv-pre">'+esc(lvHolText(lrc))+'</div>':'');
+  }else if(holUse){
+    lvBox.style.display='';lvBox.className='lv-warn hol';
+    lvBox.innerHTML='🎌 '+esc(lvHolText(lrc));
   }else lvBox.style.display='none';
   let chips=cfg().presetsCommon.map(p=>'<button class="chip" data-s="'+p[0]+'" data-e="'+p[1]+'">'+fmtHM(p[0])+'～'+fmtHM(p[1])+'</button>').join('');
   if(st.type!=='full')
@@ -6172,7 +6231,12 @@ document.getElementById('sheet').addEventListener('click',ev=>{
   const otBtn=ev.target.closest('.ot-btn');
   if(otBtn&&otBtn.dataset.ot){openOT(otBtn.dataset.ot);return}
   if(ev.target.closest('#monthTotalCell')){openMonthTotal();return} // 唯讀也能看總工時
-  if(!editMode)return;
+  const lo=ev.target.closest('[data-lvover]');if(lo){showToast(esc(lo.dataset.lvover),4500);return}
+  if(!editMode){
+    const hc=ev.target.closest('td.lv-hol');
+    if(hc){const r=lvRestOver(hc.dataset.sid,ymOf(state.y,state.m)),st=state.staff.find(x=>x.id===hc.dataset.sid);if(r)showToast(esc((st?staffName(st)+'　':'')+state.m+'/'+hc.dataset.day+'　'+lvHolText(r)),4500);return}
+    return;
+  }
   if(isArcYear(state.y)){arcGuard();return} // 排班中切到封存的年份：只能看
   const td=ev.target.closest('td.day-cell');
   if(td&&td.dataset.sid){openCell(td.dataset.sid,parseInt(td.dataset.day));return}
@@ -7099,9 +7163,9 @@ document.getElementById('btnInstallGuide').addEventListener('click',()=>{
    更新次數自目前大版本上線起，每上傳一次 index.html 加 1（劃假上線那次為 000）。
    每次更新：APP_VERSION 改成「3.115MMDD.次數」，CHANGELOG 最上面同一天的那筆 ver 跟著改；新的一天加一筆。
    add＝新增功能，fix＝問題改善；項目寫成 [文字, 1] 表示只有主管會用到（夥伴代碼不顯示） */
-const APP_VERSION='4.1151126.011';
+const APP_VERSION='4.1151126.012';
 const CHANGELOG=[
-  {v:'2026.11.26',ver:'4.1151126.011',major:'4.0',note:'帳號登入、換班與代班上線。',add:[
+  {v:'2026.11.26',ver:'4.1151126.012',major:'4.0',note:'帳號登入、換班與代班上線。',add:[
     ['帳號驗證開啟時，主管代碼的「我要劃假」也自動帶入主管帳號綁定的名字，仍可改選其他人代為劃假。',1],
     ['主管於「帳號」把人設為夥伴或主管後，對方的 App 自動改用夥伴代碼或主管代碼，不另外提示。',1],
     ['主管代碼新增「🔁 換班」：幫夥伴登記已談好的換班，確認規則提醒後直接寫入班表並發布，雙方的 🔔 收到通知；也可用自己綁定的名字申請換班，不需主管核准。',1],
@@ -7120,6 +7184,7 @@ const CHANGELOG=[
     ['「⋯」→「帳號」審核帳號申請：啟用、退回（可選填理由）、停用；🔔 列出待審核的申請。過了最後上班日的帳號自動停用。',1],
     ['後台登入僅限管理者帳號，並可用 Google 登入；後台新增「管理者」，可新增或移除能審核帳號的管理者。',1]
   ],fix:[
+    ['正職劃假：日曆上方顯示已劃天數；「整天不能上」的天數超過月休時送出前提醒，仍可送出。多出的天數先以國定假日抵用，抵用的國定假日當天需排班，班表上以淡咖啡色標「需上」；抵完仍超過時，「休」後方標「劃 N」。點一下顯示說明，夥伴只看得到自己的。'],
     ['帳號驗證開啟時，夥伴帳號綁定的名字那一列，班表上顯示自己的劃假。'],
     ['切換到其他代碼（加入現有代碼、更換代碼）時登出帳號，不帶著原本的帳號。'],
     ['未登入後台人員帳號時建立的新店家，帳號驗證預設關閉，建立的人才讀得到自己的班表。',1],
@@ -7798,7 +7863,7 @@ function tourSteps(role,full){ // full：完整新手教學，走到排班、開
       {el:()=>tourShown($('#lvBody .lv-cal')),act:1,h:'③ 點選日期',
         b:()=>'點選日期即套用②選擇的方式，可直接點選試用。<br>'+
           '<i class="lgc sw-all"></i>整天不能上　<i class="lgc sw-only"></i>只能上這段　<i class="lgc sw-part"></i>之前／之後<br>'+
-          '劃錯時選「清除」後再點該日。日期上的「國」為國定假日。<br>標示「未在職」的日子（到職前／離職後）無法劃假。'+
+          '劃錯時選「清除」後再點該日。日期上的「國」為國定假日。<br>標示「未在職」的日子（到職前／離職後）無法劃假。<br>正職：日曆上方顯示月休與已劃天數；超過月休時，多出的天數以國定假日抵用，當天需排班。'+
           (lvCanEdit().late?'<br>目前已過截止日，劃的日期標示「臨」並列為候補。':'')},
       {el:()=>tourShown($('#lvWdRow')),act:1,h:'④ 依星期套用',
         b:'每週固定無法上班時，選擇星期後按<b>套用</b>，即一次套用至當月所有該星期，方式依②的選擇。'},
