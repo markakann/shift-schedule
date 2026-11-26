@@ -2103,11 +2103,11 @@ html.dark .tour-tip{border:1px solid #4a4e56;background:#2a2d34}
 <div class="overlay" id="ovCfgSwap">
   <div class="modal">
     <div class="m-title">換班</div>
-    <div class="m-sub">夥伴以已啟用的帳號登入後，可於「🔁 換班」申請換班或代班。</div>
+    <div class="m-sub">夥伴於「🔁 換班」申請換班或代班。檢視班表需要登入時，以帳號綁定的名字申請；夥伴代碼即可檢視時，選擇自己的名字申請（已登入的帳號直接帶入）。</div>
     <label class="cfg-row"><input type="checkbox" id="cfgSwapOn"><span>開放換班</span></label>
     <div id="cfgSwapBox">
       <div class="sec-label" style="margin-top:10px">送出申請後</div>
-      <label class="cfg-row"><input type="checkbox" id="cfgSwapPeer"><span>需要對方同意（對方也需有已啟用的帳號）</span></label>
+      <label class="cfg-row"><input type="checkbox" id="cfgSwapPeer"><span>需要對方同意（需要登入時，對方也需有已啟用的帳號）</span></label>
       <label class="cfg-row"><input type="checkbox" id="cfgSwapMgr"><span>需要主管核准</span></label>
       <div class="small-note" id="cfgSwapNote" style="margin-top:8px;line-height:1.6"></div>
     </div>
@@ -7031,10 +7031,10 @@ document.getElementById('btnInstallGuide').addEventListener('click',()=>{
    更新次數自目前大版本上線起，每上傳一次 index.html 加 1（劃假上線那次為 000）。
    每次更新：APP_VERSION 改成「3.115MMDD.次數」，CHANGELOG 最上面同一天的那筆 ver 跟著改；新的一天加一筆。
    add＝新增功能，fix＝問題改善；項目寫成 [文字, 1] 表示只有主管會用到（夥伴代碼不顯示） */
-const APP_VERSION='4.1151126.004';
+const APP_VERSION='4.1151126.005';
 const CHANGELOG=[
-  {v:'2026.11.26',ver:'4.1151126.004',add:[
-    ['換班／代班（試用）：以已啟用的帳號登入後，可於「🔁 換班」申請；申請中的班在班表上標示「換」，🔔 列出跟自己有關的換班申請。需要對方同意時，對方於「🔁 換班」→「申請紀錄」同意或婉拒。'],
+  {v:'2026.11.26',ver:'4.1151126.005',add:[
+    ['換班／代班（試用）：於「🔁 換班」申請。檢視班表需要登入時，以帳號綁定的名字申請；夥伴代碼即可檢視時，選擇自己的名字申請（已登入的帳號直接帶入）。申請中的班在班表上標示「換」，🔔 列出跟自己有關的換班申請；需要對方同意時，對方於「申請紀錄」同意或婉拒。'],
     ['後台新增「換班」：開放換班、需要對方同意、需要主管核准可分別設定（預設不開放；開放時預設需主管核准）。不需主管核准的換班，於主管的 App 開啟時自動寫入班表並發布。',1],
     ['🔔 列出換班申請，查看規則提醒後核准或退回；核准後只更新並發布換班的那幾格。',1],
     ['帳號登入（試用）：可用 Google 或 email 登入，選擇自己的名字送出，經主管啟用後綁定；劃假時自動帶入自己的名字。夥伴代碼照常可用。'],
@@ -8884,7 +8884,7 @@ function swapAll(){ // 全部申請，新到舊
 }
 function swapList(){ // 看得到的申請：主管全部；夥伴只看跟自己有關的
   const all=swapAll();if(!viewerMode)return all;
-  const me=acctSelfSid();return me?all.filter(r=>r.a===me||r.b===me):[];
+  const me=swMe();return me?all.filter(r=>r.a===me||r.b===me):[];
 }
 function evAt(r){return Math.max(r.at||0,r.atB||0,r.atM||0,r.atC||0)}
 function swYm(k){const p=String(k).split('-').map(Number);return {y:p[0],m:p[1]}}
@@ -9036,7 +9036,7 @@ function swSeenKey(){return 'paiban-swap-seen-'+(storeCode||'')}
 function swSeenAt(){try{return +localStorage.getItem(swSeenKey())||0}catch(e){return 0}}
 function swapUnseen(){ // 夥伴：🔔 未讀的換班動態
   if(!viewerMode)return [];
-  const s=swSeenAt(),me=acctSelfSid();
+  const s=swSeenAt(),me=swMe();
   return swapList().filter(r=>(evAt(r)>s&&!swIsMine(r))||(r.b===me&&swState(r)==='wb')); // 等我回覆的：回覆前一直算未讀
 }
 function swapMarkSeen(){
@@ -9044,7 +9044,7 @@ function swapMarkSeen(){
   try{if(m>swSeenAt())localStorage.setItem(swSeenKey(),String(m))}catch(e){}
 }
 function swapPendingCount(){return viewerMode?0:swapAll().filter(r=>swState(r)==='wait').length} // 主管：待核准
-function swWaitMe(){const me=acctSelfSid();return me?swapList().filter(r=>r.b===me&&swState(r)==='wb'):[]} // 夥伴：等我同意
+function swWaitMe(){const me=swMe();return me?swapList().filter(r=>r.b===me&&swState(r)==='wb'):[]} // 夥伴：等我同意
 async function swapWrite(id,obj){ // 只寫這一筆
   const code=leaveDocCode();
   if(!FB||!code)return false;
@@ -9056,7 +9056,7 @@ function swToastLater(msg){let n=0;const go=()=>{if(document.getElementById('spl
 function swPendCompute(){ // 班表上標示申請中的格子：主管看全部，夥伴只看跟自己有關的
   const m=new Map();
   if(!swapData||!Object.keys(swapData).length)return m;
-  if(viewerMode&&!acctSelfSid())return m;
+  if(viewerMode&&!swMe())return m;
   swapList().forEach(r=>{const s=swState(r);if(SW_ACTIVE.includes(s))r.ch.forEach(c=>m.set(c.k+'|'+c.sid+'|'+c.d,s))});
   return m;
 }
@@ -9078,7 +9078,7 @@ function swapToast(){
   const key=(viewerMode?'paiban-swap-toast-':'paiban-swap-mtoast-')+storeCode;
   let t=null;try{t=localStorage.getItem(key)}catch(e){}
   if(viewerMode){
-    if(!acctSelfSid())return;
+    if(!swMe())return;
     const maxAt=list.reduce((x,r)=>Math.max(x,evAt(r)),0);
     if(t===null){ // 第一次：以前的申請不另外通知
       try{localStorage.setItem(key,String(maxAt));if(localStorage.getItem(swSeenKey())===null)localStorage.setItem(swSeenKey(),String(maxAt))}catch(e){}
@@ -9089,7 +9089,7 @@ function swapToast(){
     const fresh=list.filter(r=>evAt(r)>(+t||0)&&!swIsMine(r));
     if(maxAt>(+t||0))try{localStorage.setItem(key,String(maxAt))}catch(e){}
     if(!fresh.length||ovShown('ovNotice')||ovShown('ovSwap'))return;
-    const r0=fresh[0],me=acctSelfSid(),askMe=r0.st==='wb'&&r0.b===me;
+    const r0=fresh[0],me=swMe(),askMe=r0.st==='wb'&&r0.b===me;
     swToastLater('<div class="ts-h">🔁 '+(askMe?'換班申請待你回覆':'換班申請')+'</div><div class="ts-k">'+esc(swEventText(r0))+'</div>'+
       '<div class="ts-n">'+(fresh.length>1?'另有 '+(fresh.length-1)+' 筆更新。':'')+(askMe?'請至「🔁 換班」→「申請紀錄」同意或婉拒。':'詳細內容列於 🔔 通知。')+'</div>');
   }else{ // 主管：新送來、等待核准的申請
@@ -9112,6 +9112,21 @@ function swapPrune(){ // 主管：日期過了 45 天的申請從文件移除，
 }
 /* ── 夥伴：申請視窗 ── */
 function acctHas(sid){return !!acctTakenMap()[sid]} // 這個名字有已啟用的帳號
+/* 換班的身分：需要登入時＝帳號綁定的名字；夥伴代碼即可檢視時＝選擇的名字（已登入的帳號直接帶入） */
+function swWhoKey(){return 'paiban-swap-who-'+(storeCode||'')}
+function swWhoList(){const ks=swMonths();return state.staff.filter(st=>st.type!=='sup'&&ks.some(k=>swOnRoster(k,st.id)))}
+function swMe(){
+  const a=acctSelfSid();if(a)return a;
+  if(!viewerMode||acctLocked())return null;
+  let w=null;try{w=localStorage.getItem(swWhoKey())}catch(e){}
+  return w&&state.staff.some(x=>x.id===w)?w:null;
+}
+function swWhoHtml(){
+  if(acctSelfSid()||acctLocked())return '';
+  const me=swMe();
+  return '<select class="txt" id="swWho" style="width:100%;margin-bottom:8px"><option value="">— 選擇自己的名字 —</option>'+
+    swWhoList().map(st=>'<option value="'+esc(st.id)+'"'+(st.id===me?' selected':'')+'>'+esc(st.name)+'</option>').join('')+'</select>';
+}
 function openSwap(focusId){
   if(!viewerMode)return;
   if(!FB||!storeCode){alert('連線後才能申請換班。');return}
@@ -9123,20 +9138,20 @@ function openSwap(focusId){
 }
 function swComplete(){
   const f=swForm;
-  return !!(acctSelfSid()&&f.pick&&f.b&&(f.kind==='cover'||f.opt));
+  return !!(swMe()&&f.pick&&f.b&&(f.kind==='cover'||f.opt));
 }
 function swPickParts(){const p=String(swForm.pick||'').split(':');return {k:p[0],d:+p[1]}}
 function swCurCh(){
   const f=swForm;if(!swComplete())return null;
   const {k,d}=swPickParts();
   let opt=null;if(f.kind==='swap'){const p=f.opt.split(':');opt={k:p[0],d:+p[1]}}
-  return swBuild(f.kind,acctSelfSid(),k,d,f.b,opt);
+  return swBuild(f.kind,swMe(),k,d,f.b,opt);
 }
 function renderSwap(){
-  const me=acctSelfSid(),S=normSwapCfg((state.config||{}).swap);
+  const me=swMe(),S=normSwapCfg((state.config||{}).swap);
   document.getElementById('swSub').innerHTML='<b class="swp-key">申請前請先與對方確認</b><br>'+esc(swFlowText(S));
   const tabs=document.getElementById('swTabs'),body=document.getElementById('swBody'),send=document.getElementById('btnSwapSend');
-  if(!me){ // 換班需要已啟用的帳號
+  if(!me&&acctLocked()){ // 需要登入：換班用帳號綁定的名字
     const st=acctState();
     tabs.style.display='none';send.style.display='none';
     body.innerHTML='<div class="swp-empty" style="padding:10px 2px">'+
@@ -9145,13 +9160,20 @@ function renderSwap(){
     return;
   }
   tabs.style.display='';
+  const who=swWhoHtml();
+  if(!me){ // 夥伴代碼即可檢視、沒有登入：先選自己的名字
+    send.style.display='none';
+    document.querySelectorAll('#swTabs [data-swtab]').forEach(b=>{b.classList.toggle('on',b.dataset.swtab===swTab);if(b.dataset.swtab==='list')b.textContent='申請紀錄'});
+    body.innerHTML=who+'<div class="swp-empty">選擇自己的名字後，列出可申請的班與申請紀錄。</div>';
+    return;
+  }
   const list=swapList(),act=list.filter(r=>SW_ACTIVE.includes(swState(r))).length,wm=swWaitMe().length;
   document.querySelectorAll('#swTabs [data-swtab]').forEach(b=>{
     b.classList.toggle('on',b.dataset.swtab===swTab);
     if(b.dataset.swtab==='list')b.textContent='申請紀錄'+(wm?'（'+wm+' 筆待回覆）':act?'（'+act+'）':'');
   });
   const keep=body.scrollTop;
-  body.innerHTML=swTab==='new'?swNewHtml():swListHtml();
+  body.innerHTML=who+(swTab==='new'?swNewHtml():swListHtml());
   body.scrollTop=keep;
   send.style.display=swTab==='new'&&S.on?'':'none';
   send.disabled=!swComplete()||swSending;
@@ -9165,7 +9187,7 @@ function renderSwap(){
   }
 }
 function swNewHtml(){
-  const me=acctSelfSid(),f=swForm,S=normSwapCfg((state.config||{}).swap);
+  const me=swMe(),f=swForm,S=normSwapCfg((state.config||{}).swap);
   if(!S.on)return '<div class="swp-empty">目前未開放換班申請。</div>';
   const mine=swMyShifts(me);
   let h='<div class="swp-sec" style="margin-top:2px">① 要換出的班</div>';
@@ -9176,7 +9198,7 @@ function swNewHtml(){
     return h+'<div class="swp-opts">'+mine.slice(0,45).map(x=>'<button type="button" class="swp-opt" data-swpick="'+x.k+':'+x.d+'"'+(x.busy?' disabled':'')+'>'+
       '<b>'+swDay(x.k,x.d)+'</b><span>'+esc(swCellText(x.e))+'</span>'+(x.busy?'<span class="swp-r">申請中</span>':'')+'</button>').join('')+'</div>';
   }
-  const {k,d}=swPickParts(),noAcct=sid=>S.peer&&!acctHas(sid);
+  const {k,d}=swPickParts(),noAcct=sid=>S.peer&&acctLocked()&&!acctHas(sid);
   h+='<div class="swp-opt on static"><b>'+swDay(k,d)+'</b><span>'+esc(swCellText(cur.e))+'</span><button type="button" class="swp-chg" data-swreset="pick">更改</button></div>';
   h+='<div class="swp-sec">② 方式</div><div class="pub-mode">'+
     '<button type="button" data-swkind="cover" class="'+(f.kind==='cover'?'on':'')+'">代班</button>'+
@@ -9212,7 +9234,7 @@ function swNewHtml(){
   return h;
 }
 function swCardHtml(r){
-  const s=swState(r),me=acctSelfSid(),nw=evAt(r)>swSeenAt()&&!swIsMine(r);
+  const s=swState(r),me=swMe(),nw=evAt(r)>swSeenAt()&&!swIsMine(r);
   let h='<div class="swp-card'+(nw?' new':'')+'" data-swcard="'+esc(r.id)+'">'+
     '<div class="swp-h"><b>'+esc(swKind(r))+'</b><span>'+esc(swPair(r))+'</span><span class="swp-st '+swStCls(s)+'">'+esc(s==='wb'&&r.b===me?'待你回覆':swStText(r))+'</span></div>'+
     '<div class="swp-lines">'+swLinesHtml(r)+'</div>';
@@ -9244,12 +9266,12 @@ function swListHtml(){
   return h;
 }
 async function swSend(){
-  const me=acctSelfSid(),S=normSwapCfg((state.config||{}).swap);
+  const me=swMe(),S=normSwapCfg((state.config||{}).swap);
   if(!me||!swComplete()||swSending)return;
   if(!S.on){alert('目前未開放換班申請。');return}
   const f=swForm,ch=swCurCh(),busy=swBusy();
   if(ch.some(c=>busy.has(c.k+'|'+c.sid+'|'+c.d))){alert('其中有班已在其他申請中，請重新選擇。');renderSwap();return}
-  if(S.peer&&!acctHas(f.b)){alert(swName(f.b)+' 尚未建立帳號，無法在 App 中同意換班。');renderSwap();return}
+  if(S.peer&&acctLocked()&&!acctHas(f.b)){alert(swName(f.b)+' 尚未建立帳號，無法在 App 中同意換班。');renderSwap();return}
   const id='w'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
   const o={k:f.kind,a:me,b:f.b,an:swName(me),bn:swName(f.b),ch,msg:String(f.msg||'').trim().slice(0,60),nb:S.peer?1:0,nm:S.mgr?1:0};
   const st=S.peer?'wb':(S.mgr?'wait':'ok');
@@ -9267,7 +9289,7 @@ async function swSend(){
 }
 async function swAct(id,act){
   const r=swapList().find(x=>x.id===id);if(!r)return;
-  const s=swState(r),me=acctSelfSid();
+  const s=swState(r),me=swMe();
   let obj=null;
   if(act==='cancel'){
     if(r.a!==me)return;
@@ -9312,6 +9334,12 @@ document.getElementById('swTabs').addEventListener('click',ev=>{
   swTab=b.dataset.swtab;document.getElementById('swBody').scrollTop=0;renderSwap();
 });
 document.getElementById('swBody').addEventListener('input',ev=>{if(ev.target.id==='swMsg')swForm.msg=ev.target.value});
+document.getElementById('swBody').addEventListener('change',ev=>{
+  if(ev.target.id!=='swWho')return;
+  try{if(ev.target.value)localStorage.setItem(swWhoKey(),ev.target.value);else localStorage.removeItem(swWhoKey())}catch(e){}
+  swForm={pick:null,kind:swForm.kind,b:null,opt:null,msg:''};
+  renderSwap();swPendSet=swPendCompute();renderSheet();updatePubBadge();
+});
 document.getElementById('swBody').addEventListener('click',ev=>{
   const t=ev.target;let el;
   if((el=t.closest('[data-swacct]'))){document.getElementById('ovSwap').classList.remove('show');acctMsg='';acctShow(false);return}
@@ -9328,7 +9356,7 @@ function swNoticeHtml(){
   const now=nowMs(),all=swapList();
   const list=all.filter(r=>{const s=swState(r);return SW_ACTIVE.includes(s)||now-evAt(r)<3*864e5}).sort((p,q)=>evAt(q)-evAt(p));
   if(!list.length)return '';
-  const pend=all.filter(r=>swState(r)==='wait').length,seen=swSeenAt(),me=acctSelfSid();
+  const pend=all.filter(r=>swState(r)==='wait').length,seen=swSeenAt(),me=swMe();
   let h='<div class="nt-head"><b>換班申請</b>'+(!viewerMode&&pend?'<span class="lv-chg-n">'+pend+' 筆待核准</span>':'')+'</div>';
   h+=list.slice(0,10).map(r=>{
     const s=swState(r),nw=viewerMode?((evAt(r)>seen&&!swIsMine(r))||(s==='wb'&&r.b===me)):s==='wait';
