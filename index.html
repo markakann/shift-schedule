@@ -6180,6 +6180,29 @@ document.getElementById('sheet').addEventListener('input',ev=>{
   if(ev.target.id==='cornerLabel'&&!viewerMode){state.corner=ev.target.value;scheduleSave()}
 });
 let pubAtUnlock=null; // 解鎖當下各月份的內容，鎖定時比對這次改了哪幾個月
+/* 直接發布：排班以外的修改（人員、備註）關掉視窗時也直接發布；排班中的修改照舊於鎖定時發布 */
+function pubAutoAfter(fp,sf){
+  if(editMode||!pubEnabled()||document.getElementById('tour')||cfg().pub.lock!=='auto')return;
+  const staffCh=stableStr(state.staff||[])!==sf,cur=state.y+'-'+state.m;
+  const ks=Object.keys(state.months).filter(k=>{
+    const m=state.months[k],y=+k.split('-')[0];
+    if(!m||m.pubPlan||isArcYear(y))return false;
+    if(stableStr(pubContent(m))===fp[k]&&!(staffCh&&k===cur))return false; // 這次沒動到
+    return !m.pub||!!pubChanges(k); // 草稿整月發布；已發布的有修改才發布
+  });
+  if(ks.length)publishMonths(ks,null,{auto:1,quiet:cfg().pub.notify==='none'});
+}
+(function(){
+  const IDS=['ovStaffList','ovStaff','ovHidden','ovResign','ovNote'];
+  let fp=null,sf='';
+  const open=()=>IDS.some(id=>ovShown(id));
+  const mo=new MutationObserver(()=>{
+    if(open()){if(!fp&&!editMode&&!viewerMode){fp=pubFingerprint();sf=stableStr(state.staff||[])}return}
+    if(!fp)return;
+    setTimeout(()=>{if(open()||!fp)return;const f=fp,x=sf;fp=null;pubAutoAfter(f,x)},300); // 視窗之間切換（清單→編輯）不算結束
+  });
+  IDS.forEach(id=>{const el=document.getElementById(id);if(el)mo.observe(el,{attributes:true,attributeFilter:['class']})});
+})();
 function pubFingerprint(){const o={};Object.keys(state.months).forEach(k=>{o[k]=stableStr(pubContent(state.months[k]))});return o}
 document.getElementById('btnEdit').addEventListener('click',()=>{
   if(!editMode&&cloudBootGuard())return; // 雲端還沒連上：先不要排班，免得連上後被雲端覆蓋
@@ -7073,9 +7096,9 @@ document.getElementById('btnInstallGuide').addEventListener('click',()=>{
    更新次數自目前大版本上線起，每上傳一次 index.html 加 1（劃假上線那次為 000）。
    每次更新：APP_VERSION 改成「3.115MMDD.次數」，CHANGELOG 最上面同一天的那筆 ver 跟著改；新的一天加一筆。
    add＝新增功能，fix＝問題改善；項目寫成 [文字, 1] 表示只有主管會用到（夥伴代碼不顯示） */
-const APP_VERSION='4.1151126.010';
+const APP_VERSION='4.1151126.011';
 const CHANGELOG=[
-  {v:'2026.11.26',ver:'4.1151126.010',add:[
+  {v:'2026.11.26',ver:'4.1151126.011',major:'4.0',note:'帳號登入、換班與代班上線。',add:[
     ['帳號驗證開啟時，主管代碼的「我要劃假」也自動帶入主管帳號綁定的名字，仍可改選其他人代為劃假。',1],
     ['主管於「帳號」把人設為夥伴或主管後，對方的 App 自動改用夥伴代碼或主管代碼，不另外提示。',1],
     ['主管代碼新增「🔁 換班」：幫夥伴登記已談好的換班，確認規則提醒後直接寫入班表並發布，雙方的 🔔 收到通知；也可用自己綁定的名字申請換班，不需主管核准。',1],
@@ -7094,6 +7117,7 @@ const CHANGELOG=[
     ['「⋯」→「帳號」審核帳號申請：啟用、退回（可選填理由）、停用；🔔 列出待審核的申請。過了最後上班日的帳號自動停用。',1],
     ['後台登入僅限管理者帳號，並可用 Google 登入；後台新增「管理者」，可新增或移除能審核帳號的管理者。',1]
   ],fix:[
+    ['後台「發布」設為直接發布時，新增或修改人員、備註，關閉視窗後也直接發布；原本只有人員、還沒排班的月份不會發布，夥伴端顯示尚未發布。',1],
     ['帳號驗證開啟時，用主管代碼開啟需登入已核准的主管帳號，否則先出現登入畫面（班表保護關閉時可「先看班表」）；班表保護開啟時，用夥伴代碼開啟也一律先登入。主管開啟時，雲端的保護設定與後台不一致會自動補上。',1],
     ['需要登入時：重新整理頁面，已登入的帳號不會先跳到登入畫面；管理者帳號可直接檢視班表。'],
     ['需要登入的畫面顯示目前的代碼，並可直接輸入其他代碼；切換時不再留下前一個代碼的 🔔 紅點，也清除裝置上暫存的班表。'],
