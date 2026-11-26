@@ -7076,7 +7076,7 @@ document.getElementById('btnInstallGuide').addEventListener('click',()=>{
 const APP_VERSION='4.1151126.010';
 const CHANGELOG=[
   {v:'2026.11.26',ver:'4.1151126.010',add:[
-    ['「？」說明新增「換班　·　代班」與「帳號」，新手教學補上換班與帳號；新增「🔁 換班教學」，每台裝置播放一次（夥伴於開放換班時）。'],
+    ['「？」說明新增「換班　·　代班」與「帳號」，新手教學補上換班與帳號；新增「🔁 換班教學」，正在使用的裝置播放一次（夥伴於開放換班時）。'],
     ['後台「帳號驗證」：關閉時照以前的方式（主管代碼＝主管、夥伴代碼＝夥伴）；開啟後以帳號綁定名字，並可設定班表保護：開啟時看班表也要登入，關閉時不登入也能看，但劃假、換班需要登入，主管代碼沒登入時只能看。',1],
     ['在「⋯」→「帳號」登出後，回到一開始的畫面，需要重新輸入代碼。'],
     ['後台人員已和這間店的名字綁定時，後台直接進出、不再顯示「正在登入後台設定」；沒有綁定的店，進後台需要驗證登入。',1],
@@ -7776,7 +7776,7 @@ function tourSteps(role,full){ // full：完整新手教學，走到排班、開
   if(role==='swap'){ // 換班教學：每台裝置播放一次（夥伴版於開放換班時；主管版開啟 App 時）
     const S=normSwapCfg((state.config||{}).swap),ver=acctVerify();
     if(viewerMode)return [
-      {h:'換班、代班',b:'此次更新換班、代班功能：可於 App 申請由其他夥伴代班，或與其他夥伴互換班別。以下簡單介紹，約 30 秒。'+(S.on?'':'<br><b>目前此班表尚未開放換班。</b>')},
+      {h:'換班、代班',b:(tourSwapAuto?'此次更新換班、代班功能：':'')+'可於 App 申請由其他夥伴代班，或與其他夥伴互換班別。以下簡單介紹，約 30 秒。'+(S.on?'':'<br><b>目前此班表尚未開放換班。</b>')},
       {el:()=>tourShown($('#btnSwap')),h:'🔁 換班',b:()=>'於此申請：<br>① 選擇自己要換出的班<br>② 選擇<b>代班</b>（由對方上這一班，自己改為排休）或<b>換班</b>（雙方互換彼此的班）<br>③ 選擇對象<br>④ 確認內容，可留言，按「送出」。<br>'+
         swFlowText(S)+(ver?'':'<br>申請時選擇自己的名字。')},
       {el:()=>tourShown($('#btnSwap')),h:'申請紀錄',b:()=>'「🔁 換班」的<b>「申請紀錄」</b>列出跟自己有關的申請與進度，可撤回自己的申請。'+
@@ -7786,7 +7786,7 @@ function tourSteps(role,full){ // full：完整新手教學，走到排班、開
       {el:()=>tourShown($('#btnHelp')),h:'說明',b:'詳細規則列於「？」的「換班　·　代班」，也可從「🔁 換班教學」重看。<br>換班教學到此結束。'}
     ];
     return [
-      {h:'換班、代班',b:'此次更新換班、代班功能：夥伴可於 App 申請由其他夥伴代班，或與其他夥伴互換班別；依設定經對方同意、主管核准後，寫入班表並發布。以下簡單介紹，約 30 秒。'},
+      {h:'換班、代班',b:(tourSwapAuto?'此次更新換班、代班功能：':'')+'夥伴可於 App 申請由其他夥伴代班，或與其他夥伴互換班別；依設定經對方同意、主管核准後，寫入班表並發布。以下簡單介紹，約 30 秒。'},
       {el:()=>tourShown($('#btnMore')),h:'後台設定「換班」',b:()=>'於「⋯」→「後台設定」→<b>「換班」</b>設定：開放換班、需要對方同意、需要主管核准，可分別勾選。<br>'+
         (S.on?'目前：已開放。'+swFlowText(S):'目前：尚未開放。開放後，夥伴代碼的工具列出現「🔁 換班」。')},
       {el:()=>tourShown($('#btnNotice')),h:'🔔 審核',b:'需要主管核准的換班申請列於 🔔，點選後查看規則提醒，再<b>核准</b>或<b>退回</b>（可填理由）。<br>核准後只更新並發布換班的那幾格，其他未發布的修改不受影響。'},
@@ -7945,7 +7945,7 @@ function tourSteps(role,full){ // full：完整新手教學，走到排班、開
   ];
 }
 let tourList=null,tourIdx=0,tourRole='view',tourMO=null,tourRaf=0,tourOutcome=null; // tourOutcome：最後一步按了送出／儲存
-let tourStack=[],tourStarts=0; // 完整新手教學：走到排班、開放設定、劃假時，先記下主教學的位置，該段結束後接回
+let tourStack=[],tourStarts=0,tourSwapAuto=false; // 完整新手教學：走到排班、開放設定、劃假時，先記下主教學的位置，該段結束後接回
 function tourCloseOverlays(){ // 換下一段之前，把上一段留下的視窗收掉
   document.querySelectorAll('.overlay.show').forEach(o=>o.classList.remove('show'));
   if(lvDemo){lvDemo=false;lvWho=null;lvDraft=null;lvOriginal=null;updateLeaveBadge()}
@@ -7989,6 +7989,7 @@ function startTour(role,o){ // o.full：完整新手教學；o.resume：段落�
   if(document.getElementById('tour'))return;
   const fr=o.resume;
   tourRole=fr?fr.role:(role||(viewerMode?'view':'edit'));
+  tourSwapAuto=!!o.auto; // 換班教學：自動播放（正在使用的裝置）才說「此次更新」
   tourOutcome=null;
   if(tourRole==='sched'){
     tourHoldSave=true;tourSnapCells=new Map();tourPickKey=null;
@@ -8242,7 +8243,7 @@ function maybeStartTour(){ // 等開啟動畫結束、其他視窗（例如剛�
     if(tourSeen(role)){
       if(!swapTourDue())return;
       if(document.getElementById('splash')||document.querySelector('.overlay.show')){if(++tries<240)setTimeout(tick,500);return}
-      setTimeout(()=>{if(document.getElementById('splash')||document.querySelector('.overlay.show')){tick();return}if(!swapTourDue()||document.getElementById('tour'))return;tourStack=[];startTour('swap')},400);
+      setTimeout(()=>{if(document.getElementById('splash')||document.querySelector('.overlay.show')){tick();return}if(!swapTourDue()||document.getElementById('tour'))return;tourStack=[];startTour('swap',{auto:true})},400);
       return;
     }
     if(document.getElementById('splash')||document.querySelector('.overlay.show')){if(++tries<240)setTimeout(tick,500);return}
