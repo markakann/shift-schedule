@@ -820,6 +820,14 @@ body.print-sizing .sw-pend{display:none}
 .acct-col{display:flex;flex-direction:column;gap:8px;margin-top:12px}
 .acct-col .btn{min-height:44px}
 .acct-col .btn[disabled]{opacity:.5}
+.acct-code{display:flex;align-items:center;flex-wrap:wrap;gap:4px 8px;margin:2px 0 12px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--field);font-size:13px}
+.acct-code span,.acct-code small{color:#777}
+.acct-code b{font-size:14px;word-break:break-all}
+.acct-code .acct-link{margin-left:auto;padding:4px}
+.acct-code.edit{flex-wrap:nowrap}
+.acct-code.edit input{flex:1;min-width:0;margin:0}
+.acct-code.edit .btn{padding:6px 10px;white-space:nowrap}
+html.dark .acct-code span,html.dark .acct-code small{color:#a8a8a8}
 .acct-link{background:none;border:0;padding:8px 4px;color:var(--accent);font:inherit;font-size:14px;cursor:pointer}
 .acct-err{margin-top:8px;color:var(--red);font-size:13px}
 .acct-ok{margin-top:8px;color:#2a8a4a;font-size:13px}
@@ -7023,9 +7031,9 @@ document.getElementById('btnInstallGuide').addEventListener('click',()=>{
    更新次數自目前大版本上線起，每上傳一次 index.html 加 1（劃假上線那次為 000）。
    每次更新：APP_VERSION 改成「3.115MMDD.次數」，CHANGELOG 最上面同一天的那筆 ver 跟著改；新的一天加一筆。
    add＝新增功能，fix＝問題改善；項目寫成 [文字, 1] 表示只有主管會用到（夥伴代碼不顯示） */
-const APP_VERSION='4.1151126.003';
+const APP_VERSION='4.1151126.004';
 const CHANGELOG=[
-  {v:'2026.11.26',ver:'4.1151126.003',add:[
+  {v:'2026.11.26',ver:'4.1151126.004',add:[
     ['換班／代班（試用）：以已啟用的帳號登入後，可於「🔁 換班」申請；申請中的班在班表上標示「換」，🔔 列出跟自己有關的換班申請。需要對方同意時，對方於「🔁 換班」→「申請紀錄」同意或婉拒。'],
     ['後台新增「換班」：開放換班、需要對方同意、需要主管核准可分別設定（預設不開放；開放時預設需主管核准）。不需主管核准的換班，於主管的 App 開啟時自動寫入班表並發布。',1],
     ['🔔 列出換班申請，查看規則提醒後核准或退回；核准後只更新並發布換班的那幾格。',1],
@@ -7035,6 +7043,8 @@ const CHANGELOG=[
     ['後台登入僅限管理者帳號，並可用 Google 登入；後台新增「管理者」，可新增或移除能審核帳號的管理者。',1]
   ],fix:[
     ['需要登入時：重新整理頁面，已登入的帳號不會先跳到登入畫面；管理者帳號可直接檢視班表。'],
+    ['需要登入的畫面顯示目前的夥伴代碼，並可直接輸入其他代碼；切換時不再留下前一個代碼的 🔔 紅點。'],
+    ['管理者帳號可綁定自己的名字（「⋯」→「帳號」→「我的帳號」），綁定後直接啟用，劃假自動帶入、也可換班。',1],
     ['紅線改為選擇幾號到幾號，並可「從 1 號」「到月底」快速帶入；畫之前會列出其中已有排班的天數。',1],
     ['預定離職：最後上班日之後（同一個月）已排的班也一併改為紅線；取消預定離職或修改日期時，恢復原本的排班。',1]
   ]},
@@ -8339,6 +8349,7 @@ var acctMember=null,acctMemberReady=false,unsubMember=null; // 夥伴：自己�
 var acctList=[],acctListReady=false,unsubAcctList=null,acctListVc='',acctPendSeen=null; // 管理者：這間店的帳號
 var acctGateCode=null,acctGateTried='';             // 需要登入的夥伴代碼：登入並啟用後才進得去
 var acctRosterCache=null;                            // rosters 文件（名單、已有帳號的名字）
+var acctCodeEdit=false,acctCodeVal='';
 var acctMode='pick',acctPick=null,acctRepick=false,acctMsg='',acctMsgOk=false,acctBusy=false,acctEmailVal='';
 var rosterAcked='',rosterDenied=false,takenAcked='',cfgAcctLoaded='code';
 const ACCT_ADMIN_KEY='paiban-admin-uid';
@@ -8372,7 +8383,7 @@ function acctWatchMember(){ // 夥伴：監聽自己的申請
   if(unsubMember){unsubMember();unsubMember=null}
   acctMember=null;acctMemberReady=false;
   const vc=acctVc();
-  if(!FB||!authUser||adminUser||!vc)return;
+  if(!FB||!authUser||!vc)return;
   const uid=authUser.uid;
   unsubMember=FB.onSnapshot(FB.doc(FB.db,'views',vc,'members',uid),sn=>{
     if(!authUser||authUser.uid!==uid||acctVc()!==vc)return;
@@ -8420,7 +8431,7 @@ function acctStaffLeft(x){ // 已過最後上班日，或已設為離職
 function acctLeftOfStaff(st){return acctStaffLeft({leave:st.leaveDate||'',left:st.leftYm||''})}
 function acctState(){ // out 未登入／admin 管理者／loading／none 還沒申請／pending／active／rejected／disabled
   if(!authUser)return 'out';
-  if(adminUser)return 'admin';
+  if(adminUser&&!(acctMember&&acctMember.status==='active'))return 'admin'; // 管理者：綁定自己的名字後，跟已啟用的帳號一樣
   if(!acctMemberReady)return 'loading';
   const m=acctMember;if(!m)return 'none';
   if(m.status==='active'){const x=acctRosterList().find(r=>r.id===m.sid);if(x&&acctStaffLeft(x))return 'disabled'}
@@ -8455,6 +8466,8 @@ function acctClearScreen(){ // 讀不到班表了：清掉畫面上的資料
   state.staff=[];state.months={};state.calCache={};state.config={};
   document.getElementById('storeName').value='';document.getElementById('sheetTitle').value='排班表';
   ['ovLeave','ovNotice','ovCell','ovMore'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.remove('show')});
+  {const b=document.querySelector('#btnNotice .lv-badge');if(b)b.remove()} // 之前那個代碼的紅點
+  acctCodeEdit=false;
   applyViewerUI();renderAll();
 }
 function acctLeaveGate(){ // 改用其他代碼
@@ -8492,17 +8505,17 @@ function acctRender(){
         '<button class="acct-link" data-acct="back">‹ 其他登入方式</button></div>';
     }else{
       h=msg+'<div class="acct-col"><button class="btn primary" data-acct="google">以 Google 帳號登入</button><button class="btn" data-acct="email">以 email 登入</button>'+
-        (gate?'<button class="acct-link" data-acct="other">改用其他代碼</button>':'')+'</div>'+
+        '</div>'+
         '<div class="small-note" style="margin-top:10px">第一次登入會建立帳號；選擇自己的名字後，由主管啟用。</div>';
     }
     h+=close;
-  }else if(st==='admin'){
-    sub='目前登入的是管理者帳號（'+em+'）。'+(gate?'管理者帳號可直接檢視班表。':'');
-    h='<div class="acct-col">'+(gate?'<button class="btn primary" data-acct="retry">重新讀取班表</button>':'')+out+'</div>'+close;
+  }else if(st==='admin'&&!acctRepick){
+    sub='目前登入的是管理者帳號（'+em+'）。'+(gate?'管理者帳號可直接檢視班表。':'也在班表上的話，可綁定自己的名字，劃假自動帶入、也可換班。');
+    h='<div class="acct-col">'+(gate?'<button class="btn primary" data-acct="retry">重新讀取班表</button>':'<button class="btn primary" data-acct="repick">綁定自己的名字</button>')+out+'</div>'+close;
   }else if(st==='loading'){
     h='<div class="lv-none">讀取中…</div><div class="acct-col">'+out+'</div>'+close;
-  }else if(st==='none'||acctRepick&&(st==='pending'||st==='rejected')){
-    t='選擇自己的名字';sub=(store?store+'　·　':'')+'選擇後送出，由主管啟用。';
+  }else if(st==='none'||acctRepick&&(st==='pending'||st==='rejected'||st==='admin')){
+    t=adminUser?'綁定自己的名字':'選擇自己的名字';sub=(store?store+'　·　':'')+(adminUser?'管理者帳號綁定後直接啟用。':'選擇後送出，由主管啟用。');
     const taken=acctTakenMap(),list=acctRosterList().filter(x=>!x.hid&&!acctStaffLeft(x));
     if(gate&&!acctRosterCache)h='<div class="lv-none">讀取名單中…</div>';
     else if(!list.length)h='<div class="lv-none">名單尚未建立，請洽主管。</div>';
@@ -8512,7 +8525,7 @@ function acctRender(){
     }).join('')+'</div>';
     const pk=list.find(x=>x.id===acctPick&&!(taken[x.id]&&m.sid!==x.id));
     h+='<div class="small-note">已登入：'+esc(em)+'<br>名單中沒有自己的名字，或名字已有帳號時，請洽主管。</div>'+msg+
-      '<div class="acct-col"><button class="btn primary" data-acct="submit"'+(pk?'':' disabled')+'>'+(pk?'以「'+esc(pk.name)+'」送出':'送出')+'</button>'+
+      '<div class="acct-col"><button class="btn primary" data-acct="submit"'+(pk?'':' disabled')+'>'+(pk?'以「'+esc(pk.name)+'」'+(adminUser?'綁定':'送出'):(adminUser?'綁定':'送出'))+'</button>'+
       (acctRepick?'<button class="acct-link" data-acct="unrepick">‹ 返回</button>':out)+'</div>'+close;
   }else if(st==='pending'){
     t='等待主管啟用';sub='申請已送出。'+(gate?'主管啟用後，此頁會自動進入班表。':'主管啟用前，夥伴代碼照常可用。');
@@ -8536,11 +8549,14 @@ function acctRender(){
       h=acctInfo([['名字',m.sname],['帳號',em],['門市',store]])+'<div class="acct-col">'+out+'</div>'+close;
     }
   }
+  if(gate)h=(acctCodeEdit
+    ?'<div class="acct-code edit"><input class="txt" id="acctCodeIn" placeholder="輸入主管代碼或夥伴代碼" autocapitalize="off" autocorrect="off" value="'+esc(acctCodeVal)+'"><button class="btn primary" data-acct="codeGo">前往</button><button class="btn" data-acct="codeX">取消</button></div>'
+    :'<div class="acct-code"><span>夥伴代碼</span><b>'+esc(acctGateCode)+'</b>'+(store?'<small>'+esc(store)+'</small>':'')+'<button class="acct-link" data-acct="codeEdit">更換代碼</button></div>')+h;
   document.getElementById('acctTitle').textContent=t;
   document.getElementById('acctSub').textContent=sub;
   document.getElementById('acctBody').innerHTML=h;
 }
-document.getElementById('acctBody').addEventListener('input',ev=>{if(ev.target.id==='acctEmail')acctEmailVal=ev.target.value});
+document.getElementById('acctBody').addEventListener('input',ev=>{if(ev.target.id==='acctEmail')acctEmailVal=ev.target.value;if(ev.target.id==='acctCodeIn')acctCodeVal=ev.target.value});
 document.getElementById('acctBody').addEventListener('click',ev=>{
   const nm=ev.target.closest('[data-acctpick]');
   if(nm){ev.preventDefault();if(!nm.classList.contains('off')){acctPick=nm.dataset.acctpick;acctRender()}return}
@@ -8557,9 +8573,21 @@ document.getElementById('acctBody').addEventListener('click',ev=>{
   if(a==='repick'){acctRepick=true;acctPick=acctMember&&acctMember.status==='pending'?acctMember.sid:null;acctRender();return}
   if(a==='unrepick'){acctRepick=false;acctRender();return}
   if(a==='retry'){acctGateTried='';if(adminUser&&acctGateCode)acctGateRetry(acctGateCode);else acctOnMember();return}
-  if(a==='other'){acctLeaveGate();return}
+  if(a==='codeEdit'){acctCodeEdit=true;acctCodeVal='';acctRender();setTimeout(()=>{const e=document.getElementById('acctCodeIn');if(e)e.focus()},50);return}
+  if(a==='codeX'){acctCodeEdit=false;acctRender();return}
+  if(a==='codeGo'){acctCodeGo();return}
 });
-document.getElementById('acctBody').addEventListener('keydown',ev=>{if(ev.key==='Enter'&&ev.target.id==='acctPw'){ev.preventDefault();acctEmail(false)}});
+document.getElementById('acctBody').addEventListener('keydown',ev=>{
+  if(ev.key!=='Enter')return;
+  if(ev.target.id==='acctPw'){ev.preventDefault();acctEmail(false)}
+  if(ev.target.id==='acctCodeIn'){ev.preventDefault();acctCodeGo()}
+});
+async function acctCodeGo(){ // 需要登入的畫面：直接換成其他代碼（主管代碼或夥伴代碼）
+  const el=document.getElementById('acctCodeIn'),code=(el?el.value:'').trim();acctCodeVal=code;
+  if(!code){if(el)el.focus();return}
+  if(code===acctGateCode){acctCodeEdit=false;acctRender();return}
+  if(await connectStore(code,false,false)){acctCodeEdit=false;acctCodeVal='';if(acctGateCode)acctRender()}
+}
 function acctFail(t,ok){acctMsg=t;acctMsgOk=!!ok;acctRender()}
 async function acctGoogle(){
   if(!FB||!FB.popup){acctFail('目前無法使用 Google 登入，請改用 email 登入。');return}
@@ -8603,7 +8631,8 @@ async function acctSubmit(){
   const x=acctRosterList().find(r=>r.id===acctPick);if(!x)return;
   const prov=(u.providerData&&u.providerData[0]&&u.providerData[0].providerId)||'';
   try{
-    await FB.setDoc(FB.doc(FB.db,'views',vc,'members',u.uid),{uid:u.uid,email:u.email||'',dname:u.displayName||'',prov,sid:x.id,sname:x.name,status:'pending',reason:'',at:Date.now()});
+    const self=!!adminUser; // 管理者綁定自己：直接啟用
+    await FB.setDoc(FB.doc(FB.db,'views',vc,'members',u.uid),Object.assign({uid:u.uid,email:u.email||'',dname:u.displayName||'',prov,sid:x.id,sname:x.name,status:self?'active':'pending',reason:'',at:Date.now()},self?{admin:1,by:u.email||'',decidedAt:Date.now()}:{}));
     acctRepick=false;acctPick=null;
   }catch(e){acctFail('送出失敗，請確認網路連線。')}
 }
@@ -8718,12 +8747,19 @@ function renderAcctAdmin(){
   const row=(m,cls,right,acts)=>'<div class="acct-row'+cls+'"><div class="r1"><b>'+esc(m.sname||'')+'</b><small>'+ty(m.sid)+'</small><span class="t">'+right+'</span></div>'+
     '<div class="em">'+esc(m.email||'')+(m.dname?'（'+esc(m.dname)+'）':'')+'</div><div class="acts">'+acts+'</div></div>';
   const bt=(a,m,t,pr)=>'<button class="btn'+(pr?' primary':'')+'" data-aa="'+a+'" data-uid="'+esc(m.uid)+'">'+t+'</button>';
-  let h='<div class="acct-row"><b>邀請連結</b><div class="small-note" style="margin-top:4px">夥伴開啟連結並登入後，會自動帶入夥伴代碼，再選擇自己的名字。</div>'+
+  const myUid=adminUser?adminUser.uid:'',mine=acctList.find(m=>m.uid===myUid&&m.status==='active');
+  const free=acctRosterOf(state.staff).filter(x=>!x.hid&&!acctStaffLeft(x)&&!acctList.some(m=>m.uid!==myUid&&m.sid===x.id&&m.status==='active'));
+  let h='<div class="acct-row"><div class="r1"><b>我的帳號</b><span class="t">'+esc(adminUser?adminUser.email||'':'')+'</span></div>'+
+    (mine?'<div class="em">已綁定「'+esc(mine.sname)+'」：劃假自動帶入，也可換班。</div><div class="acts"><button class="btn" data-aa="unbind">解除綁定</button></div>'
+         :'<div class="em">管理者帳號可直接檢視班表與審核。也在班表上的話，可綁定自己的名字，綁定後直接啟用。</div>'+
+          '<div class="acts"><select class="txt" id="aaSelf" style="flex:2;margin:0"><option value="">選擇自己的名字</option>'+free.map(x=>'<option value="'+esc(x.id)+'">'+esc(x.name)+'</option>').join('')+'</select>'+
+          '<button class="btn primary" data-aa="bind">綁定</button></div>')+'</div>';
+  h+='<div class="acct-row"><b>邀請連結</b><div class="small-note" style="margin-top:4px">夥伴開啟連結並登入後，會自動帶入夥伴代碼，再選擇自己的名字。</div>'+
     '<div class="acts"><button class="btn" data-aa="invite">複製邀請連結</button></div></div>';
   h+='<div class="acct-h">待審核<span class="lv-badge"'+(pend.length?'':' style="background:#999"')+'>'+pend.length+'</span></div>';
   h+=pend.length?pend.map(m=>row(m,' pend',acctTime(m.at),bt('ok',m,'啟用',1)+bt('no',m,'退回'))).join(''):'<div class="acct-empty">目前沒有待審核的帳號</div>';
   h+='<div class="acct-h">已啟用（'+act.length+'）</div>';
-  h+=act.length?act.map(m=>row(m,'',m.seen?'上次使用 '+acctDay(m.seen):'尚未使用',bt('off',m,'停用'))).join(''):'<div class="acct-empty">還沒有啟用的帳號</div>';
+  h+=act.length?act.map(m=>row(m,'',m.uid===myUid?'管理者（我）':m.seen?'上次使用 '+acctDay(m.seen):'尚未使用',m.uid===myUid?'':bt('off',m,'停用'))).join(''):'<div class="acct-empty">還沒有啟用的帳號</div>';
   h+='<div class="acct-h">尚未建立帳號（'+notYet.length+'）</div>'+
     (notYet.length?'<div class="acct-chips">'+notYet.map(x=>'<span>'+esc(x.name)+'</span>').join('')+'</div><div class="small-note" style="margin-top:4px">人員名單中，還沒有帳號申請的名字。</div>':'<div class="acct-empty">名單中的夥伴都已有帳號</div>');
   if(dis.length)h+='<div class="acct-h">已停用（'+dis.length+'）</div>'+dis.map(m=>row(m,'',esc(m.reason||'主管停用'),bt('on',m,'重新啟用')+bt('del',m,'刪除'))).join('');
@@ -8733,6 +8769,22 @@ document.getElementById('aaBody').addEventListener('click',async ev=>{
   const b=ev.target.closest('[data-aa]');if(!b)return;
   const a=b.dataset.aa,vc=acctListVc,m=acctList.find(x=>x.uid===b.dataset.uid);
   if(a==='invite'){copyAcctInvite();return}
+  if(a==='bind'&&vc&&adminUser){ // 管理者綁定自己的名字：直接啟用
+    const sid=(document.getElementById('aaSelf')||{}).value,st=acctStaffById(sid);
+    if(!st){alert('請先選擇自己的名字。');return}
+    const dup=acctList.filter(x=>x.uid!==adminUser.uid&&x.sid===sid&&x.status==='active');
+    if(dup.length&&!confirm('「'+st.name+'」已有啟用中的帳號（'+dup.map(x=>x.email).join('、')+'）。\n綁定後，原帳號將停用。確定要綁定嗎？'))return;
+    for(const x of dup)await acctSet(vc,x.uid,{status:'disabled',auto:0,reason:'已改由其他帳號使用',decidedAt:Date.now()});
+    const u=adminUser,prov=(u.providerData&&u.providerData[0]&&u.providerData[0].providerId)||'';
+    try{await FB.setDoc(FB.doc(FB.db,'views',vc,'members',u.uid),{uid:u.uid,email:u.email||'',dname:u.displayName||'',prov,sid,sname:st.name,status:'active',reason:'',admin:1,by:u.email||'',at:Date.now(),decidedAt:Date.now()});showToast('已綁定「'+st.name+'」✓')}
+    catch(e){alert('綁定失敗，請確認網路連線。')}
+    return;
+  }
+  if(a==='unbind'&&vc&&adminUser){
+    if(!confirm('解除管理者帳號與名字的綁定？\n管理者權限不受影響。'))return;
+    try{await FB.deleteDoc(FB.doc(FB.db,'views',vc,'members',adminUser.uid));showToast('已解除綁定')}catch(e){alert('解除失敗，請確認網路連線。')}
+    return;
+  }
   if(!vc||!m)return;
   if(a==='ok'||a==='on'){
     const st=acctStaffById(m.sid);
